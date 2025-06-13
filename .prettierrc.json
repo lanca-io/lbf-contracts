@@ -1,0 +1,58 @@
+{
+    "arrowParens": "avoid",
+    "printWidth": 120,
+    "tabWidth": 4,
+    "trailingComma": "all",
+    "plugins": ["prettier-plugin-solidity", "@trivago/prettier-plugin-sort-imports"],
+    "overrides": [
+        {
+            "files": ["*.ts", "*/**/*.ts"],
+            "options": {
+                "parser": "typescript",
+                "arrowParens": "avoid",
+                "printWidth": 100,
+                "tabWidth": 4,
+                "trailingComma": "all",
+                "singleQuote": false,
+                "bracketSpacing": true,
+                "semi": true,
+                "useTabs": true,
+                "importOrderSeparation": true,
+                "importOrderSortSpecifiers": true,
+                "importOrder": [
+                    "./utils/configureDotEnv",
+                    "./utils/configureOperatorEnv",
+                    "^viem(.*)$",
+                    "^hardhat(.*)$",
+                    "^@(.*)$",
+                    "^@concero/(.*)$",
+                    "^contracts/(.*)$",
+                    "^[./]"
+                ]
+            }
+        },
+        {
+            "files": "*.sol",
+            "options": {
+                "parser": "solidity-parse",
+                "printWidth": 100,
+                "tabWidth": 4,
+                "useTabs": false,
+                "singleQuote": false,
+                "bracketSpacing": false
+            }
+        },
+        {
+            "files": "./clf/src/**",
+            "options": {
+                "tabWidth": 4,
+                "arrowParens": "avoid",
+                "printWidth": 120,
+                "trailingComma": "all",
+                "singleQuote": false,
+                "bracketSpacing": true,
+                "semi": true
+            }
+        }
+    ]
+}

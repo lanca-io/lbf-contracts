@@ -1,0 +1,44 @@
+# dependencies
+node_modules
+
+# env files
+.env.*
+.env
+!.env.deployments
+!.env.clf
+!.env.tokens
+!.env.clccip
+
+# coverage
+coverage
+coverage.json
+
+# typechain
+typechain
+typechain-types
+
+# hardhat files
+cache
+artifacts
+
+# zkSync files
+artifacts-zk
+cache-zk
+
+# deployments
+deployments/
+
+# other
+temp
+
+
+packages/foundry/out
+packages/foundry/node_modules
+packages/foundry/cache
+foundry-artifacts/
+logs/
+
+
+.idea
+.vscode
+.DS_Store
