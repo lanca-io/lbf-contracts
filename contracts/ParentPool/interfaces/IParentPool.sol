@@ -1,0 +1,17 @@
+// SPDX-License-Identifier: UNLICENSED
+pragma solidity ^0.8.28;
+
+interface IParentPool {
+    struct Deposit {
+        uint256 liquidityTokenAmountToDeposit;
+        address lp;
+    }
+
+    struct Withdraw {
+        uint256 lpTokenAmountToWithdraw;
+        address lp;
+    }
+
+    event DepositQueued(bytes32 indexed depositId, address indexed lp, uint256 amount);
+    event WithdrawQueued(bytes32 indexed withdrawId, address indexed lp, uint256 amount);
+}
