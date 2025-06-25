@@ -16,6 +16,7 @@ library Storage {
     struct ParentPool {
         mapping(bytes32 id => IParentPool.Deposit deposits) depositsQueue;
         mapping(bytes32 id => IParentPool.Withdraw withdrawals) withdrawalsQueue;
+        uint256 totalDepositAmountInQueue;
         bytes32[] depositsQueueIds;
         bytes32[] withdrawalsQueueIds;
         uint256 depositNonce;

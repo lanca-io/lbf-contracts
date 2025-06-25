@@ -7,6 +7,7 @@ import {ILancaKeeper} from "./interfaces/ILancaKeeper.sol";
 import {IParentPool} from "./interfaces/IParentPool.sol";
 import {PoolBase} from "../PoolBase/PoolBase.sol";
 import {Storage as s} from "./libraries/Storage.sol";
+import {LPToken} from "./LPToken.sol";
 
 contract ParentPool is IParentPool, ILancaKeeper, PoolBase {
     using s for s.ParentPool;
@@ -22,7 +23,11 @@ contract ParentPool is IParentPool, ILancaKeeper, PoolBase {
         _;
     }
 
-    constructor(address liquidityToken, address lpToken) PoolBase(liquidityToken, lpToken) {}
+    constructor(
+        address liquidityToken,
+        address lpToken,
+        uint8 liquidityTokenDecimals
+    ) PoolBase(liquidityToken, lpToken, liquidityTokenDecimals) {}
 
     function enterDepositQueue(uint256 amount) external {
         IERC20(i_liquidityToken).transferFrom(msg.sender, address(this), amount);
@@ -78,16 +83,18 @@ contract ParentPool is IParentPool, ILancaKeeper, PoolBase {
     }
 
     function triggerDepositWithdrawProcess() external onlyLancaKeeper {
-        uint256 totalLbfActiveBalance = _getTotalLbfActiveBalance();
+        uint256 totalChildPoolsActiveBalance = _getTotalChildPoolsActiveBalance();
+
+        _handleDepositsQueue(totalChildPoolsActiveBalance);
     }
 
     /*   INTERNAL FUNCTIONS   */
 
-    function _getTotalLbfActiveBalance() internal view returns (uint256) {
+    function _getTotalChildPoolsActiveBalance() internal view returns (uint256) {
         uint24[] memory supportedChainSelectors = s.parentPool().supportedChainSelectors;
         uint256 supportedChainSelectorsLength = supportedChainSelectors.length;
 
-        uint256 totalLbfActiveBalance = getActiveBalance();
+        uint256 totalLbfActiveBalance;
 
         for (uint256 i; i < supportedChainSelectorsLength; ++i) {
             uint32 snapshotTimestamp = s
@@ -106,5 +113,44 @@ contract ParentPool is IParentPool, ILancaKeeper, PoolBase {
         }
 
         return totalLbfActiveBalance;
+    }
+
+    function _handleDepositsQueue(uint256 totalChildPoolsActiveBalance) internal {
+        bytes32[] memory depositsQueueIds = s.parentPool().depositsQueueIds;
+
+        for (uint256 i; i < depositsQueueIds.length; ++i) {
+            Deposit memory deposit = s.parentPool().depositsQueue[depositsQueueIds[i]];
+
+            delete s.parentPool().depositsQueue[depositsQueueIds[i]];
+
+            uint256 lpTokenAmountToMint = _calculateLpTokenAmountToMint(
+                totalChildPoolsActiveBalance + getActiveBalance(),
+                deposit.liquidityTokenAmountToDeposit
+            );
+
+            s.parentPool().totalDepositAmountInQueue -= deposit.liquidityTokenAmountToDeposit;
+
+            LPToken(i_liquidityToken).mint(deposit.lp, lpTokenAmountToMint);
+        }
+    }
+
+    function _calculateLpTokenAmountToMint(
+        uint256 totalLbfActiveBalance,
+        uint256 liquidityTokenAmountToDeposit
+    ) internal returns (uint256) {
+        uint256 totalSupply = IERC20(i_lpToken).totalSupply();
+
+        if (totalSupply == 0) {
+            return toLpTokenDecimals(liquidityTokenAmountToDeposit);
+        }
+
+        uint256 totalLbfActiveBalanceConverted = toLpTokenDecimals(totalLbfActiveBalance);
+        uint256 liquidityTokenAmountToDepositConverted = toLpTokenDecimals(
+            liquidityTokenAmountToDeposit
+        );
+
+        return
+            (((totalLbfActiveBalanceConverted + liquidityTokenAmountToDepositConverted) *
+                totalSupply) / totalLbfActiveBalanceConverted) - totalSupply;
     }
 }
