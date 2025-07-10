@@ -63,7 +63,7 @@ contract ParentPool is IParentPool, ILancaKeeper, PoolBase {
 
         for (uint256 i; i < supportedChainSelectorsLength; ++i) {
             if (
-                !isTimestampInRange(
+                !isLiquiditySnapshotTimestampInRange(
                     s
                         .parentPool()
                         .snapshotSubmissionByChainSelector[supportedChainSelectors[i]]
@@ -77,9 +77,15 @@ contract ParentPool is IParentPool, ILancaKeeper, PoolBase {
         return true;
     }
 
-    function isTimestampInRange(uint32 timestamp) public pure returns (bool) {
+    function isLiquiditySnapshotTimestampInRange(uint32 timestamp) public pure returns (bool) {
         // TODO: implement it
         return true;
+    }
+
+    function getActiveBalance() public view override returns (uint256) {
+        return
+            IERC20(i_liquidityToken).balanceOf(address(this)) -
+            s.parentPool().totalDepositAmountInQueue;
     }
 
     function triggerDepositWithdrawProcess() external onlyLancaKeeper {
@@ -102,7 +108,7 @@ contract ParentPool is IParentPool, ILancaKeeper, PoolBase {
                 .snapshotSubmissionByChainSelector[supportedChainSelectors[i]]
                 .timestamp;
 
-            if (!isTimestampInRange(snapshotTimestamp)) {
+            if (!isLiquiditySnapshotTimestampInRange(snapshotTimestamp)) {
                 revert SnapshotTimestampNotInRange(supportedChainSelectors[i], snapshotTimestamp);
             }
 
@@ -150,7 +156,6 @@ contract ParentPool is IParentPool, ILancaKeeper, PoolBase {
         );
 
         return
-            (((totalLbfActiveBalanceConverted + liquidityTokenAmountToDepositConverted) *
-                totalSupply) / totalLbfActiveBalanceConverted) - totalSupply;
+            (totalSupply * liquidityTokenAmountToDepositConverted) / totalLbfActiveBalanceConverted;
     }
 }
