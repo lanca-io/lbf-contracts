@@ -3,8 +3,11 @@ pragma solidity ^0.8.28;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {LPToken} from "../ParentPool/LPToken.sol";
+import {Storage as s} from "./libraries/Storage.sol";
 
 contract PoolBase {
+    using s for s.PoolBase;
+
     address internal immutable i_liquidityToken;
     uint8 internal immutable i_liquidityTokenDecimals;
     LPToken internal immutable i_lpToken;
@@ -30,10 +33,22 @@ contract PoolBase {
     }
 
     function toLpTokenDecimals(uint256 liquidityTokenAmount) public view returns (uint256) {
-        if (LP_TOKEN_DECIMALS == i_liquidityTokenDecimals) {
-            return liquidityTokenAmount;
-        }
+        if (LP_TOKEN_DECIMALS == i_liquidityTokenDecimals) return liquidityTokenAmount;
 
         return (liquidityTokenAmount * LP_TOKEN_DECIMALS) / i_liquidityTokenDecimals;
+    }
+
+    function toLiqTokenDecimals(uint256 lpTokenAmount) public view returns (uint256) {
+        if (LP_TOKEN_DECIMALS == i_liquidityTokenDecimals) return lpTokenAmount;
+
+        return (lpTokenAmount * i_liquidityTokenDecimals) / LP_TOKEN_DECIMALS;
+    }
+
+    function getTargetBalance() public view returns (uint256) {
+        return s.poolBase().targetBalance;
+    }
+
+    function _setTargetBalance(uint256 updatedTargetBalance) internal {
+        s.poolBase().targetBalance = updatedTargetBalance;
     }
 }

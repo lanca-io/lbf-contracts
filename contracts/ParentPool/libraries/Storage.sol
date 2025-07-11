@@ -1,4 +1,4 @@
-import "../interfaces/IParentPool.sol";
+import {IParentPool} from "../interfaces/IParentPool.sol";
 
 library Namespaces {
     bytes32 internal constant PARENT_POOL =
@@ -15,15 +15,16 @@ library Storage {
 
     struct ParentPool {
         mapping(bytes32 id => IParentPool.Deposit deposits) depositsQueue;
-        mapping(bytes32 id => IParentPool.Withdraw withdrawals) withdrawalsQueue;
+        mapping(bytes32 id => IParentPool.Withdrawal withdrawals) withdrawalsQueue;
         uint256 totalDepositAmountInQueue;
         bytes32[] depositsQueueIds;
         bytes32[] withdrawalsQueueIds;
         uint256 depositNonce;
         uint256 withdrawalNonce;
         uint24[] supportedChainSelectors;
-        mapping(uint24 chainSelector => bool isSupported) supportedChainsBySelector;
-        mapping(uint24 chainSelector => SnapshotSubmission snapshotSubmition) snapshotSubmissionByChainSelector;
+        mapping(uint24 dstChainSelector => bool isSupported) supportedChainsBySelector;
+        mapping(uint24 dstChainSelector => SnapshotSubmission snapshotSubmition) snapshotSubmissionByChainSelector;
+        mapping(uint24 dstChainSelector => uint256 targetBalance) dstChainsTargetBalances;
         address lancaKeeper;
     }
 
