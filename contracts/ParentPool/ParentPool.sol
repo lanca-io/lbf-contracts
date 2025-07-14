@@ -89,10 +89,16 @@ contract ParentPool is IParentPool, ILancaKeeper, PoolBase {
     function triggerDepositWithdrawProcess() external onlyLancaKeeper {
         uint256 totalChildPoolsActiveBalance = _getTotalChildPoolsActiveBalance();
 
-        _handleDepositsQueue(totalChildPoolsActiveBalance);
-        _handleWithdrawalsQueue(totalChildPoolsActiveBalance);
+        uint256 totalDepositedLiqTokenAmount = _processDepositsQueue(totalChildPoolsActiveBalance);
+        uint256 totalLiqTokenAmountToWithdraw = _processWithdrawalsQueue(
+            totalChildPoolsActiveBalance
+        );
 
-        // TODO: update all target balances on all chains (including local)
+        if (totalDepositedLiqTokenAmount > totalLiqTokenAmountToWithdraw) {
+            _updateTargetBalancesWithInflow(
+                totalDepositedLiqTokenAmount - totalLiqTokenAmountToWithdraw
+            );
+        }
     }
 
     /*   INTERNAL FUNCTIONS   */
@@ -122,8 +128,11 @@ contract ParentPool is IParentPool, ILancaKeeper, PoolBase {
         return totalLbfActiveBalance;
     }
 
-    function _handleDepositsQueue(uint256 totalChildPoolsActiveBalance) internal {
+    function _processDepositsQueue(
+        uint256 totalChildPoolsActiveBalance
+    ) internal returns (uint256) {
         bytes32[] memory depositsQueueIds = s.parentPool().depositsQueueIds;
+        uint256 totalDepositedLiqTokenAmount;
 
         for (uint256 i; i < depositsQueueIds.length; ++i) {
             Deposit memory deposit = s.parentPool().depositsQueue[depositsQueueIds[i]];
@@ -139,29 +148,52 @@ contract ParentPool is IParentPool, ILancaKeeper, PoolBase {
             s.parentPool().totalDepositAmountInQueue -= deposit.liquidityTokenAmountToDeposit;
 
             LPToken(i_liquidityToken).mint(deposit.lp, lpTokenAmountToMint);
+
+            totalDepositedLiqTokenAmount += deposit.liquidityTokenAmountToDeposit;
         }
 
         delete s.parentPool().depositsQueueIds;
 
-        // TODO: return info for updating target balances on all chains
+        return totalDepositedLiqTokenAmount;
     }
 
-    function _handleWithdrawalsQueue(uint256 totalChildPoolsActiveBalance) internal {
+    function _processWithdrawalsQueue(
+        uint256 totalChildPoolsActiveBalance
+    ) internal returns (uint256) {
         bytes32[] memory withdrawalsQueueIds = s.parentPool().withdrawalsQueueIds;
-
         uint256 totalLiqTokenAmountToWithdraw;
+        uint256 liqTokenAmountToWithdraw;
+        Withdrawal memory withdrawal;
 
         for (uint256 i; i < withdrawalsQueueIds.length; ++i) {
-            totalLiqTokenAmountToWithdraw += _calculateWithdrawableAmount(
+            withdrawal = s.parentPool().withdrawalsQueue[withdrawalsQueueIds[i]];
+
+            delete s.parentPool().withdrawalsQueue[withdrawalsQueueIds[i]];
+
+            liqTokenAmountToWithdraw = _calculateWithdrawableAmount(
                 totalChildPoolsActiveBalance,
-                s.parentPool().withdrawalsQueue[withdrawalsQueueIds[i]].lpTokenAmountToWithdraw
+                withdrawal.lpTokenAmountToWithdraw
             );
+
+            totalLiqTokenAmountToWithdraw += liqTokenAmountToWithdraw;
+
+            s.parentPool().pendingWithdrawals[withdrawalsQueueIds[i]] = PendingWithdrawal({
+                liqTokenAmountToWithdraw: liqTokenAmountToWithdraw,
+                lpTokenAmountToWithdraw: withdrawal.lpTokenAmountToWithdraw,
+                lp: withdrawal.lp
+            });
+
+            s.parentPool().pendingWithdrawalIds.push(withdrawalsQueueIds[i]);
         }
 
-        _setTargetBalance(getTargetBalance() + totalLiqTokenAmountToWithdraw);
+        delete s.parentPool().withdrawalsQueueIds;
 
-        // TODO: return info for updating target balances on all chains
+        return totalLiqTokenAmountToWithdraw;
     }
+
+    function _updateTargetBalancesWithInflow(
+        uint256 inflowAfterDepositWithdrawalProcess
+    ) internal {}
 
     function _calculateLpTokenAmountToMint(
         uint256 totalLbfActiveBalance,

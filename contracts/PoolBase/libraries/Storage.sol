@@ -1,3 +1,8 @@
+// SPDX-License-Identifier: UNLICENSED
+pragma solidity ^0.8.28;
+
+import {IPoolBase} from "../interfaces/IPoolBase.sol";
+
 library Namespaces {
     bytes32 internal constant POOL_BASE =
         keccak256(abi.encode(uint256(keccak256(abi.encodePacked("poolBase"))) - 1)) &
@@ -7,6 +12,7 @@ library Namespaces {
 library Storage {
     struct PoolBase {
         uint256 targetBalance;
+        mapping(uint32 timestamp => IPoolBase.LiqTokenAmountFlow flow) flowByDay;
     }
 
     /* SLOT-BASED STORAGE ACCESS */

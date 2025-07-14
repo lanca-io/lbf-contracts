@@ -1,3 +1,4 @@
+import {IPoolBase} from "../../PoolBase/interfaces/IPoolBase.sol";
 import {IParentPool} from "../interfaces/IParentPool.sol";
 
 library Namespaces {
@@ -9,8 +10,9 @@ library Namespaces {
 library Storage {
     struct SnapshotSubmission {
         uint256 balance;
+        uint256 targetBalance;
         uint32 timestamp;
-        // 24 hour inflow, outflow and targetBalance will be added soon
+        IPoolBase.LiqTokenAmountFlow flow;
     }
 
     struct ParentPool {
@@ -25,6 +27,8 @@ library Storage {
         mapping(uint24 dstChainSelector => bool isSupported) supportedChainsBySelector;
         mapping(uint24 dstChainSelector => SnapshotSubmission snapshotSubmition) snapshotSubmissionByChainSelector;
         mapping(uint24 dstChainSelector => uint256 targetBalance) dstChainsTargetBalances;
+        bytes32[] pendingWithdrawalIds;
+        mapping(bytes32 id => IParentPool.PendingWithdrawal pendingWithdrawal) pendingWithdrawals;
         address lancaKeeper;
     }
 

@@ -1,17 +1,19 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.28;
 
+import {IPoolBase} from "./interfaces/IPoolBase.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {LPToken} from "../ParentPool/LPToken.sol";
 import {Storage as s} from "./libraries/Storage.sol";
 
-contract PoolBase {
+contract PoolBase is IPoolBase {
     using s for s.PoolBase;
 
     address internal immutable i_liquidityToken;
     uint8 internal immutable i_liquidityTokenDecimals;
     LPToken internal immutable i_lpToken;
-    uint8 internal constant LP_TOKEN_DECIMALS = 16;
+    uint8 private constant LP_TOKEN_DECIMALS = 16;
+    uint32 private constant SECONDS_IN_DAY = 86400;
 
     constructor(address liquidityToken, address lpToken, uint8 liquidityTokenDecimals) {
         i_liquidityToken = liquidityToken;
@@ -48,7 +50,35 @@ contract PoolBase {
         return s.poolBase().targetBalance;
     }
 
+    function getYesterdayFlow() public view returns (LiqTokenAmountFlow memory) {
+        return s.poolBase().flowByDay[getYesterdayStartTimestamp()];
+    }
+
+    function getTodayStartTimestamp() public view returns (uint32) {
+        return uint32(block.timestamp) / SECONDS_IN_DAY;
+    }
+
+    function getYesterdayStartTimestamp() public view returns (uint32) {
+        return getTodayStartTimestamp() - 1;
+    }
+
     function _setTargetBalance(uint256 updatedTargetBalance) internal {
         s.poolBase().targetBalance = updatedTargetBalance;
+    }
+
+    function _postInflow(uint256 inflowLiqTokenAmount) internal {
+        _incrementLiqInflow(inflowLiqTokenAmount);
+    }
+
+    function _postOutflow(uint256 outflowLiqTokenAmount) internal {
+        _incrementLiqOutflow(outflowLiqTokenAmount);
+    }
+
+    function _incrementLiqInflow(uint256 inflowAmount) internal {
+        s.poolBase().flowByDay[getTodayStartTimestamp()].inFlow += inflowAmount;
+    }
+
+    function _incrementLiqOutflow(uint256 outflowAmount) internal {
+        s.poolBase().flowByDay[getTodayStartTimestamp()].outFlow += outflowAmount;
     }
 }
