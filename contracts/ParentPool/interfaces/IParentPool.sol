@@ -7,7 +7,13 @@ interface IParentPool {
         address lp;
     }
 
-    struct Withdraw {
+    struct Withdrawal {
+        uint256 lpTokenAmountToWithdraw;
+        address lp;
+    }
+
+    struct PendingWithdrawal {
+        uint256 liqTokenAmountToWithdraw;
         uint256 lpTokenAmountToWithdraw;
         address lp;
     }
