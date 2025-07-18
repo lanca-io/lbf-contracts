@@ -8,8 +8,9 @@ import {IParentPool} from "./interfaces/IParentPool.sol";
 import {PoolBase} from "../PoolBase/PoolBase.sol";
 import {Storage as s} from "./libraries/Storage.sol";
 import {LPToken} from "./LPToken.sol";
+import {Rebalancer} from "../Rebalancer/Rebalancer.sol";
 
-contract ParentPool is IParentPool, ILancaKeeper, PoolBase {
+contract ParentPool is IParentPool, ILancaKeeper, Rebalancer {
     using s for s.ParentPool;
 
     error SnapshotTimestampNotInRange(uint24 chainSelector, uint32 timestamp);
@@ -25,9 +26,10 @@ contract ParentPool is IParentPool, ILancaKeeper, PoolBase {
 
     constructor(
         address liquidityToken,
+        uint8 liquidityTokenDecimals,
         address lpToken,
-        uint8 liquidityTokenDecimals
-    ) PoolBase(liquidityToken, lpToken, liquidityTokenDecimals) {}
+        address iouToken
+    ) PoolBase(liquidityToken, liquidityTokenDecimals) Rebalancer(iouToken) {}
 
     function enterDepositQueue(uint256 amount) external {
         IERC20(i_liquidityToken).transferFrom(msg.sender, address(this), amount);

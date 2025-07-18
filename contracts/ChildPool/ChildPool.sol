@@ -1,0 +1,16 @@
+// SPDX-License-Identifier: UNLICENSED
+pragma solidity ^0.8.28;
+
+import {Rebalancer} from "../Rebalancer/Rebalancer.sol";
+import {Storage as s} from "./libraries/Storage.sol";
+import {PoolBase} from "../PoolBase/PoolBase.sol";
+
+contract ChildPool is Rebalancer {
+    using s for s.ChildPool;
+
+    constructor(
+        address liquidityToken,
+        uint8 liquidityTokenDecimals,
+        address iouToken
+    ) PoolBase(liquidityToken, liquidityTokenDecimals) Rebalancer(iouToken) {}
+}

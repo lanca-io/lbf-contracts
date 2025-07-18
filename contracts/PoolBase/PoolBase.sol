@@ -15,9 +15,8 @@ contract PoolBase is IPoolBase {
     uint8 private constant LP_TOKEN_DECIMALS = 16;
     uint32 private constant SECONDS_IN_DAY = 86400;
 
-    constructor(address liquidityToken, address lpToken, uint8 liquidityTokenDecimals) {
+    constructor(address liquidityToken, uint8 liquidityTokenDecimals) {
         i_liquidityToken = liquidityToken;
-        i_lpToken = LPToken(lpToken);
         i_liquidityTokenDecimals = liquidityTokenDecimals;
     }
 
@@ -29,7 +28,7 @@ contract PoolBase is IPoolBase {
         return address(i_lpToken);
     }
 
-    function getActiveBalance() public view virtual returns (uint256) {
+    function getActiveBalance() public virtual view returns (uint256) {
         // TODO: deduct the rebalancing fee in the future
         return IERC20(i_liquidityToken).balanceOf(address(this));
     }
@@ -80,5 +79,17 @@ contract PoolBase is IPoolBase {
 
     function _incrementLiqOutflow(uint256 outflowAmount) internal {
         s.poolBase().flowByDay[getTodayStartTimestamp()].outFlow += outflowAmount;
+    }
+
+    function getCurrentDeficit() public view returns (uint256 deficit) {
+        uint256 targetBalance = getTargetBalance();
+        uint256 activeBalance = getActiveBalance();
+        deficit =  activeBalance >= targetBalance ? 0 : targetBalance - activeBalance;
+    }
+
+    function getCurrentSurplus() public view returns (uint256 surplus) {
+        uint256 targetBalance = getTargetBalance();
+        uint256 activeBalance = getActiveBalance();
+        surplus = activeBalance <= targetBalance ? 0 : activeBalance - targetBalance;
     }
 }
