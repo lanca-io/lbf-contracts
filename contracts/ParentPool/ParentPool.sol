@@ -96,7 +96,10 @@ contract ParentPool is IParentPool, ILancaKeeper, PoolBase {
 
         if (totalDepositedLiqTokenAmount > totalLiqTokenAmountToWithdraw) {
             _updateTargetBalancesWithInflow(
-                totalDepositedLiqTokenAmount - totalLiqTokenAmountToWithdraw
+                totalDepositedLiqTokenAmount -
+                    totalLiqTokenAmountToWithdraw +
+                    totalChildPoolsActiveBalance +
+                    getActiveBalance()
             );
         }
     }
@@ -146,9 +149,7 @@ contract ParentPool is IParentPool, ILancaKeeper, PoolBase {
 
             // TODO: may be more gas-optimal if you subtract one time outside the cycle
             s.parentPool().totalDepositAmountInQueue -= deposit.liquidityTokenAmountToDeposit;
-
             LPToken(i_liquidityToken).mint(deposit.lp, lpTokenAmountToMint);
-
             totalDepositedLiqTokenAmount += deposit.liquidityTokenAmountToDeposit;
         }
 
@@ -191,9 +192,12 @@ contract ParentPool is IParentPool, ILancaKeeper, PoolBase {
         return totalLiqTokenAmountToWithdraw;
     }
 
-    function _updateTargetBalancesWithInflow(
-        uint256 inflowAfterDepositWithdrawalProcess
-    ) internal {}
+    function _updateTargetBalancesWithInflow(uint256 totalLbfBalance) internal {
+        (
+            uint24[] memory chainSelectors,
+            uint256[] memory targetBalances
+        ) = _calculateNewTargetBalances(totalLbfBalance);
+    }
 
     function _calculateLpTokenAmountToMint(
         uint256 totalLbfActiveBalance,
@@ -226,5 +230,91 @@ contract ParentPool is IParentPool, ILancaKeeper, PoolBase {
                 (toLpTokenDecimals(totalCrossChainLiquidity) * lpTokenAmount) /
                     i_lpToken.totalSupply()
             );
+    }
+
+    function _calculateNewTargetBalances(
+        uint256 totalLbfBalance
+    ) internal returns (uint24[] memory, uint256[] memory) {
+        uint24[] memory supportedChainSelectors = getSupportedChainSelectors();
+        uint256[] memory weights = new uint256[](supportedChainSelectors.length);
+        LiqTokenAmountFlow memory flow;
+        uint8 lhsScore;
+        uint256 tagetBalance;
+        uint256 targetBalancesSum;
+
+        for (uint256 i; i < supportedChainSelectors.length; ++i) {
+            flow = s
+                .parentPool()
+                .snapshotSubmissionByChainSelector[supportedChainSelectors[i]]
+                .flow;
+
+            tagetBalance = s.parentPool().dstChainsTargetBalances[supportedChainSelectors[i]];
+            targetBalancesSum += tagetBalance;
+
+            lhsScore = _calculateLhsScore(flow, tagetBalance);
+
+            weights[i] = tagetBalance * lhsScore;
+        }
+
+        uint256 totalWeight;
+
+        for (uint256 i; i < weights.length; ++i) {
+            totalWeight += weights[i];
+        }
+
+        uint256[] memory newTargetBalances = new uint256[](supportedChainSelectors.length);
+
+        for (uint256 i; i < supportedChainSelectors.length; ++i) {
+            newTargetBalances[i] = _calculateTargetBalance(
+                weights[i],
+                totalWeight,
+                totalLbfBalance
+            );
+        }
+
+        return (supportedChainSelectors, newTargetBalances);
+    }
+
+    function _calculateLurScore(
+        uint256 inflow,
+        uint256 outflow,
+        uint256 balance
+    ) internal view returns (uint8) {
+        uint256 lur = (inflow + outflow) / balance;
+
+        return uint8(1 - (lur / (s.parentPool().lhsCalculationFactors.lurScoreSensitivity + lur)));
+    }
+
+    function _calculateNdrScore(
+        uint256 inflow,
+        uint256 outflow,
+        uint256 balance
+    ) internal pure returns (uint8) {
+        // TODO: double check if (targetBalance == 0) condition needed
+        if (inflow >= outflow || balance == 0) return 1;
+
+        uint256 ndr = (outflow - inflow) / balance;
+        return uint8(1 - ndr);
+    }
+
+    function _calculateLhsScore(
+        LiqTokenAmountFlow memory flow,
+        uint256 tagetBalance
+    ) internal returns (uint8) {
+        uint8 lurScore = _calculateLurScore(flow.inflow, flow.outflow, tagetBalance);
+        uint8 ndrScore = _calculateNdrScore(flow.inflow, flow.outflow, tagetBalance);
+
+        uint8 lhs = (s.parentPool().lhsCalculationFactors.lurScoreWeight * lurScore) +
+            (s.parentPool().lhsCalculationFactors.ndrScoreWeight * ndrScore);
+
+        return 1 + (1 - lhs);
+    }
+
+    function _calculateTargetBalance(
+        uint256 weight,
+        uint256 totalWeight,
+        uint256 totalLbfBalance
+    ) internal returns (uint256) {
+        return (weight / totalWeight) * totalLbfBalance;
     }
 }

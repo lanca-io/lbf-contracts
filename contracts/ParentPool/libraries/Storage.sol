@@ -1,3 +1,5 @@
+pragma solidity ^0.8.28;
+
 import {IPoolBase} from "../../PoolBase/interfaces/IPoolBase.sol";
 import {IParentPool} from "../interfaces/IParentPool.sol";
 
@@ -8,11 +10,11 @@ library Namespaces {
 }
 
 library Storage {
-    struct SnapshotSubmission {
-        uint256 balance;
-        uint256 targetBalance;
-        uint32 timestamp;
-        IPoolBase.LiqTokenAmountFlow flow;
+    // @notice all of this vars have i_liquidityTokenDecimals scale
+    struct LhsCalculationFactors {
+        uint8 lurScoreSensitivity;
+        uint8 lurScoreWeight;
+        uint8 ndrScoreWeight;
     }
 
     struct ParentPool {
@@ -25,11 +27,12 @@ library Storage {
         uint256 withdrawalNonce;
         uint24[] supportedChainSelectors;
         mapping(uint24 dstChainSelector => bool isSupported) supportedChainsBySelector;
-        mapping(uint24 dstChainSelector => SnapshotSubmission snapshotSubmition) snapshotSubmissionByChainSelector;
+        mapping(uint24 dstChainSelector => IParentPool.SnapshotSubmission snapshotSubmition) snapshotSubmissionByChainSelector;
         mapping(uint24 dstChainSelector => uint256 targetBalance) dstChainsTargetBalances;
         bytes32[] pendingWithdrawalIds;
         mapping(bytes32 id => IParentPool.PendingWithdrawal pendingWithdrawal) pendingWithdrawals;
         address lancaKeeper;
+        LhsCalculationFactors lhsCalculationFactors;
     }
 
     /* SLOT-BASED STORAGE ACCESS */

@@ -29,6 +29,10 @@ contract PoolBase is IPoolBase {
         return address(i_lpToken);
     }
 
+    function getSupportedChainSelectors() public view returns (uint24[] memory) {
+        return s.poolBase().supportedChainSelectors;
+    }
+
     function getActiveBalance() public view virtual returns (uint256) {
         // TODO: deduct the rebalancing fee in the future
         return IERC20(i_liquidityToken).balanceOf(address(this));
@@ -75,10 +79,10 @@ contract PoolBase is IPoolBase {
     }
 
     function _incrementLiqInflow(uint256 inflowAmount) internal {
-        s.poolBase().flowByDay[getTodayStartTimestamp()].inFlow += inflowAmount;
+        s.poolBase().flowByDay[getTodayStartTimestamp()].inflow += inflowAmount;
     }
 
     function _incrementLiqOutflow(uint256 outflowAmount) internal {
-        s.poolBase().flowByDay[getTodayStartTimestamp()].outFlow += outflowAmount;
+        s.poolBase().flowByDay[getTodayStartTimestamp()].outflow += outflowAmount;
     }
 }
