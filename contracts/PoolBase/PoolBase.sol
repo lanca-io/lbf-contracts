@@ -12,13 +12,23 @@ contract PoolBase is IPoolBase {
     address internal immutable i_liquidityToken;
     uint8 internal immutable i_liquidityTokenDecimals;
     LPToken internal immutable i_lpToken;
+    address internal i_conceroRouter;
+    uint24 internal i_chainSelector;
     uint8 private constant LP_TOKEN_DECIMALS = 16;
     uint32 private constant SECONDS_IN_DAY = 86400;
 
-    constructor(address liquidityToken, address lpToken, uint8 liquidityTokenDecimals) {
+    constructor(
+        address liquidityToken,
+        address lpToken,
+        address conceroRouter,
+        uint8 liquidityTokenDecimals,
+        uint24 chainSelector
+    ) {
         i_liquidityToken = liquidityToken;
         i_lpToken = LPToken(lpToken);
         i_liquidityTokenDecimals = liquidityTokenDecimals;
+        i_conceroRouter = conceroRouter;
+        i_chainSelector = chainSelector;
     }
 
     function getLiquidityToken() public view returns (address) {
@@ -31,6 +41,10 @@ contract PoolBase is IPoolBase {
 
     function getSupportedChainSelectors() public view returns (uint24[] memory) {
         return s.poolBase().supportedChainSelectors;
+    }
+
+    function getChainSelector() public view returns (uint24) {
+        return i_chainSelector;
     }
 
     function getActiveBalance() public view virtual returns (uint256) {
@@ -64,6 +78,10 @@ contract PoolBase is IPoolBase {
 
     function getYesterdayStartTimestamp() public view returns (uint32) {
         return getTodayStartTimestamp() - 1;
+    }
+
+    function getConceroRouter() public view returns (address) {
+        return i_conceroRouter;
     }
 
     function _setTargetBalance(uint256 updatedTargetBalance) internal {

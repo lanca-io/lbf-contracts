@@ -1,16 +1,20 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.28;
 
+import {IConceroRouter} from "concero-v2/contracts/interfaces/IConceroRouter.sol";
+import {ConceroTypes} from "concero-v2/contracts/ConceroClient/ConceroTypes.sol";
 import {ICommonErrors} from "../common/interfaces/ICommonErrors.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {ILancaKeeper} from "./interfaces/ILancaKeeper.sol";
 import {IParentPool} from "./interfaces/IParentPool.sol";
+import {LPToken} from "./LPToken.sol";
 import {PoolBase} from "../PoolBase/PoolBase.sol";
 import {Storage as s} from "./libraries/Storage.sol";
-import {LPToken} from "./LPToken.sol";
 
 contract ParentPool is IParentPool, ILancaKeeper, PoolBase {
     using s for s.ParentPool;
+
+    uint32 internal constant UPDATE_TARGET_BALANCE_MESSAGE_GAS_LIMIT = 100_000;
 
     error SnapshotTimestampNotInRange(uint24 chainSelector, uint32 timestamp);
 
@@ -26,8 +30,12 @@ contract ParentPool is IParentPool, ILancaKeeper, PoolBase {
     constructor(
         address liquidityToken,
         address lpToken,
-        uint8 liquidityTokenDecimals
-    ) PoolBase(liquidityToken, lpToken, liquidityTokenDecimals) {}
+        address conceroRouter,
+        uint8 liquidityTokenDecimals,
+        uint24 chainSelector
+    ) PoolBase(liquidityToken, lpToken, conceroRouter, liquidityTokenDecimals, chainSelector) {}
+
+    receive() external payable {}
 
     function enterDepositQueue(uint256 amount) external {
         IERC20(i_liquidityToken).transferFrom(msg.sender, address(this), amount);
@@ -86,7 +94,7 @@ contract ParentPool is IParentPool, ILancaKeeper, PoolBase {
         return super.getActiveBalance() - s.parentPool().totalDepositAmountInQueue;
     }
 
-    function triggerDepositWithdrawProcess() external onlyLancaKeeper {
+    function triggerDepositWithdrawProcess() external payable onlyLancaKeeper {
         uint256 totalChildPoolsActiveBalance = _getTotalChildPoolsActiveBalance();
 
         uint256 totalDepositedLiqTokenAmount = _processDepositsQueue(totalChildPoolsActiveBalance);
@@ -108,11 +116,9 @@ contract ParentPool is IParentPool, ILancaKeeper, PoolBase {
 
     function _getTotalChildPoolsActiveBalance() internal view returns (uint256) {
         uint24[] memory supportedChainSelectors = s.parentPool().supportedChainSelectors;
-        uint256 supportedChainSelectorsLength = supportedChainSelectors.length;
+        uint256 totalChildPoolsBalance;
 
-        uint256 totalLbfActiveBalance;
-
-        for (uint256 i; i < supportedChainSelectorsLength; ++i) {
+        for (uint256 i; i < supportedChainSelectors.length; ++i) {
             uint32 snapshotTimestamp = s
                 .parentPool()
                 .snapshotSubmissionByChainSelector[supportedChainSelectors[i]]
@@ -122,13 +128,13 @@ contract ParentPool is IParentPool, ILancaKeeper, PoolBase {
                 revert SnapshotTimestampNotInRange(supportedChainSelectors[i], snapshotTimestamp);
             }
 
-            totalLbfActiveBalance += s
+            totalChildPoolsBalance += s
                 .parentPool()
                 .snapshotSubmissionByChainSelector[supportedChainSelectors[i]]
                 .balance;
         }
 
-        return totalLbfActiveBalance;
+        return totalChildPoolsBalance;
     }
 
     function _processDepositsQueue(
@@ -197,6 +203,14 @@ contract ParentPool is IParentPool, ILancaKeeper, PoolBase {
             uint24[] memory chainSelectors,
             uint256[] memory targetBalances
         ) = _calculateNewTargetBalances(totalLbfBalance);
+
+        for (uint256 i; i < chainSelectors.length; ++i) {
+            if (chainSelectors[i] != i_chainSelector) {
+                _updateChainTargetBalance(chainSelectors[i], targetBalances[i]);
+            } else {
+                _setTargetBalance(targetBalances[i]);
+            }
+        }
     }
 
     function _calculateLpTokenAmountToMint(
@@ -235,26 +249,29 @@ contract ParentPool is IParentPool, ILancaKeeper, PoolBase {
     function _calculateNewTargetBalances(
         uint256 totalLbfBalance
     ) internal returns (uint24[] memory, uint256[] memory) {
-        uint24[] memory supportedChainSelectors = getSupportedChainSelectors();
-        uint256[] memory weights = new uint256[](supportedChainSelectors.length);
+        uint24[] memory childPoolChainSelectors = getSupportedChainSelectors();
+        uint24[] memory chainSelectors = new uint24[](childPoolChainSelectors.length + 1);
+        uint256[] memory weights = new uint256[](chainSelectors.length);
         LiqTokenAmountFlow memory flow;
-        uint8 lhsScore;
         uint256 tagetBalance;
         uint256 targetBalancesSum;
 
-        for (uint256 i; i < supportedChainSelectors.length; ++i) {
+        chainSelectors[chainSelectors.length - 1] = getChainSelector();
+
+        for (uint256 i; i < childPoolChainSelectors.length; ++i) {
+            chainSelectors[i] = childPoolChainSelectors[i];
             flow = s
                 .parentPool()
-                .snapshotSubmissionByChainSelector[supportedChainSelectors[i]]
+                .snapshotSubmissionByChainSelector[childPoolChainSelectors[i]]
                 .flow;
 
-            tagetBalance = s.parentPool().dstChainsTargetBalances[supportedChainSelectors[i]];
+            tagetBalance = s.parentPool().dstChainsTargetBalances[childPoolChainSelectors[i]];
             targetBalancesSum += tagetBalance;
 
-            lhsScore = _calculateLhsScore(flow, tagetBalance);
-
-            weights[i] = tagetBalance * lhsScore;
+            weights[i] = tagetBalance * _calculateLhsScore(flow, tagetBalance);
         }
+
+        weights[weights.length - 1] = _calculateParentPoolTargetBalanceWeight();
 
         uint256 totalWeight;
 
@@ -262,9 +279,9 @@ contract ParentPool is IParentPool, ILancaKeeper, PoolBase {
             totalWeight += weights[i];
         }
 
-        uint256[] memory newTargetBalances = new uint256[](supportedChainSelectors.length);
+        uint256[] memory newTargetBalances = new uint256[](chainSelectors.length);
 
-        for (uint256 i; i < supportedChainSelectors.length; ++i) {
+        for (uint256 i; i < newTargetBalances.length; ++i) {
             newTargetBalances[i] = _calculateTargetBalance(
                 weights[i],
                 totalWeight,
@@ -272,7 +289,7 @@ contract ParentPool is IParentPool, ILancaKeeper, PoolBase {
             );
         }
 
-        return (supportedChainSelectors, newTargetBalances);
+        return (childPoolChainSelectors, newTargetBalances);
     }
 
     function _calculateLurScore(
@@ -316,5 +333,44 @@ contract ParentPool is IParentPool, ILancaKeeper, PoolBase {
         uint256 totalLbfBalance
     ) internal returns (uint256) {
         return (weight / totalWeight) * totalLbfBalance;
+    }
+
+    function _calculateParentPoolTargetBalanceWeight() internal returns (uint256) {
+        uint256 targetBalance = getTargetBalance();
+        return targetBalance * _calculateLhsScore(getYesterdayFlow(), targetBalance);
+    }
+
+    function _updateChainTargetBalance(uint24 dstChainSelector, uint256 newTargetBalance) internal {
+        s.parentPool().dstChainsTargetBalances[dstChainSelector] = newTargetBalance;
+
+        address childPool = s.parentPool().childPools[dstChainSelector];
+        require(childPool != address(0), ICommonErrors.InvalidDstChainSelector(dstChainSelector));
+
+        ConceroTypes.EvmDstChainData memory dstChainData = ConceroTypes.EvmDstChainData({
+            gasLimit: UPDATE_TARGET_BALANCE_MESSAGE_GAS_LIMIT,
+            receiver: childPool
+        });
+
+        address conceroRouter = getConceroRouter();
+
+        uint256 messageFee = IConceroRouter(conceroRouter).getMessageFee(
+            dstChainSelector,
+            false,
+            address(0),
+            dstChainData
+        );
+
+        bytes memory messagePayload = abi.encode(
+            ConceroMessageType.UPDATE_TARGET_BALANCE,
+            newTargetBalance
+        );
+
+        IConceroRouter(conceroRouter).conceroSend{value: messageFee}(
+            dstChainSelector,
+            false,
+            address(0),
+            dstChainData,
+            messagePayload
+        );
     }
 }

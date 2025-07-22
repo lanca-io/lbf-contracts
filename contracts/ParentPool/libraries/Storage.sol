@@ -26,13 +26,13 @@ library Storage {
         uint256 depositNonce;
         uint256 withdrawalNonce;
         uint24[] supportedChainSelectors;
-        mapping(uint24 dstChainSelector => bool isSupported) supportedChainsBySelector;
         mapping(uint24 dstChainSelector => IParentPool.SnapshotSubmission snapshotSubmition) snapshotSubmissionByChainSelector;
         mapping(uint24 dstChainSelector => uint256 targetBalance) dstChainsTargetBalances;
         bytes32[] pendingWithdrawalIds;
         mapping(bytes32 id => IParentPool.PendingWithdrawal pendingWithdrawal) pendingWithdrawals;
         address lancaKeeper;
         LhsCalculationFactors lhsCalculationFactors;
+        mapping(uint24 dstChainSelector => address childPool) childPools;
     }
 
     /* SLOT-BASED STORAGE ACCESS */
