@@ -3,7 +3,6 @@ pragma solidity ^0.8.28;
 
 import {IPoolBase} from "./interfaces/IPoolBase.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {LPToken} from "../ParentPool/LPToken.sol";
 import {Storage as s} from "./libraries/Storage.sol";
 
 contract PoolBase is IPoolBase {
@@ -11,7 +10,6 @@ contract PoolBase is IPoolBase {
 
     address internal immutable i_liquidityToken;
     uint8 internal immutable i_liquidityTokenDecimals;
-    LPToken internal immutable i_lpToken;
     address internal i_conceroRouter;
     uint24 internal i_chainSelector;
     uint8 private constant LP_TOKEN_DECIMALS = 16;
@@ -19,32 +17,19 @@ contract PoolBase is IPoolBase {
 
     constructor(
         address liquidityToken,
-        address lpToken,
         address conceroRouter,
         uint8 liquidityTokenDecimals,
         uint24 chainSelector
     ) {
         i_liquidityToken = liquidityToken;
-        i_lpToken = LPToken(lpToken);
+
         i_liquidityTokenDecimals = liquidityTokenDecimals;
         i_conceroRouter = conceroRouter;
         i_chainSelector = chainSelector;
     }
 
-    function getLiquidityToken() public view returns (address) {
-        return i_liquidityToken;
-    }
-
-    function getLpToken() public view returns (address) {
-        return address(i_lpToken);
-    }
-
     function getSupportedChainSelectors() public view returns (uint24[] memory) {
         return s.poolBase().supportedChainSelectors;
-    }
-
-    function getChainSelector() public view returns (uint24) {
-        return i_chainSelector;
     }
 
     function getActiveBalance() public view virtual returns (uint256) {
@@ -80,15 +65,20 @@ contract PoolBase is IPoolBase {
         return getTodayStartTimestamp() - 1;
     }
 
-    function getConceroRouter() public view returns (address) {
-        return i_conceroRouter;
+    // TODO: move it to rebalancer module
+    function getSurplus() public view returns (uint256) {
+        uint256 activeBalance = getActiveBalance();
+        uint256 tagetBalance = getTargetBalance();
+
+        if (activeBalance <= tagetBalance) return 0;
+        return activeBalance - tagetBalance;
     }
 
     function _setTargetBalance(uint256 updatedTargetBalance) internal {
         s.poolBase().targetBalance = updatedTargetBalance;
     }
 
-    function _postInflow(uint256 inflowLiqTokenAmount) internal {
+    function _postInflow(uint256 inflowLiqTokenAmount) internal virtual {
         _incrementLiqInflow(inflowLiqTokenAmount);
     }
 
