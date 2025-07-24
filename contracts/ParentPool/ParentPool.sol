@@ -254,29 +254,22 @@ contract ParentPool is IParentPool, ILancaKeeper, PoolBase {
     }
 
     function _updateTargetBalancesWithOutflow(uint256 totalLbfBalance, uint256 outflow) internal {
-        (
-            uint24[] memory chainSelectors,
-            uint256[] memory targetBalances
-        ) = _calculateNewTargetBalances(totalLbfBalance - outflow);
-
         uint256 surplus = getSurplus();
-        uint256 remainingAmountToCollectForWithdraw;
-        uint256 amountToRebalanceFromEachChildPool;
         bool isSurplusCoversOutflow = surplus >= outflow;
+        uint256 remainingAmountToCollectForWithdraw;
 
         if (!isSurplusCoversOutflow) {
             remainingAmountToCollectForWithdraw = outflow - surplus;
-            amountToRebalanceFromEachChildPool =
-                remainingAmountToCollectForWithdraw /
-                chainSelectors.length;
         }
+
+        (
+            uint24[] memory chainSelectors,
+            uint256[] memory targetBalances
+        ) = _calculateNewTargetBalances(totalLbfBalance - remainingAmountToCollectForWithdraw);
 
         for (uint256 i; i < chainSelectors.length; ++i) {
             if (chainSelectors[i] != i_chainSelector) {
-                _updateChildPoolTargetBalance(
-                    chainSelectors[i],
-                    targetBalances[i] - amountToRebalanceFromEachChildPool
-                );
+                _updateChildPoolTargetBalance(chainSelectors[i], targetBalances[i]);
             } else {
                 if (!isSurplusCoversOutflow) {
                     _setTargetBalance(targetBalances[i] + remainingAmountToCollectForWithdraw);
@@ -384,7 +377,6 @@ contract ParentPool is IParentPool, ILancaKeeper, PoolBase {
         uint256 outflow,
         uint256 tagetBalance
     ) internal pure returns (uint8) {
-        // TODO: double check if (targetBalance == 0) condition needed
         if (inflow >= outflow || tagetBalance == 0) return 1;
 
         uint256 ndr = (outflow - inflow) / tagetBalance;
@@ -452,5 +444,20 @@ contract ParentPool is IParentPool, ILancaKeeper, PoolBase {
         );
     }
 
-    function _postInflow(uint256 inflowLiqTokenAmount) internal override {}
+    // TODO: it has to be virtual function in rebalancer
+    function _postInflowRebalance(uint256 inflowLiqTokenAmount) internal {
+        uint256 remainingLiquidityToCollectForWithdraw = s
+            .parentPool()
+            .remainingLiquidityToCollectForWithdraw;
+
+        if (remainingLiquidityToCollectForWithdraw == 0) return;
+
+        if (remainingLiquidityToCollectForWithdraw < inflowLiqTokenAmount) {
+            delete s.parentPool().remainingLiquidityToCollectForWithdraw;
+            s.parentPool().totalAmountToWithdrawLocked += remainingLiquidityToCollectForWithdraw;
+        } else {
+            s.parentPool().remainingLiquidityToCollectForWithdraw -= inflowLiqTokenAmount;
+            s.parentPool().totalAmountToWithdrawLocked += inflowLiqTokenAmount;
+        }
+    }
 }
