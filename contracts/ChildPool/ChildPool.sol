@@ -14,5 +14,8 @@ contract ChildPool is Rebalancer {
         uint24 chainSelector,
         address iouToken,
         address conceroRouter
-    ) PoolBase(liquidityToken, liquidityTokenDecimals, chainSelector) Rebalancer(iouToken, conceroRouter) {}
+    )
+        PoolBase(liquidityToken, liquidityTokenDecimals, chainSelector)
+        Rebalancer(iouToken, conceroRouter)
+    {}
 }

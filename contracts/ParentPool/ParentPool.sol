@@ -38,7 +38,10 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer {
         address conceroRouter,
         uint24 chainSelector,
         address iouToken
-    ) PoolBase(liquidityToken, liquidityTokenDecimals, chainSelector) Rebalancer(iouToken, conceroRouter) {
+    )
+        PoolBase(liquidityToken, liquidityTokenDecimals, chainSelector)
+        Rebalancer(iouToken, conceroRouter)
+    {
         i_lpToken = LPToken(lpToken);
     }
 
@@ -285,7 +288,8 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer {
             } else {
                 if (!isSurplusCoversOutflow) {
                     _setTargetBalance(targetBalances[i] + remainingAmountToCollectForWithdraw);
-                    parentPoolStorage.remainingLiquidityToCollectForWithdraw += remainingAmountToCollectForWithdraw;
+                    parentPoolStorage
+                        .remainingLiquidityToCollectForWithdraw += remainingAmountToCollectForWithdraw;
                 } else {
                     parentPoolStorage.totalAmountToWithdrawLocked += outflow;
                     _setTargetBalance(targetBalances[i]);

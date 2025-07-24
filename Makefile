@@ -13,8 +13,6 @@
 
 include ./.env
 include ./.env.tokens
-include ./.env.clccip
-include ./.env.clf
 include ./.env.deployments.mainnet
 include ./.env.deployments.testnet
 include ./.env.wallets
