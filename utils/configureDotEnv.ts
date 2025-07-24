@@ -22,7 +22,7 @@ function configureDotEnv(basePath = "./") {
 	const normalizedBasePath = basePath.endsWith("/") ? basePath : `${basePath}/`;
 
 	ENV_FILES.forEach(file => {
-		dotenv.config({ path: `${normalizedBasePath}${file}` });
+		dotenv.config({ path: `${normalizedBasePath}${file}`, quiet: true });
 	});
 
 	envEnc.config({ path: process.env.PATH_TO_ENC_FILE });

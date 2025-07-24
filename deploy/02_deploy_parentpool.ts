@@ -1,0 +1,105 @@
+import { Deployment } from "hardhat-deploy/types";
+import { HardhatRuntimeEnvironment } from "hardhat/types";
+
+import { getNetworkEnvKey } from "@concero/contract-utils";
+
+import { conceroNetworks } from "../constants";
+import { getEnvVar, log, updateEnvVariable } from "../utils";
+
+type DeployArgs = {
+	liquidityToken: string;
+	liquidityTokenDecimals: number;
+	lpToken: string;
+	conceroRouter: string;
+	chainSelector: bigint;
+	iouToken: string;
+};
+
+type DeploymentFunction = (
+	hre: HardhatRuntimeEnvironment,
+	overrideArgs?: Partial<DeployArgs>,
+) => Promise<Deployment>;
+
+const deployParentPool: DeploymentFunction = async function (
+	hre: HardhatRuntimeEnvironment,
+	overrideArgs?: Partial<DeployArgs>,
+): Promise<Deployment> {
+	const { deployer } = await hre.getNamedAccounts();
+	const { deploy, get, execute } = hre.deployments;
+	const { name } = hre.network;
+
+	const chain = conceroNetworks[name];
+	const { type: networkType } = chain;
+
+	// Get deployed dependencies
+	const lpTokenDeployment = await get("LPToken");
+	const iouTokenDeployment = await get("IOUToken");
+
+	const defaultArgs: DeployArgs = {
+		liquidityToken: getEnvVar(`USDC_${getNetworkEnvKey(name)}`) || "",
+		liquidityTokenDecimals: 6, // USDC decimals
+		lpToken: lpTokenDeployment.address,
+		conceroRouter: getEnvVar(`CONCERO_ROUTER_${getNetworkEnvKey(name)}`) || "",
+		chainSelector: chain.chainSelector,
+		iouToken: iouTokenDeployment.address,
+	};
+
+	const args: DeployArgs = {
+		...defaultArgs,
+		...overrideArgs,
+	};
+
+	const deployment = await deploy("ParentPool", {
+		from: deployer,
+		args: [
+			args.liquidityToken,
+			args.liquidityTokenDecimals,
+			args.lpToken,
+			args.conceroRouter,
+			args.chainSelector,
+			args.iouToken,
+		],
+		log: true,
+		autoMine: true,
+		skipIfAlreadyDeployed: true,
+	});
+
+	log(`ParentPool deployed at: ${deployment.address}`, "deployParentPool", name);
+	updateEnvVariable(
+		`PARENT_POOL_${getNetworkEnvKey(name)}`,
+		deployment.address,
+		`deployments.${networkType}`,
+	);
+
+	// Update LPToken minter role to ParentPool
+	if (deployment.newlyDeployed) {
+		const MINTER_ROLE = hre.ethers.keccak256(hre.ethers.toUtf8Bytes("MINTER_ROLE"));
+		await execute(
+			"LPToken",
+			{ from: deployer, log: true },
+			"grantRole",
+			MINTER_ROLE,
+			deployment.address,
+		);
+		log("Granted MINTER_ROLE to ParentPool on LPToken", "deployParentPool", name);
+
+		// Update IOUToken pool role to ParentPool
+		const POOL_ROLE = hre.ethers.keccak256(hre.ethers.toUtf8Bytes("POOL_ROLE"));
+		await execute(
+			"IOUToken",
+			{ from: deployer, log: true },
+			"grantRole",
+			POOL_ROLE,
+			deployment.address,
+		);
+		log("Granted POOL_ROLE to ParentPool on IOUToken", "deployParentPool", name);
+	}
+
+	return deployment;
+};
+
+deployParentPool.tags = ["ParentPool"];
+deployParentPool.dependencies = ["LPToken", "IOUToken"];
+
+export default deployParentPool;
+export { deployParentPool };
