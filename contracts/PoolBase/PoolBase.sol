@@ -11,7 +11,7 @@ contract PoolBase is IPoolBase {
 
     address internal immutable i_liquidityToken;
     uint8 internal immutable i_liquidityTokenDecimals;
-    LPToken internal immutable i_lpToken;
+
     uint8 private constant LP_TOKEN_DECIMALS = 16;
     uint32 private constant SECONDS_IN_DAY = 86400;
 
@@ -22,10 +22,6 @@ contract PoolBase is IPoolBase {
 
     function getLiquidityToken() public view returns (address) {
         return i_liquidityToken;
-    }
-
-    function getLpToken() public view returns (address) {
-        return address(i_lpToken);
     }
 
     function getActiveBalance() public virtual view returns (uint256) {
