@@ -10,8 +10,10 @@ import {IParentPool} from "./interfaces/IParentPool.sol";
 import {LPToken} from "./LPToken.sol";
 import {PoolBase} from "../PoolBase/PoolBase.sol";
 import {Storage as s} from "./libraries/Storage.sol";
+import {LPToken} from "./LPToken.sol";
+import {Rebalancer} from "../Rebalancer/Rebalancer.sol";
 
-contract ParentPool is IParentPool, ILancaKeeper, PoolBase {
+contract ParentPool is IParentPool, ILancaKeeper, Rebalancer {
     using s for s.ParentPool;
 
     error SnapshotTimestampNotInRange(uint24 chainSelector, uint32 timestamp);
@@ -30,14 +32,16 @@ contract ParentPool is IParentPool, ILancaKeeper, PoolBase {
 
     constructor(
         address liquidityToken,
+        uint8 liquidityTokenDecimals,
         address lpToken,
         address conceroRouter,
         uint8 liquidityTokenDecimals,
-        uint24 chainSelector
-    ) PoolBase(liquidityToken, conceroRouter, liquidityTokenDecimals, chainSelector) {
+        uint24 chainSelector,
+        address iouToken
+    ) PoolBase(liquidityToken, conceroRouter, liquidityTokenDecimals, chainSelector) Rebalancer(iouToken) {
         i_lpToken = LPToken(lpToken);
     }
-
+    
     receive() external payable {}
 
     function enterDepositQueue(uint256 amount) external {

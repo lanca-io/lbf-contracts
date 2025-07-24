@@ -22,7 +22,6 @@ contract PoolBase is IPoolBase {
         uint24 chainSelector
     ) {
         i_liquidityToken = liquidityToken;
-
         i_liquidityTokenDecimals = liquidityTokenDecimals;
         i_conceroRouter = conceroRouter;
         i_chainSelector = chainSelector;
@@ -92,5 +91,17 @@ contract PoolBase is IPoolBase {
 
     function _incrementLiqOutflow(uint256 outflowAmount) internal {
         s.poolBase().flowByDay[getTodayStartTimestamp()].outflow += outflowAmount;
+    }
+
+    function getCurrentDeficit() public view returns (uint256 deficit) {
+        uint256 targetBalance = getTargetBalance();
+        uint256 activeBalance = getActiveBalance();
+        deficit =  activeBalance >= targetBalance ? 0 : targetBalance - activeBalance;
+    }
+
+    function getCurrentSurplus() public view returns (uint256 surplus) {
+        uint256 targetBalance = getTargetBalance();
+        uint256 activeBalance = getActiveBalance();
+        surplus = activeBalance <= targetBalance ? 0 : activeBalance - targetBalance;
     }
 }
