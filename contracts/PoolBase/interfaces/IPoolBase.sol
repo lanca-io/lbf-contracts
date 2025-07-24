@@ -2,7 +2,7 @@
 pragma solidity ^0.8.28;
 
 interface IPoolBase {
-    struct LiqTokenAmountFlow {
+    struct LiqTokenDailyFlow {
         uint256 inflow;
         uint256 outflow;
     }

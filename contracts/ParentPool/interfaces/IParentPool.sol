@@ -23,7 +23,7 @@ interface IParentPool {
     struct SnapshotSubmission {
         uint256 balance;
         uint32 timestamp;
-        IPoolBase.LiqTokenAmountFlow flow;
+        IPoolBase.LiqTokenDailyFlow dailyFlow;
     }
 
     event DepositQueued(bytes32 indexed depositId, address indexed lp, uint256 amount);

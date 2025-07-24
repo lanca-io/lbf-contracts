@@ -53,7 +53,7 @@ contract PoolBase is IPoolBase {
         return s.poolBase().targetBalance;
     }
 
-    function getYesterdayFlow() public view returns (LiqTokenAmountFlow memory) {
+    function getYesterdayFlow() public view returns (LiqTokenDailyFlow memory) {
         return s.poolBase().flowByDay[getYesterdayStartTimestamp()];
     }
 

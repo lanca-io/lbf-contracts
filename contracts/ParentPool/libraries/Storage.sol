@@ -26,7 +26,7 @@ library Storage {
         uint256 depositNonce;
         uint256 withdrawalNonce;
         uint24[] supportedChainSelectors;
-        mapping(uint24 dstChainSelector => IParentPool.SnapshotSubmission snapshotSubmition) snapshotSubmissionByChainSelector;
+        mapping(uint24 dstChainSelector => IParentPool.SnapshotSubmission snapshotSubmition) childPoolsSubmissions;
         mapping(uint24 dstChainSelector => uint256 targetBalance) dstChainsTargetBalances;
         bytes32[] pendingWithdrawalIds;
         mapping(bytes32 id => IParentPool.PendingWithdrawal pendingWithdrawal) pendingWithdrawals;
