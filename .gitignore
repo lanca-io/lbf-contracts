@@ -5,9 +5,7 @@ node_modules
 .env.*
 .env
 !.env.deployments
-!.env.clf
 !.env.tokens
-!.env.clccip
 
 # coverage
 coverage

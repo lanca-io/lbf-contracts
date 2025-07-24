@@ -5,8 +5,6 @@ import * as envEnc from "@chainlink/env-enc";
 
 const ENV_FILES = [
 	".env",
-	".env.clf",
-	".env.clccip",
 	".env.tokens",
 	".env.deployments.mainnet",
 	".env.deployments.testnet",

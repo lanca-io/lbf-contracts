@@ -18,7 +18,7 @@ include ./.env.deployments.testnet
 include ./.env.wallets
 include .env.foundry
 
-ENV_FILES := ./.env ./.env.tokens ./.env.clccip ./.env.clf ./.env.deployments.mainnet ./.env.deployments.testnet ./.env.wallets .env.foundry
+ENV_FILES := ./.env ./.env.tokens ./.env.deployments.mainnet ./.env.deployments.testnet ./.env.wallets .env.foundry
 export $(shell cat $(ENV_FILES) | sed 's/=.*//' | sort | uniq)
 args =
 
