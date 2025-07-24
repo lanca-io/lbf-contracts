@@ -11,8 +11,10 @@ import {LPToken} from "./LPToken.sol";
 import {PoolBase} from "../PoolBase/PoolBase.sol";
 import {Storage as s} from "./libraries/Storage.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {LPToken} from "./LPToken.sol";
+import {Rebalancer} from "../Rebalancer/Rebalancer.sol";
 
-contract ParentPool is IParentPool, ILancaKeeper, PoolBase {
+contract ParentPool is IParentPool, ILancaKeeper, Rebalancer {
     using s for s.ParentPool;
     using SafeERC20 for IERC20;
 
@@ -32,11 +34,13 @@ contract ParentPool is IParentPool, ILancaKeeper, PoolBase {
 
     constructor(
         address liquidityToken,
+        uint8 liquidityTokenDecimals,
         address lpToken,
         address conceroRouter,
         uint8 liquidityTokenDecimals,
-        uint24 chainSelector
-    ) PoolBase(liquidityToken, conceroRouter, liquidityTokenDecimals, chainSelector) {
+        uint24 chainSelector,
+        address iouToken
+    ) PoolBase(liquidityToken, conceroRouter, liquidityTokenDecimals, chainSelector) Rebalancer(iouToken) {
         i_lpToken = LPToken(lpToken);
     }
 
