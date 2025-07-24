@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.28;
 
-import {LancaTest} from "../../utils/LancaTest.sol";
-import {DeployMockERC20, MockERC20} from "../../scripts/deploy/DeployMockERC20.s.sol";
-import {DeployIOUToken} from "../../scripts/deploy/DeployIOUToken.s.sol";
-import {DeployChildPool} from "../../scripts/deploy/DeployChildPool.s.sol";
+import {LancaTest} from "../LancaTest.sol";
+import {DeployMockERC20, MockERC20} from "../scripts/deploy/DeployMockERC20.s.sol";
+import {DeployIOUToken} from "../scripts/deploy/DeployIOUToken.s.sol";
+import {DeployChildPool} from "../scripts/deploy/DeployChildPool.s.sol";
 
-import {ChildPool} from "../../../../contracts/ChildPool/ChildPool.sol";
-import {IOUToken} from "../../../../contracts/Rebalancer/IOUToken.sol";
+import {ChildPool} from "../../../contracts/ChildPool/ChildPool.sol";
+import {IOUToken} from "../../../contracts/Rebalancer/IOUToken.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 abstract contract ChildPoolBase is LancaTest {

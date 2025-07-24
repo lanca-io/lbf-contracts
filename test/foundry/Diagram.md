@@ -11,7 +11,7 @@ graph TD
     B --> E[ChildPoolBase]
     B --> F[ParentPoolBase]
 
-    H --> I[ParentPoolDepositTest]
+    F --> I[ParentPoolDepositTest]
 
     style A fill:#e1f5fe
     style C fill:#e1f5fe
@@ -19,8 +19,6 @@ graph TD
     style D fill:#fff3e0
     style E fill:#e8f5e8
     style F fill:#e8f5e8
-    style G fill:#fff9c4
-    style H fill:#fff9c4
     style I fill:#ffebee
 ```
 
@@ -32,10 +30,7 @@ graph TD
 - **ParentPoolBase**: ParentPool setup, deposit/withdrawal queue management
 - **ParentPoolDepositTest**: Concrete tests for deposit functionality
 
-## Key Features
-
-- Multiple inheritance pattern (LancaTest extends both Script and Test)
-- Layered setUp() chain with super.setUp() calls
-- Specialized utilities at each level
-- Helper functions for common operations
-- Event capture and queue ID tracking
+## Usage
+```bash
+make test args="-vvvvv"
+```
