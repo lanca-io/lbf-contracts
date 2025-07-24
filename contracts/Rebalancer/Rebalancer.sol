@@ -38,7 +38,7 @@ abstract contract Rebalancer is IRebalancer, PoolBase, ConceroClient {
          }
 
         // Transfer liquidity tokens from caller to the pool
-        IERC20(getLiquidityToken()).transferFrom(msg.sender, address(this), amount);
+        IERC20(i_liquidityToken).transferFrom(msg.sender, address(this), amount);
 
          // Mint IOU tokens to the caller
          iouAmount = (amount * (BPS_DENOMINATOR + REBALANCER_PREMIUM_BPS)) / BPS_DENOMINATOR;
@@ -65,7 +65,7 @@ abstract contract Rebalancer is IRebalancer, PoolBase, ConceroClient {
          i_iouToken.burnFrom(msg.sender, iouAmount);
 
          // Transfer liquidity tokens to the caller
-         bool success = IERC20(getLiquidityToken()).transfer(msg.sender, amount);
+         bool success = IERC20(i_liquidityToken).transfer(msg.sender, amount);
          if (!success) revert TransferFailed();
 
          emit SurplusTaken(amount, iouAmount);
