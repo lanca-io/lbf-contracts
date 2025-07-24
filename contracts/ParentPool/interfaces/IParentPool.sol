@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.28;
 
+import {IPoolBase} from "../../PoolBase/interfaces/IPoolBase.sol";
+
 interface IParentPool {
     struct Deposit {
         uint256 liquidityTokenAmountToDeposit;
@@ -16,6 +18,12 @@ interface IParentPool {
         uint256 liqTokenAmountToWithdraw;
         uint256 lpTokenAmountToWithdraw;
         address lp;
+    }
+
+    struct SnapshotSubmission {
+        uint256 balance;
+        uint32 timestamp;
+        IPoolBase.LiqTokenAmountFlow flow;
     }
 
     event DepositQueued(bytes32 indexed depositId, address indexed lp, uint256 amount);

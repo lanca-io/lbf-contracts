@@ -11,6 +11,7 @@ library Namespaces {
 
 library Storage {
     struct PoolBase {
+        uint24[] supportedChainSelectors;
         uint256 targetBalance;
         mapping(uint32 timestamp => IPoolBase.LiqTokenAmountFlow flow) flowByDay;
     }
