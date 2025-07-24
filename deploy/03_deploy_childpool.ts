@@ -30,7 +30,6 @@ const deployChildPool: DeploymentFunction = async function (
 	const chain = conceroNetworks[name];
 	const { type: networkType } = chain;
 
-	// Get deployed dependencies
 	const iouTokenDeployment = await get("IOUToken");
 
 	const defaultArgs: DeployArgs = {

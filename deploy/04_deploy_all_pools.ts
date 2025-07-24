@@ -4,108 +4,129 @@ import { HardhatRuntimeEnvironment } from "hardhat/types";
 import { conceroNetworks } from "../constants";
 import { log } from "../utils";
 
-type DeployAllArgs = {
-	lpTokenArgs?: {
-		defaultAdmin?: string;
-		minter?: string;
-	};
-	iouTokenArgs?: {
-		admin?: string;
-		pool?: string;
-	};
-	parentPoolArgs?: {
-		liquidityToken?: string;
-		liquidityTokenDecimals?: number;
-		conceroRouter?: string;
-	};
-	childPoolArgs?: {
-		liquidityToken?: string;
-		liquidityTokenDecimals?: number;
-		conceroRouter?: string;
-	};
-};
+interface TokenArgs {
+	defaultAdmin?: string;
+	minter?: string;
+}
 
-type DeploymentResult = {
+interface IOUTokenArgs {
+	admin?: string;
+	pool?: string;
+}
+
+interface PoolArgs {
+	liquidityToken?: string;
+	liquidityTokenDecimals?: number;
+	conceroRouter?: string;
+}
+
+interface DeployAllArgs {
+	lpTokenArgs?: TokenArgs;
+	iouTokenArgs?: IOUTokenArgs;
+	parentPoolArgs?: PoolArgs;
+	childPoolArgs?: PoolArgs;
+}
+
+interface DeploymentResult {
 	lpToken: Deployment;
 	iouToken: Deployment;
 	parentPool: Deployment;
 	childPool?: Deployment;
-};
+}
 
 type DeploymentFunction = (
 	hre: HardhatRuntimeEnvironment,
 	overrideArgs?: DeployAllArgs,
 ) => Promise<DeploymentResult>;
 
-const deployAllPools: DeploymentFunction = async function (
+const CONTRACT_TAGS = {
+	LP_TOKEN: "LPToken",
+	IOU_TOKEN: "IOUToken",
+	PARENT_POOL: "ParentPool",
+	CHILD_POOL: "ChildPool",
+} as const;
+
+const deployContract = async (
 	hre: HardhatRuntimeEnvironment,
-	overrideArgs?: DeployAllArgs,
-): Promise<DeploymentResult> {
-	const { name } = hre.network;
-	const { run } = hre;
+	contractTag: string,
+	overrideArgs: Record<string, any> = {},
+): Promise<Deployment> => {
+	const { name: networkName, run } = hre;
 
-	const chain = conceroNetworks[name];
-	const { type: networkType } = chain;
+	log(`Deploying ${contractTag}...`, "deployAllPools", networkName);
 
-	log("Starting deployment of all pool contracts...", "deployAllPools", name);
-
-	// Deploy LPToken
-	log("Deploying LPToken...", "deployAllPools", name);
 	await run("deploy", {
-		tags: "LPToken",
-		...(overrideArgs?.lpTokenArgs || {}),
+		tags: contractTag,
+		...overrideArgs,
 	});
-	const lpToken = await hre.deployments.get("LPToken");
 
-	// Deploy IOUToken
-	log("Deploying IOUToken...", "deployAllPools", name);
-	await run("deploy", {
-		tags: "IOUToken",
-		...(overrideArgs?.iouTokenArgs || {}),
-	});
-	const iouToken = await hre.deployments.get("IOUToken");
+	return await hre.deployments.get(contractTag);
+};
 
-	// Deploy ParentPool
-	log("Deploying ParentPool...", "deployAllPools", name);
-	await run("deploy", {
-		tags: "ParentPool",
-		...(overrideArgs?.parentPoolArgs || {}),
-	});
-	const parentPool = await hre.deployments.get("ParentPool");
+const logDeploymentResults = (result: DeploymentResult, networkName: string): void => {
+	log("All pool contracts deployed successfully!", "deployAllPools", networkName);
+	log(`LPToken: ${result.lpToken.address}`, "deployAllPools", networkName);
+	log(`IOUToken: ${result.iouToken.address}`, "deployAllPools", networkName);
+	log(`ParentPool: ${result.parentPool.address}`, "deployAllPools", networkName);
 
-	// Deploy ChildPool (optional - might not be needed on all networks)
-	let childPool: Deployment | undefined;
-	const shouldDeployChildPool = networkType === "testnet" || networkType === "localhost";
-
-	if (shouldDeployChildPool) {
-		log("Deploying ChildPool...", "deployAllPools", name);
-		await run("deploy", {
-			tags: "ChildPool",
-			...(overrideArgs?.childPoolArgs || {}),
-		});
-		childPool = await hre.deployments.get("ChildPool");
-	} else {
-		log("Skipping ChildPool deployment on mainnet", "deployAllPools", name);
+	if (result.childPool) {
+		log(`ChildPool: ${result.childPool.address}`, "deployAllPools", networkName);
 	}
+};
 
-	log("All pool contracts deployed successfully!", "deployAllPools", name);
-	log(`LPToken: ${lpToken.address}`, "deployAllPools", name);
-	log(`IOUToken: ${iouToken.address}`, "deployAllPools", name);
-	log(`ParentPool: ${parentPool.address}`, "deployAllPools", name);
-	if (childPool) {
-		log(`ChildPool: ${childPool.address}`, "deployAllPools", name);
+const deployAllPools: DeploymentFunction = async (
+	hre: HardhatRuntimeEnvironment,
+	overrideArgs: DeployAllArgs = {},
+): Promise<DeploymentResult> => {
+	const { name: networkName } = hre.network;
+	const chain = conceroNetworks[networkName];
+
+	log("Starting deployment of all pool contracts...", "deployAllPools", networkName);
+
+	try {
+		const lpToken = await deployContract(hre, CONTRACT_TAGS.LP_TOKEN, overrideArgs.lpTokenArgs);
+
+		const iouToken = await deployContract(
+			hre,
+			CONTRACT_TAGS.IOU_TOKEN,
+			overrideArgs.iouTokenArgs,
+		);
+
+		const parentPool = await deployContract(
+			hre,
+			CONTRACT_TAGS.PARENT_POOL,
+			overrideArgs.parentPoolArgs,
+		);
+
+		let childPool: Deployment = await deployContract(
+			hre,
+			CONTRACT_TAGS.CHILD_POOL,
+			overrideArgs.childPoolArgs,
+		);
+
+		const result: DeploymentResult = {
+			lpToken,
+			iouToken,
+			parentPool,
+			childPool,
+		};
+
+		logDeploymentResults(result, networkName);
+		return result;
+	} catch (error) {
+		log(`Deployment failed: ${error}`, "deployAllPools", networkName);
+		throw error;
 	}
-
-	return {
-		lpToken,
-		iouToken,
-		parentPool,
-		childPool,
-	};
 };
 
 deployAllPools.tags = ["AllPools"];
-deployAllPools.dependencies = ["LPToken", "IOUToken", "ParentPool", "ChildPool"];
+deployAllPools.dependencies = [
+	CONTRACT_TAGS.LP_TOKEN,
+	CONTRACT_TAGS.IOU_TOKEN,
+	CONTRACT_TAGS.PARENT_POOL,
+	CONTRACT_TAGS.CHILD_POOL,
+];
 
 export default deployAllPools;
 export { deployAllPools };
+export type { DeployAllArgs, DeploymentResult };

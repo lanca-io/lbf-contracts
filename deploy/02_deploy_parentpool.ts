@@ -31,7 +31,6 @@ const deployParentPool: DeploymentFunction = async function (
 	const chain = conceroNetworks[name];
 	const { type: networkType } = chain;
 
-	// Get deployed dependencies
 	const lpTokenDeployment = await get("LPToken");
 	const iouTokenDeployment = await get("IOUToken");
 
