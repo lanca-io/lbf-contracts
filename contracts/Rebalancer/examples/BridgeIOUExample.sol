@@ -9,7 +9,6 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
  * @notice Example contract demonstrating cross-chain IOU bridging
  */
 contract BridgeIOUExample {
-
     /**
      * @notice Example of bridging IOU tokens to another chain
      * @param rebalancer The rebalancer contract address
@@ -75,52 +74,57 @@ contract BridgeIOUExample {
         }
     }
 
-    /**
-     * @notice Example workflow: Fill deficit on source chain and bridge IOU to destination
-     * @param rebalancer The rebalancer contract address
-     * @param deficitAmount Amount to fill deficit with
-     * @param bridgeAmount Amount of IOU to bridge
-     * @param dstChainSelector Destination chain selector
-     */
-    function fillDeficitAndBridge(
-        address rebalancer,
-        uint256 deficitAmount,
-        uint256 bridgeAmount,
-        uint24 dstChainSelector
-    ) external payable {
-        IRebalancer rebalancerContract = IRebalancer(rebalancer);
+    //    /**
+    //     * @notice Example workflow: Fill deficit on source chain and bridge IOU to destination
+    //     * @param rebalancer The rebalancer contract address
+    //     * @param deficitAmount Amount to fill deficit with
+    //     * @param bridgeAmount Amount of IOU to bridge
+    //     * @param dstChainSelector Destination chain selector
+    //     */
+    //    function fillDeficitAndBridge(
+    //        address rebalancer,
+    //        uint256 deficitAmount,
+    //        uint256 bridgeAmount,
+    //        uint24 dstChainSelector
+    //    ) external payable {
+    //        IRebalancer rebalancerContract = IRebalancer(rebalancer);
+    //
+    //        // Step 1: Fill deficit to receive IOU tokens
+    //        address liquidityToken = rebalancerContract.getLiquidityToken();
+    //        IERC20(liquidityToken).approve(rebalancer, deficitAmount);
+    //
+    //        uint256 iouReceived = rebalancerContract.fillDeficit(deficitAmount);
+    //
+    //        // Step 2: Bridge some or all of the received IOU tokens
+    //        require(bridgeAmount <= iouReceived, "Bridge amount exceeds IOU received");
+    //
+    //        // Approve and bridge
+    //        address iouToken = rebalancerContract.getIOUToken();
+    //        IERC20(iouToken).approve(rebalancer, bridgeAmount);
+    //
+    //        // Get message fee
+    //        address dstPool = rebalancerContract.dstPools(dstChainSelector);
+    //        uint256 messageFee = rebalancerContract.getMessageFee(
+    //            dstChainSelector,
+    //            dstPool,
+    //            300_000
+    //        );
+    //
+    //        require(msg.value >= messageFee, "Insufficient fee for bridging");
+    //
+    //        // Bridge the tokens
+    //        rebalancerContract.bridgeIOU{value: messageFee}(
+    //            bridgeAmount,
+    //            dstChainSelector
+    //        );
+    //    }
 
-        // Step 1: Fill deficit to receive IOU tokens
-        address liquidityToken = rebalancerContract.getLiquidityToken();
-        IERC20(liquidityToken).approve(rebalancer, deficitAmount);
-
-        uint256 iouReceived = rebalancerContract.fillDeficit(deficitAmount);
-
-        // Step 2: Bridge some or all of the received IOU tokens
-        require(bridgeAmount <= iouReceived, "Bridge amount exceeds IOU received");
-
-        // Approve and bridge
-        address iouToken = rebalancerContract.getIOUToken();
-        IERC20(iouToken).approve(rebalancer, bridgeAmount);
-
-        // Get message fee
-        address dstPool = rebalancerContract.dstPools(dstChainSelector);
-        uint256 messageFee = rebalancerContract.getMessageFee(
-            dstChainSelector,
-            dstPool,
-            300_000
-        );
-
-        require(msg.value >= messageFee, "Insufficient fee for bridging");
-
-        // Bridge the tokens
-        rebalancerContract.bridgeIOU{value: messageFee}(
-            bridgeAmount,
-            dstChainSelector
-        );
-    }
-
-    event IOUBridged(address indexed sender, uint24 indexed dstChainSelector, uint256 amount, bytes32 messageId);
+    event IOUBridged(
+        address indexed sender,
+        uint24 indexed dstChainSelector,
+        uint256 amount,
+        bytes32 messageId
+    );
 }
 
 /**

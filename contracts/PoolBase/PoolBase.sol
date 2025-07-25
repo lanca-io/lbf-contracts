@@ -10,20 +10,13 @@ contract PoolBase is IPoolBase {
 
     address internal immutable i_liquidityToken;
     uint8 internal immutable i_liquidityTokenDecimals;
-    address internal i_conceroRouter;
     uint24 internal i_chainSelector;
     uint8 private constant LP_TOKEN_DECIMALS = 16;
     uint32 private constant SECONDS_IN_DAY = 86400;
 
-    constructor(
-        address liquidityToken,
-        address conceroRouter,
-        uint8 liquidityTokenDecimals,
-        uint24 chainSelector
-    ) {
+    constructor(address liquidityToken, uint8 liquidityTokenDecimals, uint24 chainSelector) {
         i_liquidityToken = liquidityToken;
         i_liquidityTokenDecimals = liquidityTokenDecimals;
-        i_conceroRouter = conceroRouter;
         i_chainSelector = chainSelector;
     }
 
@@ -96,7 +89,7 @@ contract PoolBase is IPoolBase {
     function getCurrentDeficit() public view returns (uint256 deficit) {
         uint256 targetBalance = getTargetBalance();
         uint256 activeBalance = getActiveBalance();
-        deficit =  activeBalance >= targetBalance ? 0 : targetBalance - activeBalance;
+        deficit = activeBalance >= targetBalance ? 0 : targetBalance - activeBalance;
     }
 
     function getCurrentSurplus() public view returns (uint256 surplus) {

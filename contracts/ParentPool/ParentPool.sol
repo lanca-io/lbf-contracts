@@ -37,10 +37,9 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer {
         uint8 liquidityTokenDecimals,
         address lpToken,
         address conceroRouter,
-        uint8 liquidityTokenDecimals,
         uint24 chainSelector,
         address iouToken
-    ) PoolBase(liquidityToken, conceroRouter, liquidityTokenDecimals, chainSelector) Rebalancer(iouToken) {
+    ) Rebalancer(conceroRouter, iouToken, liquidityToken, liquidityTokenDecimals, chainSelector) {
         i_lpToken = LPToken(lpToken);
     }
 
