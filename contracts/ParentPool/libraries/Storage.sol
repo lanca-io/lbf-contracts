@@ -35,6 +35,8 @@ library Storage {
         mapping(uint24 dstChainSelector => address childPool) childPools;
         uint256 totalWithdrawalAmountLocked;
         uint256 remainingWithdrawalAmount;
+        uint8 maxWithdrawalQueueLength;
+        uint8 maxDepositQueueLength;
     }
 
     /* SLOT-BASED STORAGE ACCESS */

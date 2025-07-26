@@ -26,6 +26,10 @@ interface IParentPool {
         IPoolBase.LiqTokenDailyFlow dailyFlow;
     }
 
+    error DepositQueueIsFull();
+    error WithdrawalQueueIsFull();
+    error QueuesAreNotFull();
+
     event DepositQueued(bytes32 indexed depositId, address indexed lp, uint256 amount);
     event WithdrawQueued(bytes32 indexed withdrawId, address indexed lp, uint256 amount);
 }

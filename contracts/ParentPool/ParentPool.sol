@@ -47,6 +47,12 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer {
     function enterDepositQueue(uint256 liquidityTokenAmount) external {
         require(liquidityTokenAmount > 0, ICommonErrors.AmountIsToLow());
 
+        s.ParentPool storage s_parentPool = s.parentPool();
+        require(
+            s_parentPool.depositsQueueIds.length < s_parentPool.maxDepositQueueLength,
+            DepositQueueIsFull()
+        );
+
         IERC20(i_liquidityToken).safeTransferFrom(msg.sender, address(this), liquidityTokenAmount);
 
         Deposit memory deposit = Deposit({
@@ -57,15 +63,22 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer {
             abi.encodePacked(msg.sender, block.number, ++s.parentPool().depositNonce)
         );
 
-        s.parentPool().depositsQueue[depositId] = deposit;
-        s.parentPool().depositsQueueIds.push(depositId);
-        s.parentPool().totalDepositAmountInQueue += liquidityTokenAmount;
+        s_parentPool.depositsQueue[depositId] = deposit;
+        s_parentPool.depositsQueueIds.push(depositId);
+        s_parentPool.totalDepositAmountInQueue += liquidityTokenAmount;
 
         emit DepositQueued(depositId, deposit.lp, liquidityTokenAmount);
     }
 
     function enterWithdrawQueue(uint256 lpTokenAmount) external {
         require(lpTokenAmount > 0, ICommonErrors.AmountIsToLow());
+
+        s.ParentPool storage s_parentPool = s.parentPool();
+
+        require(
+            s_parentPool.withdrawalsQueueIds.length < s_parentPool.maxWithdrawalQueueLength,
+            WithdrawalQueueIsFull()
+        );
 
         IERC20(i_lpToken).safeTransferFrom(msg.sender, address(this), lpTokenAmount);
 
@@ -77,20 +90,22 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer {
             abi.encodePacked(msg.sender, block.number, ++s.parentPool().withdrawalNonce)
         );
 
-        s.parentPool().withdrawalsQueue[withdrawId] = withdraw;
-        s.parentPool().withdrawalsQueueIds.push(withdrawId);
+        s_parentPool.withdrawalsQueue[withdrawId] = withdraw;
+        s_parentPool.withdrawalsQueueIds.push(withdrawId);
 
         emit WithdrawQueued(withdrawId, withdraw.lp, lpTokenAmount);
     }
 
     function isReadyToTriggerDepositWithdrawProcess() external view returns (bool) {
         (bool success, ) = getTotalChildPoolsActiveBalance();
-        return success;
+        return success && areQueuesFull();
     }
 
-    function isLiquiditySnapshotTimestampInRange(uint32 timestamp) public pure returns (bool) {
-        // TODO: implement it
-        return true;
+    function areQueuesFull() public view returns (bool) {
+        s.ParentPool storage s_parentPool = s.parentPool();
+        return
+            s_parentPool.withdrawalsQueueIds.length == s_parentPool.maxWithdrawalQueueLength &&
+            s_parentPool.depositsQueueIds.length == s_parentPool.maxDepositQueueLength;
     }
 
     function isReadyToProcessPendingWithdrawals() public view returns (bool) {
@@ -109,6 +124,7 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer {
     function triggerDepositWithdrawProcess() external payable onlyLancaKeeper {
         (bool success, uint256 childPoolsBalance) = getTotalChildPoolsActiveBalance();
         require(success, ChildPoolSnapshotsAreNotReady());
+        require(areQueuesFull(), QueuesAreNotFull());
 
         uint256 deposited = _processDepositsQueue(childPoolsBalance);
         uint256 withdrawals = _processWithdrawalsQueue(childPoolsBalance);
@@ -161,7 +177,7 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer {
                 .childPoolsSubmissions[supportedChainSelectors[i]]
                 .timestamp;
 
-            if (!isLiquiditySnapshotTimestampInRange(snapshotTimestamp)) return (false, 0);
+            if (!_isChildPoolSnapshotTimestampInRange(snapshotTimestamp)) return (false, 0);
 
             totalChildPoolsBalance += s
                 .parentPool()
@@ -276,7 +292,7 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer {
     function _calculateLpTokenAmountToMint(
         uint256 totalLbfActiveBalance,
         uint256 liquidityTokenAmountToDeposit
-    ) internal returns (uint256) {
+    ) internal view returns (uint256) {
         uint256 lpTokenTotalSupply = IERC20(i_lpToken).totalSupply();
 
         if (lpTokenTotalSupply == 0) {
@@ -296,7 +312,7 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer {
     function _calculateWithdrawableAmount(
         uint256 totalChildPoolsActiveBalance,
         uint256 lpTokenAmount
-    ) internal returns (uint256) {
+    ) internal view returns (uint256) {
         uint256 totalCrossChainLiquidity = totalChildPoolsActiveBalance + getActiveBalance();
 
         // @dev USDC_WITHDRAWABLE = POOL_BALANCE x (LP_INPUT_AMOUNT / TOTAL_LP)
@@ -447,5 +463,10 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer {
             s.parentPool().remainingWithdrawalAmount -= inflowLiqTokenAmount;
             s.parentPool().totalWithdrawalAmountLocked += inflowLiqTokenAmount;
         }
+    }
+
+    function _isChildPoolSnapshotTimestampInRange(uint32 timestamp) internal view returns (bool) {
+        if (timestamp > block.timestamp) return false;
+        return (block.timestamp - timestamp) <= (1 hours);
     }
 }
