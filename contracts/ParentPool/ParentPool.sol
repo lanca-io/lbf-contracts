@@ -254,27 +254,21 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer {
 
     function _processOutflow(uint256 totalLbfBalance, uint256 totalRequested) internal {
         uint256 surplus = getSurplus();
-        uint256 withdrawn = surplus >= totalRequested ? totalRequested : surplus;
+        uint256 coveredBySurplus = surplus >= totalRequested ? totalRequested : surplus;
 
         (
             uint24[] memory chainSelectors,
             uint256[] memory targetBalances
-        ) = _calculateNewTargetBalances(totalLbfBalance - withdrawn);
+        ) = _calculateNewTargetBalances(totalLbfBalance - coveredBySurplus);
 
         for (uint256 i; i < chainSelectors.length; ++i) {
             if (chainSelectors[i] != i_chainSelector) {
                 _updateChildPoolTargetBalance(chainSelectors[i], targetBalances[i]);
             } else {
-                // @dev: check if surplus covers totalRequested
-                if (withdrawn == totalRequested) {
-                    delete s.parentPool().remainingWithdrawalAmount;
-                    s.parentPool().totalWithdrawalAmountLocked += withdrawn;
-                    _setTargetBalance(targetBalances[i]);
-                } else {
-                    uint256 remaining = totalRequested - withdrawn;
-                    s.parentPool().remainingWithdrawalAmount = remaining;
-                    _setTargetBalance(targetBalances[i] + remaining);
-                }
+                uint256 remaining = totalRequested - coveredBySurplus;
+                s.parentPool().totalWithdrawalAmountLocked += coveredBySurplus;
+                s.parentPool().remainingWithdrawalAmount = remaining;
+                _setTargetBalance(targetBalances[i] + remaining);
             }
         }
     }
@@ -351,7 +345,7 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer {
             );
         }
 
-        return (childPoolChainSelectors, newTargetBalances);
+        return (chainSelectors, newTargetBalances);
     }
 
     // TODO: rename
