@@ -7,7 +7,6 @@ import {ICommonErrors} from "../common/interfaces/ICommonErrors.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {ILancaKeeper} from "./interfaces/ILancaKeeper.sol";
 import {IParentPool} from "./interfaces/IParentPool.sol";
-import {LPToken} from "./LPToken.sol";
 import {PoolBase} from "../PoolBase/PoolBase.sol";
 import {Storage as s} from "./libraries/Storage.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -96,36 +95,30 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer {
 
     function isReadyToProcessPendingWithdrawals() public view returns (bool) {
         return
-            (s.parentPool().remainingLiquidityToCollectForWithdraw == 0) &&
-            (s.parentPool().totalAmountToWithdrawLocked > 0);
+            (s.parentPool().remainingWithdrawalAmount == 0) &&
+            (s.parentPool().totalWithdrawalAmountLocked > 0);
     }
 
     function getActiveBalance() public view override returns (uint256) {
         return
             super.getActiveBalance() -
             s.parentPool().totalDepositAmountInQueue -
-            s.parentPool().totalAmountToWithdrawLocked;
+            s.parentPool().totalWithdrawalAmountLocked;
     }
 
     function triggerDepositWithdrawProcess() external payable onlyLancaKeeper {
-        (bool success, uint256 totalChildPoolsActiveBalance) = getTotalChildPoolsActiveBalance();
+        (bool success, uint256 childPoolsBalance) = getTotalChildPoolsActiveBalance();
         require(success, ChildPoolSnapshotsAreNotReady());
 
-        uint256 totalDepositedLiqTokenAmount = _processDepositsQueue(totalChildPoolsActiveBalance);
-        uint256 totalLiqTokenAmountToWithdraw = _processWithdrawalsQueue(
-            totalChildPoolsActiveBalance
-        );
+        uint256 deposited = _processDepositsQueue(childPoolsBalance);
+        uint256 withdrawals = _processWithdrawalsQueue(childPoolsBalance);
+        uint256 newTotalBalance = childPoolsBalance + getActiveBalance();
+        uint256 totalRequestedWithdrawals = s.parentPool().remainingWithdrawalAmount + withdrawals;
 
-        if (totalDepositedLiqTokenAmount >= totalLiqTokenAmountToWithdraw) {
-            _updateTargetBalancesWithInflow(
-                totalChildPoolsActiveBalance + getActiveBalance() - totalLiqTokenAmountToWithdraw,
-                totalLiqTokenAmountToWithdraw
-            );
+        if (deposited >= totalRequestedWithdrawals) {
+            _processInflow(newTotalBalance, totalRequestedWithdrawals);
         } else {
-            _updateTargetBalancesWithOutflow(
-                totalChildPoolsActiveBalance + getActiveBalance(),
-                totalLiqTokenAmountToWithdraw - totalDepositedLiqTokenAmount
-            );
+            _processOutflow(newTotalBalance, totalRequestedWithdrawals);
         }
     }
 
@@ -133,8 +126,8 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer {
         require(
             isReadyToProcessPendingWithdrawals(),
             PendingWithdrawalsAreNotReady(
-                s.parentPool().remainingLiquidityToCollectForWithdraw,
-                s.parentPool().totalAmountToWithdrawLocked
+                s.parentPool().remainingWithdrawalAmount,
+                s.parentPool().totalWithdrawalAmountLocked
             )
         );
 
@@ -144,6 +137,7 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer {
 
         for (uint256 i; i < pendingWithdrawalIds.length; ++i) {
             pendingWithdrawal = s.parentPool().pendingWithdrawals[pendingWithdrawalIds[i]];
+            delete s.parentPool().pendingWithdrawals[pendingWithdrawalIds[i]];
             i_lpToken.burn(pendingWithdrawal.lpTokenAmountToWithdraw);
             IERC20(i_liquidityToken).safeTransfer(
                 pendingWithdrawal.lp,
@@ -152,7 +146,9 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer {
             totalLiquidityTokenAmountToWithdraw += pendingWithdrawal.liqTokenAmountToWithdraw;
         }
 
-        s.parentPool().totalAmountToWithdrawLocked -= totalLiquidityTokenAmountToWithdraw;
+        delete s.parentPool().pendingWithdrawalIds;
+
+        s.parentPool().totalWithdrawalAmountLocked -= totalLiquidityTokenAmountToWithdraw;
     }
 
     function getTotalChildPoolsActiveBalance() public view returns (bool, uint256) {
@@ -196,7 +192,7 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer {
 
             // TODO: may be more gas-optimal if you subtract one time outside the cycle
             s.parentPool().totalDepositAmountInQueue -= deposit.liquidityTokenAmountToDeposit;
-            LPToken(i_liquidityToken).mint(deposit.lp, lpTokenAmountToMint);
+            LPToken(i_lpToken).mint(deposit.lp, lpTokenAmountToMint);
             totalDepositedLiqTokenAmount += deposit.liquidityTokenAmountToDeposit;
         }
 
@@ -238,16 +234,14 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer {
         return totalLiqTokenAmountToWithdraw;
     }
 
-    function _updateTargetBalancesWithInflow(
-        uint256 totalLbfBalance,
-        uint256 totalAmountToWithdraw
-    ) internal {
+    function _processInflow(uint256 totalLbfBalance, uint256 totalRequestedWithdrawals) internal {
         (
             uint24[] memory chainSelectors,
             uint256[] memory targetBalances
         ) = _calculateNewTargetBalances(totalLbfBalance);
 
-        s.parentPool().totalAmountToWithdrawLocked += totalAmountToWithdraw;
+        s.parentPool().totalWithdrawalAmountLocked += totalRequestedWithdrawals;
+        delete s.parentPool().remainingWithdrawalAmount;
 
         for (uint256 i; i < chainSelectors.length; ++i) {
             if (chainSelectors[i] != i_chainSelector) {
@@ -258,34 +252,29 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer {
         }
     }
 
-    function _updateTargetBalancesWithOutflow(uint256 totalLbfBalance, uint256 outflow) internal {
+    function _processOutflow(uint256 totalLbfBalance, uint256 totalRequested) internal {
         uint256 surplus = getSurplus();
-        bool isSurplusCoversOutflow = surplus >= outflow;
-        // TODO: withdrawAL
-        uint256 remainingAmountToCollectForWithdraw;
-
-        if (!isSurplusCoversOutflow) {
-            remainingAmountToCollectForWithdraw = outflow - surplus;
-        }
+        uint256 withdrawn = surplus >= totalRequested ? totalRequested : surplus;
 
         (
             uint24[] memory chainSelectors,
             uint256[] memory targetBalances
-        ) = _calculateNewTargetBalances(totalLbfBalance - remainingAmountToCollectForWithdraw);
+        ) = _calculateNewTargetBalances(totalLbfBalance - withdrawn);
 
         for (uint256 i; i < chainSelectors.length; ++i) {
             if (chainSelectors[i] != i_chainSelector) {
                 _updateChildPoolTargetBalance(chainSelectors[i], targetBalances[i]);
             } else {
-                if (!isSurplusCoversOutflow) {
-                    s
-                        .parentPool()
-                        .remainingLiquidityToCollectForWithdraw += remainingAmountToCollectForWithdraw;
+                // @dev: check if surplus covers totalRequested
+                if (withdrawn == totalRequested) {
+                    delete s.parentPool().remainingWithdrawalAmount;
+                    s.parentPool().totalWithdrawalAmountLocked += withdrawn;
+                    _setTargetBalance(targetBalances[i]);
                 } else {
-                    s.parentPool().totalAmountToWithdrawLocked += outflow;
+                    uint256 remaining = totalRequested - withdrawn;
+                    s.parentPool().remainingWithdrawalAmount = remaining;
+                    _setTargetBalance(targetBalances[i] + remaining);
                 }
-
-                _setTargetBalance(targetBalances[i] + remainingAmountToCollectForWithdraw);
             }
         }
     }
@@ -406,7 +395,7 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer {
         uint256 totalWeight,
         uint256 totalLbfBalance
     ) internal pure returns (uint256) {
-        return (weight / totalWeight) * totalLbfBalance;
+        return (weight * totalLbfBalance) / totalWeight;
     }
 
     function _calculateParentPoolTargetBalanceWeight() internal view returns (uint256) {
@@ -452,19 +441,17 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer {
 
     // TODO: it has to be virtual function in rebalancer
     function _postInflowRebalance(uint256 inflowLiqTokenAmount) internal {
-        uint256 remainingLiquidityToCollectForWithdraw = s
-            .parentPool()
-            .remainingLiquidityToCollectForWithdraw;
+        uint256 remainingWithdrawalAmount = s.parentPool().remainingWithdrawalAmount;
 
-        if (remainingLiquidityToCollectForWithdraw == 0) return;
+        if (remainingWithdrawalAmount == 0) return;
 
         // TODO: decrement parent pool target balance;
-        if (remainingLiquidityToCollectForWithdraw < inflowLiqTokenAmount) {
-            delete s.parentPool().remainingLiquidityToCollectForWithdraw;
-            s.parentPool().totalAmountToWithdrawLocked += remainingLiquidityToCollectForWithdraw;
+        if (remainingWithdrawalAmount < inflowLiqTokenAmount) {
+            delete s.parentPool().remainingWithdrawalAmount;
+            s.parentPool().totalWithdrawalAmountLocked += remainingWithdrawalAmount;
         } else {
-            s.parentPool().remainingLiquidityToCollectForWithdraw -= inflowLiqTokenAmount;
-            s.parentPool().totalAmountToWithdrawLocked += inflowLiqTokenAmount;
+            s.parentPool().remainingWithdrawalAmount -= inflowLiqTokenAmount;
+            s.parentPool().totalWithdrawalAmountLocked += inflowLiqTokenAmount;
         }
     }
 }

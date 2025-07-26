@@ -33,8 +33,8 @@ library Storage {
         address lancaKeeper;
         LhsCalculationFactors lhsCalculationFactors;
         mapping(uint24 dstChainSelector => address childPool) childPools;
-        uint256 totalAmountToWithdrawLocked;
-        uint256 remainingLiquidityToCollectForWithdraw;
+        uint256 totalWithdrawalAmountLocked;
+        uint256 remainingWithdrawalAmount;
     }
 
     /* SLOT-BASED STORAGE ACCESS */
