@@ -134,10 +134,7 @@ abstract contract Rebalancer is IRebalancer, PoolBase, ConceroClient {
         // Decode sender address
         address remoteSender = abi.decode(sender, (address));
 
-        require(
-            s.rebalancer().dstPools[sourceChainSelector] == remoteSender,
-            UnauthorizedSender()
-        );
+        require(s.rebalancer().dstPools[sourceChainSelector] == remoteSender, UnauthorizedSender());
 
         // Decode message type and data
         (CommonTypes.MessageType messageType, bytes memory messageData) = abi.decode(

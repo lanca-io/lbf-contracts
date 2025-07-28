@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.28;
 
-import {IConceroRouter} from "concero-v2/contracts/interfaces/IConceroRouter.sol";
-import {ConceroTypes} from "concero-v2/contracts/ConceroClient/ConceroTypes.sol";
+import {IConceroRouter} from "@concero/v2-contracts/contracts/interfaces/IConceroRouter.sol";
+import {ConceroTypes} from "@concero/v2-contracts/contracts/ConceroClient/ConceroTypes.sol";
 import {ICommonErrors} from "../common/interfaces/ICommonErrors.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {ILancaKeeper} from "./interfaces/ILancaKeeper.sol";

@@ -4,7 +4,6 @@ import "./utils/configureDotEnv";
 
 import "hardhat-contract-sizer";
 import "hardhat-deploy";
-import "hardhat-deploy-ethers";
 import "hardhat-gas-reporter";
 import { HardhatUserConfig } from "hardhat/config";
 

@@ -97,4 +97,9 @@ contract PoolBase is IPoolBase {
         uint256 activeBalance = getActiveBalance();
         surplus = activeBalance <= targetBalance ? 0 : activeBalance - targetBalance;
     }
+
+    function getPoolData() external view returns (uint256 deficit, uint256 surplus) {
+        deficit = getCurrentDeficit();
+        surplus = getCurrentSurplus();
+    }
 }
