@@ -474,13 +474,14 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer {
 
         if (remainingWithdrawalAmount == 0) return;
 
-        // TODO: decrement parent pool target balance;
         if (remainingWithdrawalAmount < inflowLiqTokenAmount) {
             delete s_parentPool.remainingWithdrawalAmount;
             s_parentPool.totalWithdrawalAmountLocked += remainingWithdrawalAmount;
+            _setTargetBalance(getTargetBalance() - remainingWithdrawalAmount);
         } else {
             s_parentPool.remainingWithdrawalAmount -= inflowLiqTokenAmount;
             s_parentPool.totalWithdrawalAmountLocked += inflowLiqTokenAmount;
+            _setTargetBalance(getTargetBalance() - inflowLiqTokenAmount);
         }
     }
 
