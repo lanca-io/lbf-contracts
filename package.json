@@ -78,13 +78,13 @@
     "dependencies": {
         "@chainlink/contracts": "1.4.0",
         "@chainlink/functions-toolkit": "0.3.2",
-        "@openzeppelin/contracts": "5.4.0",
-        "concero-v2": "https://github.com/concero/messaging-contracts-v2",
-        "hardhat-deploy": "^1.0.4",
-        "@concero/v2-contracts": "github:concero/v2-contracts",
         "@concero/contract-utils": "github:concero/contract-utils",
         "@concero/rpcs": "github:concero/rpcs",
+        "@concero/v2-contracts": "github:concero/v2-contracts",
         "@concero/v2-networks": "github:concero/v2-networks",
-        "@concero/v2-operators": "github:concero/v2-operators"
+        "@concero/v2-operators": "github:concero/v2-operators",
+        "@openzeppelin/contracts": "5.4.0",
+        "concero-v2": "https://github.com/concero/messaging-contracts-v2",
+        "hardhat-deploy": "^1.0.4"
     }
 }
