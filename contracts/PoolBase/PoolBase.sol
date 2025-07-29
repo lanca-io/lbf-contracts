@@ -31,14 +31,17 @@ contract PoolBase is IPoolBase {
 
     function toLpTokenDecimals(uint256 liquidityTokenAmount) public view returns (uint256) {
         if (LP_TOKEN_DECIMALS == i_liquidityTokenDecimals) return liquidityTokenAmount;
-
         return (liquidityTokenAmount * LP_TOKEN_DECIMALS) / i_liquidityTokenDecimals;
     }
 
     function toLiqTokenDecimals(uint256 lpTokenAmount) public view returns (uint256) {
         if (LP_TOKEN_DECIMALS == i_liquidityTokenDecimals) return lpTokenAmount;
-
         return (lpTokenAmount * i_liquidityTokenDecimals) / LP_TOKEN_DECIMALS;
+    }
+
+    function toLiqTokenDecimals(uint256 amount, uint8 decimals) public view returns (uint256) {
+        if (decimals == i_liquidityTokenDecimals) return amount;
+        return (amount * i_liquidityTokenDecimals) / decimals;
     }
 
     function getTargetBalance() public view returns (uint256) {

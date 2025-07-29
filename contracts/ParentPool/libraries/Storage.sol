@@ -10,7 +10,7 @@ library Namespaces {
 }
 
 library Storage {
-    // @notice all of this vars have i_liquidityTokenDecimals scale
+    // @notice all these variables have the scale i_liquidityTokenDecimals
     struct LhsCalculationFactors {
         uint8 lurScoreSensitivity;
         uint8 lurScoreWeight;
@@ -30,13 +30,16 @@ library Storage {
         mapping(uint24 dstChainSelector => uint256 targetBalance) dstChainsTargetBalances;
         bytes32[] pendingWithdrawalIds;
         mapping(bytes32 id => IParentPool.PendingWithdrawal pendingWithdrawal) pendingWithdrawals;
-        address lancaKeeper;
         LhsCalculationFactors lhsCalculationFactors;
         mapping(uint24 dstChainSelector => address childPool) childPools;
         uint256 totalWithdrawalAmountLocked;
         uint256 remainingWithdrawalAmount;
+        uint256 totalLancaFeeInLiqToken;
+        address lancaKeeper;
         uint8 maxWithdrawalQueueLength;
         uint8 maxDepositQueueLength;
+        uint96 lastTriggerDepositWithdrawFeeInLiquidityToken;
+        uint96 lastProcessPendingWithdrawFeeInLiquidityToken;
     }
 
     /* SLOT-BASED STORAGE ACCESS */

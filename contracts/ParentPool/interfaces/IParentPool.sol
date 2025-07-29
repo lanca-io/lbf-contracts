@@ -22,8 +22,9 @@ interface IParentPool {
 
     struct SnapshotSubmission {
         uint256 balance;
-        uint32 timestamp;
         IPoolBase.LiqTokenDailyFlow dailyFlow;
+        uint32 timestamp;
+        uint96 sendMessageFees; // @dev: in child pool chain native token.
     }
 
     error DepositQueueIsFull();
