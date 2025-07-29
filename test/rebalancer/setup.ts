@@ -2,6 +2,8 @@ import { ChildProcessWithoutNullStreams, spawn } from "child_process";
 
 import "./configureEnv";
 
+import { DeployOptions } from "hardhat-deploy/types";
+
 import { initializeManagers } from "@lanca/rebalancer/src/utils/initializeManagers";
 
 import { deployLPToken } from "../../deploy/00_deploy_lptoken";
@@ -26,84 +28,84 @@ export class RebalancerIntegrationTestSetup {
 	async setup(): Promise<void> {
 		this.registerSignalHandlers();
 
-		// Start blockchain and compile contracts in parallel
 		await Promise.all([this.startBlockchain(), compileContractsAsync({ quiet: true })]);
 
-		const deployments = {
-			chain1: await this.deployContracts(),
-			chain2: await this.deployContracts(),
-		};
+		const deployments = await this.deployContracts();
 
 		const config = await this.configureRebalancer(deployments);
+		console.log(config);
+
 		await initializeManagers(config);
 	}
 
 	private async startBlockchain(): Promise<void> {
 		this.node = spawn("npm", ["run", "chain"], { stdio: "inherit" });
-		await new Promise(r => setTimeout(r, 3_000)); // wait for node to be ready
+
+		while (true) {
+			try {
+				await fetch("http://127.0.0.1:8545", {
+					method: "POST",
+					body: '{"jsonrpc":"2.0","method":"eth_blockNumber","id":1}',
+				});
+				break;
+			} catch {}
+			await new Promise(r => setTimeout(r, 100));
+		}
 	}
 
 	private async deployContracts(): Promise<Deployment> {
-		// Ensure we're using the localhost network
-		process.env.HARDHAT_NETWORK = "localhost";
-
 		const hre = require("hardhat");
+		const deployOptions: Partial<DeployOptions> = {
+			log: false,
+		};
 
 		try {
 			// Clear deployments directory to ensure fresh deployments
 			const deployments = hre.deployments;
 			await deployments.delete("LPToken");
 			await deployments.delete("IOUToken");
+			await deployments.delete("MockERC20");
 			await deployments.delete("ParentPool");
 			await deployments.delete("ChildPool");
-			await deployments.delete("MockERC20");
 
 			return {
-				LPToken: (await deployLPToken(hre)).address,
-				IOUToken: (await deployIOUToken(hre)).address,
-				ParentPool: (await deployParentPool(hre)).address,
-				ChildPool: (await deployChildPool(hre)).address,
-				USDC: (await deployMockERC20(hre)).address,
+				// Pool dependencies
+				LPToken: (await deployLPToken(hre, deployOptions)).address,
+				IOUToken: (await deployIOUToken(hre, deployOptions)).address,
+				USDC: (await deployMockERC20(hre, deployOptions)).address,
+				// Pools
+				ParentPool: (await deployParentPool(hre, deployOptions)).address,
+				ChildPool: (await deployChildPool(hre, deployOptions)).address,
 			};
 		} finally {
 			delete process.env.HARDHAT_NETWORK;
 		}
 	}
 
-	private async configureRebalancer(deployments: {
-		chain1: Deployment;
-		chain2: Deployment;
-	}): Promise<any> {
-		process.env.NETWORK_MODE = "localhost";
-		process.env.OPERATOR_ADDRESS = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266";
-		process.env.OPERATOR_PRIVATE_KEY =
-			"ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
-
-		// Structure config to match deploymentManager expectations
-		// Use network names as keys to match deploymentManager parsing logic
+	private async configureRebalancer(deployments: Deployment): Promise<any> {
 		return {
+			// for DeploymentManager
 			localhostDeployments: {
-				pools: new Map([
-					["localhost1", deployments.chain1.ChildPool],
-					["localhost2", deployments.chain2.ChildPool],
-				]),
+				pools: {
+					localhost2: deployments.ChildPool,
+				},
 				parentPool: {
 					network: "localhost1",
-					address: deployments.chain1.ParentPool,
+					address: deployments.ParentPool,
 				},
-				usdcTokens: new Map([
-					["localhost1", deployments.chain1.USDC],
-					["localhost2", deployments.chain2.USDC],
-				]),
-				iouTokens: new Map([
-					["localhost1", deployments.chain1.IOUToken],
-					["localhost2", deployments.chain2.IOUToken],
-				]),
+				usdcTokens: {
+					localhost1: deployments.USDC,
+					localhost2: deployments.USDC,
+				},
+				iouTokens: {
+					localhost1: deployments.IOUToken,
+					localhost2: deployments.IOUToken,
+				},
 			},
-			// Provide localhost networks for LancaNetworkManager
+			// for LancaNetworkManager
 			localhostNetworks: [
 				{
-					id: 31337,
+					id: 1,
 					name: "localhost1",
 					displayName: "Localhost Chain 1",
 					rpcUrls: ["http://127.0.0.1:8545"],
@@ -111,7 +113,7 @@ export class RebalancerIntegrationTestSetup {
 					isTestnet: true,
 				},
 				{
-					id: 31338,
+					id: 2,
 					name: "localhost2",
 					displayName: "Localhost Chain 2",
 					rpcUrls: ["http://127.0.0.1:8545"],
@@ -121,14 +123,13 @@ export class RebalancerIntegrationTestSetup {
 			],
 		};
 	}
-	/** Ensures the Hardhat node is always terminated. */
+
 	async teardown(): Promise<void> {
 		if (this.disposed) return;
 		this.disposed = true;
 		this.node?.kill("SIGTERM");
 	}
 
-	/** Register process-level listeners for graceful shutdown. */
 	private registerSignalHandlers(): void {
 		const shutdown = async () => {
 			await this.teardown();

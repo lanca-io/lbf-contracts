@@ -41,7 +41,7 @@ const deployMockERC20: DeploymentFunction = async function (
 
 	log(`MockERC20 (${nameArg}) deployed at: ${deployment.address}`, "deployMockERC20", name);
 	updateEnvVariable(
-		`MOCKERC20_${getNetworkEnvKey(name)}`,
+		`${symbolArg}_${getNetworkEnvKey(name)}`,
 		deployment.address,
 		`deployments.${networkType}`,
 	);

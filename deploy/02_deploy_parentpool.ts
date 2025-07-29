@@ -36,6 +36,8 @@ const deployParentPool: DeploymentFunction = async function (
 
 	const args = deployOptions?.args || defaultArgs;
 
+	console.log("Deploying ParentPool with args:", args);
+
 	const deployment = await deploy("ParentPool", {
 		from: deployer,
 		args,
