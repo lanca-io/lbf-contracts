@@ -1,30 +1,17 @@
-import { Deployment } from "hardhat-deploy/types";
+import { DeployOptions, Deployment } from "hardhat-deploy/types";
 import { HardhatRuntimeEnvironment } from "hardhat/types";
 
 import { conceroNetworks } from "../constants";
 import { log } from "../utils";
-
-interface TokenArgs {
-	defaultAdmin?: string;
-	minter?: string;
-}
-
-interface IOUTokenArgs {
-	admin?: string;
-	pool?: string;
-}
-
-interface PoolArgs {
-	liquidityToken?: string;
-	liquidityTokenDecimals?: number;
-	conceroRouter?: string;
-}
+import { deployWithTransparentProxy } from "./utils/deployWithTransparentProxy";
 
 interface DeployAllArgs {
-	lpTokenArgs?: TokenArgs;
-	iouTokenArgs?: IOUTokenArgs;
-	parentPoolArgs?: PoolArgs;
-	childPoolArgs?: PoolArgs;
+	lpTokenDeployOptions?: Partial<DeployOptions>;
+	iouTokenDeployOptions?: Partial<DeployOptions>;
+	parentPoolDeployOptions?: Partial<DeployOptions>;
+	childPoolDeployOptions?: Partial<DeployOptions>;
+	useTransparentProxy?: boolean;
+	proxyAdmin?: string;
 }
 
 interface DeploymentResult {
@@ -46,21 +33,33 @@ const CONTRACT_TAGS = {
 	CHILD_POOL: "ChildPool",
 } as const;
 
-const deployContract = async (
+const deployContractWithProxy = async (
 	hre: HardhatRuntimeEnvironment,
-	contractTag: string,
-	overrideArgs: Record<string, any> = {},
+	contractName: string,
+	deployOptions?: Partial<DeployOptions>,
+	useProxy = false,
+	proxyAdmin?: string,
 ): Promise<Deployment> => {
-	const { name: networkName, run } = hre;
+	const { name: networkName } = hre.network;
 
-	log(`Deploying ${contractTag}...`, "deployAllPools", networkName);
+	log(`Deploying ${contractName}...`, "deployAllPools", networkName);
 
-	await run("deploy", {
-		tags: contractTag,
-		...overrideArgs,
-	});
-
-	return await hre.deployments.get(contractTag);
+	if (useProxy) {
+		const result = await deployWithTransparentProxy(
+			hre,
+			contractName,
+			deployOptions,
+			proxyAdmin,
+		);
+		return result.proxy;
+	} else {
+		// Use existing deployment scripts for direct deployment
+		await hre.run("deploy", {
+			tags: contractName,
+			...deployOptions,
+		});
+		return await hre.deployments.get(contractName);
+	}
 };
 
 const logDeploymentResults = (result: DeploymentResult, networkName: string): void => {
@@ -76,7 +75,14 @@ const logDeploymentResults = (result: DeploymentResult, networkName: string): vo
 
 const deployAllPools: DeploymentFunction = async (
 	hre: HardhatRuntimeEnvironment,
-	overrideArgs: DeployAllArgs = {},
+	{
+		lpTokenDeployOptions = {},
+		iouTokenDeployOptions = {},
+		parentPoolDeployOptions = {},
+		childPoolDeployOptions = {},
+		useTransparentProxy = false,
+		proxyAdmin,
+	}: DeployAllArgs = {},
 ): Promise<DeploymentResult> => {
 	const { name: networkName } = hre.network;
 	const chain = conceroNetworks[networkName];
@@ -84,24 +90,40 @@ const deployAllPools: DeploymentFunction = async (
 	log("Starting deployment of all pool contracts...", "deployAllPools", networkName);
 
 	try {
-		const lpToken = await deployContract(hre, CONTRACT_TAGS.LP_TOKEN, overrideArgs.lpTokenArgs);
+		// LPToken deployment
+		const lpToken = await deployContractWithProxy(
+			hre,
+			CONTRACT_TAGS.LP_TOKEN,
+			lpTokenDeployOptions,
+			useTransparentProxy,
+			proxyAdmin,
+		);
 
-		const iouToken = await deployContract(
+		// IOUToken deployment
+		const iouToken = await deployContractWithProxy(
 			hre,
 			CONTRACT_TAGS.IOU_TOKEN,
-			overrideArgs.iouTokenArgs,
+			iouTokenDeployOptions,
+			useTransparentProxy,
+			proxyAdmin,
 		);
 
-		const parentPool = await deployContract(
+		// ParentPool deployment
+		const parentPool = await deployContractWithProxy(
 			hre,
 			CONTRACT_TAGS.PARENT_POOL,
-			overrideArgs.parentPoolArgs,
+			parentPoolDeployOptions,
+			useTransparentProxy,
+			proxyAdmin,
 		);
 
-		let childPool: Deployment = await deployContract(
+		// ChildPool deployment
+		const childPool = await deployContractWithProxy(
 			hre,
 			CONTRACT_TAGS.CHILD_POOL,
-			overrideArgs.childPoolArgs,
+			childPoolDeployOptions,
+			useTransparentProxy,
+			proxyAdmin,
 		);
 
 		const result: DeploymentResult = {

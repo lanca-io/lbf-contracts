@@ -1,4 +1,5 @@
-import { Deployment } from "hardhat-deploy/types";
+import { DeployOptions as HardhatDeployOptions } from "hardhat-deploy/dist/types";
+import { DeployOptions, Deployment } from "hardhat-deploy/types";
 import { HardhatRuntimeEnvironment } from "hardhat/types";
 
 import { getNetworkEnvKey } from "@concero/contract-utils";
@@ -6,19 +7,14 @@ import { getNetworkEnvKey } from "@concero/contract-utils";
 import { conceroNetworks } from "../constants";
 import { log, updateEnvVariable } from "../utils";
 
-type DeployArgs = {
-	defaultAdmin: string;
-	minter: string;
-};
-
 type DeploymentFunction = (
 	hre: HardhatRuntimeEnvironment,
-	overrideArgs?: Partial<DeployArgs>,
+	deployOptions?: Partial<DeployOptions>,
 ) => Promise<Deployment>;
 
 const deployLPToken: DeploymentFunction = async function (
 	hre: HardhatRuntimeEnvironment,
-	overrideArgs?: Partial<DeployArgs>,
+	deployOptions?: Partial<DeployOptions>,
 ): Promise<Deployment> {
 	const { deployer } = await hre.getNamedAccounts();
 	const { deploy } = hre.deployments;
@@ -27,24 +23,15 @@ const deployLPToken: DeploymentFunction = async function (
 	const chain = conceroNetworks[name];
 	const { type: networkType } = chain;
 
-	// For initial deployment, minter will be set to deployer
-	// It will be updated later when ParentPool is deployed
-	const defaultArgs: DeployArgs = {
-		defaultAdmin: deployer,
-		minter: deployer, // Temporary - will be updated to ParentPool address
-	};
-
-	const args: DeployArgs = {
-		...defaultArgs,
-		...overrideArgs,
-	};
+	const args = deployOptions?.args || [deployer, deployer];
 
 	const deployment = await deploy("LPToken", {
 		from: deployer,
-		args: [args.defaultAdmin, args.minter],
+		args,
 		log: true,
 		autoMine: true,
 		skipIfAlreadyDeployed: true,
+		...deployOptions,
 	});
 
 	log(`LPToken deployed at: ${deployment.address}`, "deployLPToken", name);

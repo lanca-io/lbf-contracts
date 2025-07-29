@@ -1,4 +1,4 @@
-import { Deployment } from "hardhat-deploy/types";
+import { DeployOptions, Deployment } from "hardhat-deploy/types";
 import { HardhatRuntimeEnvironment } from "hardhat/types";
 
 import { getNetworkEnvKey } from "@concero/contract-utils";
@@ -6,22 +6,14 @@ import { getNetworkEnvKey } from "@concero/contract-utils";
 import { conceroNetworks } from "../constants";
 import { getEnvVar, log, updateEnvVariable } from "../utils";
 
-type DeployArgs = {
-	liquidityToken: string;
-	liquidityTokenDecimals: number;
-	chainSelector: number;
-	iouToken: string;
-	conceroRouter: string;
-};
-
 type DeploymentFunction = (
 	hre: HardhatRuntimeEnvironment,
-	overrideArgs?: Partial<DeployArgs>,
+	deployOptions?: Partial<DeployOptions>,
 ) => Promise<Deployment>;
 
 const deployChildPool: DeploymentFunction = async function (
 	hre: HardhatRuntimeEnvironment,
-	overrideArgs?: Partial<DeployArgs>,
+	deployOptions?: Partial<DeployOptions>,
 ): Promise<Deployment> {
 	const { deployer } = await hre.getNamedAccounts();
 	const { deploy, get, execute } = hre.deployments;
@@ -32,31 +24,23 @@ const deployChildPool: DeploymentFunction = async function (
 
 	const iouTokenDeployment = await get("IOUToken");
 
-	const defaultArgs: DeployArgs = {
-		liquidityToken: getEnvVar(`USDC_${getNetworkEnvKey(name)}`) || "",
-		liquidityTokenDecimals: 6, // USDC decimals
-		chainSelector: Number(chain.chainSelector), // Convert bigint to number for uint24
-		iouToken: iouTokenDeployment.address,
-		conceroRouter: getEnvVar(`CONCERO_ROUTER_${getNetworkEnvKey(name)}`) || "",
-	};
+	const defaultArgs = [
+		getEnvVar(`USDC_${getNetworkEnvKey(name)}`) || "",
+		6, // USDC decimals
+		Number(chain.chainSelector), // Convert bigint to number for uint24
+		iouTokenDeployment.address,
+		getEnvVar(`CONCERO_ROUTER_${getNetworkEnvKey(name)}`) || "",
+	];
 
-	const args: DeployArgs = {
-		...defaultArgs,
-		...overrideArgs,
-	};
+	const args = deployOptions?.args || defaultArgs;
 
 	const deployment = await deploy("ChildPool", {
 		from: deployer,
-		args: [
-			args.liquidityToken,
-			args.liquidityTokenDecimals,
-			args.chainSelector,
-			args.iouToken,
-			args.conceroRouter,
-		],
+		args,
 		log: true,
 		autoMine: true,
 		skipIfAlreadyDeployed: true,
+		...deployOptions,
 	});
 
 	log(`ChildPool deployed at: ${deployment.address}`, "deployChildPool", name);

@@ -14,7 +14,7 @@ const ENV_FILES = [
 
 /**
  * Configures the dotenv with paths relative to a base directory.
- * @param {string} [basePath='../../../'] - The base path where .env files are located. Defaults to '../../'.
+ * @param {string} [basePath='../../../'] - The base path where .env files are located.
  */
 function configureDotEnv(basePath = "./") {
 	const normalizedBasePath = basePath.endsWith("/") ? basePath : `${basePath}/`;

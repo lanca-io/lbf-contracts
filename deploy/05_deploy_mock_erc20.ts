@@ -1,3 +1,4 @@
+import { DeployOptions as HardhatDeployOptions } from "hardhat-deploy/dist/types";
 import { DeployOptions, Deployment } from "hardhat-deploy/types";
 import { HardhatRuntimeEnvironment } from "hardhat/types";
 
@@ -11,7 +12,7 @@ type DeploymentFunction = (
 	deployOptions?: Partial<DeployOptions>,
 ) => Promise<Deployment>;
 
-const deployIOUToken: DeploymentFunction = async function (
+const deployMockERC20: DeploymentFunction = async function (
 	hre: HardhatRuntimeEnvironment,
 	deployOptions?: Partial<DeployOptions>,
 ): Promise<Deployment> {
@@ -22,10 +23,15 @@ const deployIOUToken: DeploymentFunction = async function (
 	const chain = conceroNetworks[name];
 	const { type: networkType } = chain;
 
-	const args = deployOptions?.args || [deployer, deployer];
+	const nameArg = deployOptions?.args?.[0] || "USD Coin";
+	const symbolArg = deployOptions?.args?.[1] || "USDC";
+	const decimalsArg = deployOptions?.args?.[2] || 6;
 
-	const deployment = await deploy("IOUToken", {
+	const args = [nameArg, symbolArg, decimalsArg];
+
+	const deployment = await deploy("MockERC20", {
 		from: deployer,
+		contract: "MockERC20",
 		args,
 		log: true,
 		autoMine: true,
@@ -33,9 +39,9 @@ const deployIOUToken: DeploymentFunction = async function (
 		...deployOptions,
 	});
 
-	log(`IOUToken deployed at: ${deployment.address}`, "deployIOUToken", name);
+	log(`MockERC20 (${nameArg}) deployed at: ${deployment.address}`, "deployMockERC20", name);
 	updateEnvVariable(
-		`IOUTOKEN_${getNetworkEnvKey(name)}`,
+		`MOCKERC20_${getNetworkEnvKey(name)}`,
 		deployment.address,
 		`deployments.${networkType}`,
 	);
@@ -43,7 +49,7 @@ const deployIOUToken: DeploymentFunction = async function (
 	return deployment;
 };
 
-deployIOUToken.tags = ["IOUToken", "ParentPoolDependencies", "ChildPoolDependencies"];
+deployMockERC20.tags = ["MockERC20"];
 
-export default deployIOUToken;
-export { deployIOUToken };
+export default deployMockERC20;
+export { deployMockERC20 };

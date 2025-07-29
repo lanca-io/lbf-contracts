@@ -6,7 +6,10 @@ hardhat compile
   --no-typechain        Skip Typechain compilation
   --quiet               Makes the compilation process less verbose
  */
-import { execSync } from "child_process";
+import { exec as execCallback, execSync } from "child_process";
+import { promisify } from "util";
+
+const exec = promisify(execCallback);
 
 interface HardhatCompileParams {
 	concurrency?: number;
@@ -26,4 +29,21 @@ export function compileContracts({ quiet = true, force = false }: HardhatCompile
 	if (quiet) args.push("--quiet");
 	if (force) args.push("--force");
 	execSync(`${command} ${args.join(" ")}`, { stdio: "inherit" });
+}
+
+export async function compileContractsAsync({
+	quiet = true,
+	force = false,
+}: HardhatCompileParams): Promise<void> {
+	const packageManager = process.env["PACKAGE_MANAGER"] || "yarn";
+	const command = `${packageManager} compile`;
+	const args = [];
+	if (quiet) args.push("--quiet");
+	if (force) args.push("--force");
+
+	const { stdout, stderr } = await exec(`${command} ${args.join(" ")}`);
+	if (!quiet) {
+		console.log(stdout);
+		if (stderr) console.error(stderr);
+	}
 }

@@ -59,16 +59,8 @@
         "viem": "2.33.0"
     },
     "dependencies": {
-        "ethers": "6.15.0",
-        "forge-std": "https://github.com/foundry-rs/forge-std.git",
-        "hardhat": "2.26.1",
-        "hardhat-contract-sizer": "2.10.0",
-        "hardhat-gas-reporter": "2.3.0",
-        "dotenv": "17.2.0",
-        "@tenderly/hardhat-tenderly": "2.5.2",
-        "@typechain/hardhat": "9.1.0",
-        "@chainlink/env-enc": "1.0.5",
         "@chainlink/contracts": "1.4.0",
+        "@chainlink/env-enc": "1.0.5",
         "@chainlink/functions-toolkit": "0.3.2",
         "@concero/contract-utils": "github:concero/contract-utils",
         "@concero/rpcs": "github:concero/rpcs",
@@ -80,7 +72,16 @@
         "@nomicfoundation/hardhat-network-helpers": "1.1.0",
         "@nomicfoundation/hardhat-verify": "2.1.0",
         "@nomicfoundation/hardhat-viem": "2.1.0",
+        "@openzeppelin/contracts": "^5.4.0",
+        "@tenderly/hardhat-tenderly": "2.5.2",
+        "@typechain/hardhat": "9.1.0",
+        "dotenv": "17.2.0",
+        "ethers": "6.15.0",
+        "forge-std": "https://github.com/foundry-rs/forge-std.git",
+        "hardhat": "2.26.1",
+        "hardhat-contract-sizer": "2.10.0",
         "hardhat-deploy": "^1.0.4",
+        "hardhat-gas-reporter": "2.3.0",
         "solidity-coverage": "0.8.16"
     }
 }
