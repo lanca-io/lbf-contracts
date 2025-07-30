@@ -39,6 +39,7 @@ library Storage {
         uint16 withdrawalQueueLength;
         uint16 depositQueueLength;
         uint96 averageConceroMessageFee;
+        uint256 minParentPoolTargetBalance;
     }
 
     /* SLOT-BASED STORAGE ACCESS */

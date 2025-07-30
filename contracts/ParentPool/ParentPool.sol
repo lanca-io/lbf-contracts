@@ -306,29 +306,29 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer {
         uint256 surplus = getSurplus();
         uint256 coveredBySurplus = surplus >= totalRequested ? totalRequested : surplus;
 
+        s.ParentPool storage s_parentPool = s.parentPool();
+
         (
             uint24[] memory chainSelectors,
             uint256[] memory targetBalances
         ) = _calculateNewTargetBalances(totalLbfBalance - coveredBySurplus);
-
-        s.ParentPool storage s_parentPool = s.parentPool();
 
         for (uint256 i; i < chainSelectors.length; ++i) {
             // @dev check if it is child pool chain selector
             if (chainSelectors[i] != i_chainSelector) {
                 _updateChildPoolTargetBalance(chainSelectors[i], targetBalances[i]);
 
-                /* @dev we only delete the timestamp
-                        because that is enough to prevent it from passing
-                        _isChildPoolSnapshotTimestampInRange(snapshotTimestamp) and
-                         being used a second time
-                 */
+                /* @dev we only delete the timestamp because
+                        that is enough to prevent it from passing
+                        _isChildPoolSnapshotTimestampInRange(snapshotTimestamp)
+                        and being used a second time */
                 delete s_parentPool.childPoolsSubmissions[chainSelectors[i]].timestamp;
             } else {
                 uint256 remaining = totalRequested - coveredBySurplus;
 
                 s_parentPool.totalWithdrawalAmountLocked += coveredBySurplus;
                 s_parentPool.remainingWithdrawalAmount = remaining;
+                s_parentPool.minParentPoolTargetBalance = targetBalances[i];
 
                 _setTargetBalance(targetBalances[i] + remaining);
             }
@@ -500,7 +500,7 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer {
         );
     }
 
-    // TODO: it has to be virtual function in rebalancer
+    // TODO: mb it has to be virtual function in rebalancer
     function _postInflowRebalance(uint256 inflowLiqTokenAmount) internal {
         s.ParentPool storage s_parentPool = s.parentPool();
 
