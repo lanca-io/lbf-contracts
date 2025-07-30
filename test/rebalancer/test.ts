@@ -1,4 +1,6 @@
 import { ChildProcessWithoutNullStreams, spawn } from "child_process";
+import Mocha from "mocha";
+import path from "path";
 
 import "./configureEnv";
 
@@ -12,8 +14,11 @@ import { deployParentPool } from "../../deploy/02_deploy_parentpool";
 import { deployChildPool } from "../../deploy/03_deploy_childpool";
 import { deployMockERC20 } from "../../deploy/05_deploy_mock_erc20";
 import { compileContractsAsync } from "../../utils/compileContracts";
+import { TEST_CONSTANTS } from "./constants";
+import { StateManager } from "./utils/StateManager";
+import { localhostViemChain } from "./utils/localhostViemChain";
 
-type Deployment = {
+export type Deployment = {
 	LPToken: string;
 	IOUToken: string;
 	ParentPool: string;
@@ -21,29 +26,43 @@ type Deployment = {
 	USDC: string;
 };
 
-export class RebalancerIntegrationTestSetup {
+export class RebalancerIntegrationTest {
 	private node: ChildProcessWithoutNullStreams | null = null;
 	private disposed = false;
 
-	async setup(): Promise<void> {
+	async run(): Promise<void> {
 		this.registerSignalHandlers();
 
-		await Promise.all([this.startBlockchain(), compileContractsAsync({ quiet: true })]);
+		await Promise.all([this.runChain(), compileContractsAsync({ quiet: true })]);
 
 		const deployments = await this.deployContracts();
 
+		const stateManager = new StateManager(deployments);
+		await stateManager.setupContracts();
+
 		const config = await this.configureRebalancer(deployments);
-		console.log(config);
 
 		await initializeManagers(config);
+
+		// Running Mocha
+		(global as any).deployments = deployments;
+		const mocha = new Mocha({
+			timeout: TEST_CONSTANTS.DEFAULT_TIMEOUT,
+			ui: "bdd",
+			reporter: "spec",
+		});
+		mocha.addFile(path.resolve(__dirname, "Rebalancer.test.ts"));
+		mocha.run(failures => (process.exitCode = failures ? 1 : 0));
 	}
 
-	private async startBlockchain(): Promise<void> {
-		this.node = spawn("npm", ["run", "chain"], { stdio: "inherit" });
+	private async runChain(): Promise<void> {
+		this.node = spawn("npm", ["run", "chain"], {
+			stdio: "inherit",
+		}) as ChildProcessWithoutNullStreams;
 
 		while (true) {
 			try {
-				await fetch("http://127.0.0.1:8545", {
+				await fetch(TEST_CONSTANTS.LOCALHOST_URL, {
 					method: "POST",
 					body: '{"jsonrpc":"2.0","method":"eth_blockNumber","id":1}',
 				});
@@ -53,14 +72,13 @@ export class RebalancerIntegrationTestSetup {
 		}
 	}
 
-	private async deployContracts(): Promise<Deployment> {
+	public async deployContracts(): Promise<Deployment> {
 		const hre = require("hardhat");
 		const deployOptions: Partial<DeployOptions> = {
 			log: false,
 		};
 
 		try {
-			// Clear deployments directory to ensure fresh deployments
 			const deployments = hre.deployments;
 			await deployments.delete("LPToken");
 			await deployments.delete("IOUToken");
@@ -69,13 +87,15 @@ export class RebalancerIntegrationTestSetup {
 			await deployments.delete("ChildPool");
 
 			return {
-				// Pool dependencies
 				LPToken: (await deployLPToken(hre, deployOptions)).address,
 				IOUToken: (await deployIOUToken(hre, deployOptions)).address,
 				USDC: (await deployMockERC20(hre, deployOptions)).address,
-				// Pools
-				ParentPool: (await deployParentPool(hre, deployOptions)).address,
-				ChildPool: (await deployChildPool(hre, deployOptions)).address,
+				ParentPool: (
+					await deployParentPool(hre, { ...deployOptions, contract: "ParentPoolWrapper" })
+				).address,
+				ChildPool: (
+					await deployChildPool(hre, { ...deployOptions, contract: "ChildPoolWrapper" })
+				).address,
 			};
 		} finally {
 			delete process.env.HARDHAT_NETWORK;
@@ -105,20 +125,58 @@ export class RebalancerIntegrationTestSetup {
 			// for LancaNetworkManager
 			localhostNetworks: [
 				{
-					id: 1,
+					id: TEST_CONSTANTS.LOCALHOST_CHAIN_ID,
 					name: "localhost1",
 					displayName: "Localhost Chain 1",
-					rpcUrls: ["http://127.0.0.1:8545"],
-					chainSelector: "1",
+					rpcUrls: [TEST_CONSTANTS.LOCALHOST_URL],
+					chainSelector: "2",
 					isTestnet: true,
+					viemChain: {
+						...localhostViemChain,
+						id: TEST_CONSTANTS.LOCALHOST_CHAIN_ID,
+						name: "Localhost 1",
+						network: "localhost1",
+						nativeCurrency: {
+							NAME: "Ether",
+							SYMBOL: "ETH",
+							DECIMALS: 18,
+						},
+						rpcUrls: {
+							default: {
+								http: [TEST_CONSTANTS.LOCALHOST_URL],
+							},
+							public: {
+								http: [TEST_CONSTANTS.LOCALHOST_URL],
+							},
+						},
+					},
 				},
 				{
 					id: 2,
 					name: "localhost2",
 					displayName: "Localhost Chain 2",
-					rpcUrls: ["http://127.0.0.1:8545"],
+					rpcUrls: [TEST_CONSTANTS.LOCALHOST_URL],
 					chainSelector: "2",
 					isTestnet: true,
+					viemChain: {
+						...localhostViemChain,
+						id: TEST_CONSTANTS.LOCALHOST_CHAIN_ID,
+						name: "Localhost 2",
+						network: "localhost2",
+						nativeCurrency: {
+							NAME: "Ether",
+							SYMBOL: "ETH",
+							DECIMALS: 18,
+						},
+						rpcUrls: {
+							default: {
+								http: [TEST_CONSTANTS.LOCALHOST_URL],
+							},
+							public: {
+								http: [TEST_CONSTANTS.LOCALHOST_URL],
+							},
+						},
+					},
 				},
 			],
 		};
@@ -141,5 +199,5 @@ export class RebalancerIntegrationTestSetup {
 	}
 }
 
-export const testSetup = new RebalancerIntegrationTestSetup();
-testSetup.setup();
+const test = new RebalancerIntegrationTest();
+test.run();

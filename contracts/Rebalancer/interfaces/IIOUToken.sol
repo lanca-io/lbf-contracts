@@ -11,7 +11,7 @@ interface IIOUToken is IERC20 {
     function mint(address to, uint256 amount) external;
     function burn(uint256 amount) external;
     function burnFrom(address from, uint256 amount) external;
-    function POOL_ROLE() external view returns (bytes32);
+    function MINTER_ROLE() external view returns (bytes32);
     function DEFAULT_ADMIN_ROLE() external view returns (bytes32);
     function hasRole(bytes32 role, address account) external view returns (bool);
     function grantRole(bytes32 role, address account) external;

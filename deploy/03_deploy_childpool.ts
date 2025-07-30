@@ -34,7 +34,7 @@ const deployChildPool: DeploymentFunction = async function (
 
 	const args = deployOptions?.args || defaultArgs;
 
-	const deployment = await deploy("ChildPool", {
+	const deployment = await deploy(deployOptions?.contract || "ChildPool", {
 		from: deployer,
 		args,
 		log: true,
@@ -52,15 +52,15 @@ const deployChildPool: DeploymentFunction = async function (
 
 	// Update IOUToken pool role to ChildPool
 	if (deployment.newlyDeployed) {
-		const POOL_ROLE = hre.ethers.keccak256(hre.ethers.toUtf8Bytes("POOL_ROLE"));
+		const MINTER_ROLE = hre.ethers.keccak256(hre.ethers.toUtf8Bytes("MINTER_ROLE"));
 		await execute(
 			"IOUToken",
 			{ from: deployer, log: true },
 			"grantRole",
-			POOL_ROLE,
+			MINTER_ROLE,
 			deployment.address,
 		);
-		log("Granted POOL_ROLE to ChildPool on IOUToken", "deployChildPool", name);
+		log("Granted MINTER_ROLE to ChildPool on IOUToken", "deployChildPool", name);
 	}
 
 	return deployment;

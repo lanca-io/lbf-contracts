@@ -10,18 +10,14 @@ import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
  * @notice Token representing debt owed by child pools to rebalancers
  */
 contract IOUToken is ERC20, ERC20Burnable, AccessControl {
-    bytes32 public constant POOL_ROLE = keccak256("POOL_ROLE");
+    bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
 
-    constructor(address admin, address pool) ERC20("LancaIOU-USDC", "LIOU-USDC") {
+    constructor(address admin, address minter) ERC20("LancaIOU-USDC", "LIOU-USDC") {
         _grantRole(DEFAULT_ADMIN_ROLE, admin);
-        _grantRole(POOL_ROLE, pool);
+        _grantRole(MINTER_ROLE, minter);
     }
 
-    function mint(address to, uint256 amount) public onlyRole(POOL_ROLE) {
+    function mint(address to, uint256 amount) public onlyRole(MINTER_ROLE) {
         _mint(to, amount);
-    }
-
-    function burnFrom(address from, uint256 amount) public override onlyRole(POOL_ROLE) {
-        _burn(from, amount);
     }
 }
