@@ -22,7 +22,6 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer {
 
     uint32 internal constant UPDATE_TARGET_BALANCE_MESSAGE_GAS_LIMIT = 100_000;
     LPToken internal immutable i_lpToken;
-    IPriceFeeds internal immutable i_priceFeeds;
 
     modifier onlyLancaKeeper() {
         require(
@@ -39,11 +38,9 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer {
         address lpToken,
         address conceroRouter,
         uint24 chainSelector,
-        address iouToken,
-        address priceFeeds
+        address iouToken
     ) Rebalancer(conceroRouter, iouToken, liquidityToken, liquidityTokenDecimals, chainSelector) {
         i_lpToken = LPToken(lpToken);
-        i_priceFeeds = IPriceFeeds(priceFeeds);
     }
 
     receive() external payable {}
