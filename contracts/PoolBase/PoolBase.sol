@@ -40,6 +40,25 @@ abstract contract PoolBase is IPoolBase, ConceroClient {
             s.poolBase().totalLancaFeeInLiqToken;
     }
 
+    function getSurplus() public view returns (uint256) {
+        uint256 activeBalance = getActiveBalance();
+        uint256 tagetBalance = getTargetBalance();
+
+        if (activeBalance <= tagetBalance) return 0;
+        return activeBalance - tagetBalance;
+    }
+
+    function getDeficit() public view returns (uint256 deficit) {
+        uint256 targetBalance = getTargetBalance();
+        uint256 activeBalance = getActiveBalance();
+        deficit = activeBalance >= targetBalance ? 0 : targetBalance - activeBalance;
+    }
+
+    function getPoolData() external view returns (uint256 deficit, uint256 surplus) {
+        deficit = getDeficit();
+        surplus = getSurplus();
+    }
+
     function _conceroReceive(
         bytes32 messageId,
         uint24 sourceChainSelector,
@@ -73,25 +92,6 @@ abstract contract PoolBase is IPoolBase, ConceroClient {
         uint24 sourceChainSelector,
         bytes calldata messageData
     ) internal virtual;
-
-    function getSurplus() public view returns (uint256) {
-        uint256 activeBalance = getActiveBalance();
-        uint256 tagetBalance = getTargetBalance();
-
-        if (activeBalance <= tagetBalance) return 0;
-        return activeBalance - tagetBalance;
-    }
-
-    function getDeficit() public view returns (uint256 deficit) {
-        uint256 targetBalance = getTargetBalance();
-        uint256 activeBalance = getActiveBalance();
-        deficit = activeBalance >= targetBalance ? 0 : targetBalance - activeBalance;
-    }
-
-    function getPoolData() external view returns (uint256 deficit, uint256 surplus) {
-        deficit = getDeficit();
-        surplus = getSurplus();
-    }
 
     function getTargetBalance() public view returns (uint256) {
         return s.poolBase().targetBalance;
