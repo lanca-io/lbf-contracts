@@ -36,7 +36,7 @@ const deployParentPool: DeploymentFunction = async function (
 
 	const args = deployOptions?.args || defaultArgs;
 
-	const deployment = await deploy("ParentPool", {
+	const deployment = await deploy(deployOptions?.contract || "ParentPool", {
 		from: deployer,
 		args,
 		log: true,
@@ -65,15 +65,14 @@ const deployParentPool: DeploymentFunction = async function (
 		log("Granted MINTER_ROLE to ParentPool on LPToken", "deployParentPool", name);
 
 		// Update IOUToken pool role to ParentPool
-		const POOL_ROLE = hre.ethers.keccak256(hre.ethers.toUtf8Bytes("POOL_ROLE"));
 		await execute(
 			"IOUToken",
 			{ from: deployer, log: true },
 			"grantRole",
-			POOL_ROLE,
+			MINTER_ROLE,
 			deployment.address,
 		);
-		log("Granted POOL_ROLE to ParentPool on IOUToken", "deployParentPool", name);
+		log("Granted MINTER_ROLE to ParentPool on IOUToken", "deployParentPool", name);
 	}
 
 	return deployment;
