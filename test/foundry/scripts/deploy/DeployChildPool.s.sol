@@ -18,11 +18,11 @@ contract DeployChildPool is LancaBaseScript {
         vm.startBroadcast(deployer);
 
         ChildPool pool = new ChildPool(
+            _conceroRouter,
+            _iouToken,
             liquidityToken,
             liquidityTokenDecimals,
-            chainSelector,
-            _iouToken,
-            _conceroRouter
+            chainSelector
         );
 
         console.log("Deployed ChildPool:");
