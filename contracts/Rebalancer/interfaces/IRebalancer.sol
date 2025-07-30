@@ -4,8 +4,18 @@ pragma solidity ^0.8.28;
 interface IRebalancer {
     event DeficitFilled(uint256 amount, uint256 iouAmount);
     event SurplusTaken(uint256 amount, uint256 iouAmount);
-    event IOUBridged(address indexed sender, uint24 indexed dstChainSelector, uint256 amount, bytes32 messageId);
-    event IOUReceived(uint24 indexed srcChainSelector, address indexed receiver, uint256 amount, bytes32 messageId);
+    event IOUBridged(
+        address indexed sender,
+        uint24 indexed dstChainSelector,
+        uint256 amount,
+        bytes32 messageId
+    );
+    event IOUReceived(
+        uint24 indexed srcChainSelector,
+        address indexed receiver,
+        uint256 amount,
+        bytes32 messageId
+    );
     event DstPoolSet(uint24 indexed chainSelector, address indexed poolAddress);
 
     error NoDeficitToFill();
@@ -44,7 +54,10 @@ interface IRebalancer {
      * @param chainSelector Destination chain selector
      * @return messageId The ID of the cross-chain message
      */
-    function bridgeIOU(uint256 amount, uint24 chainSelector) external payable returns (bytes32 messageId);
+    function bridgeIOU(
+        uint256 amount,
+        uint24 chainSelector
+    ) external payable returns (bytes32 messageId);
 
     /**
      * @notice Sets the destination pool address for a specific chain
@@ -60,7 +73,11 @@ interface IRebalancer {
      * @param gasLimit Gas limit for the cross-chain message
      * @return fee The fee amount in native token
      */
-    function getMessageFee(uint24 dstChainSelector, address dstPool, uint256 gasLimit) external view returns (uint256 fee);
+    function getMessageFee(
+        uint24 dstChainSelector,
+        address dstPool,
+        uint256 gasLimit
+    ) external view returns (uint256 fee);
 
     /**
      * @notice Gets the destination pool address for a specific chain

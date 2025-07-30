@@ -33,6 +33,9 @@ const envPrefixes: EnvPrefixes = {
 	verifierProxy: "CONCERO_VERIFIER_PROXY",
 	verifierProxyAdmin: "CONCERO_VERIFIER_PROXY_ADMIN",
 	lpToken: "LPTOKEN",
+	iouToken: "IOUTOKEN",
+	parentPool: "PARENT_POOL",
+	childPool: "CHILD_POOL",
 	create3Factory: "CREATE3_FACTORY",
 	pause: "CONCERO_PAUSE",
 };

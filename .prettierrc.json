@@ -20,8 +20,7 @@
                 "importOrderSeparation": true,
                 "importOrderSortSpecifiers": true,
                 "importOrder": [
-                    "./utils/configureDotEnv",
-                    "./utils/configureOperatorEnv",
+                    "^.*config.*",
                     "^viem(.*)$",
                     "^hardhat(.*)$",
                     "^@(.*)$",
@@ -34,7 +33,7 @@
         {
             "files": "*.sol",
             "options": {
-                "parser": "solidity-parse",
+                "parser": "slang",
                 "printWidth": 100,
                 "tabWidth": 4,
                 "useTabs": false,

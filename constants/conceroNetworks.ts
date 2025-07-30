@@ -68,7 +68,7 @@ const testingNetworks: Record<"localhost", ConceroLocalNetwork> &
 				balance: "10000000000000000000000",
 			},
 		],
-		chainSelector: BigInt(process.env.CL_CCIP_CHAIN_SELECTOR_LOCALHOST || "0"),
+		chainSelector: 31337n,
 		confirmations: 1,
 		viemChain: hardhatViemChain,
 		forking: {
@@ -83,22 +83,7 @@ const testingNetworks: Record<"localhost", ConceroLocalNetwork> &
 		chainId: 1,
 		viemChain: localhostViemChain,
 		confirmations: 1,
-		chainSelector: BigInt(process.env.CL_CCIP_CHAIN_SELECTOR_LOCALHOST || "0"),
-		accounts: [
-			localhostDeployerPK,
-			localhostProxyDeployerPK,
-			getEnvVar("TESTNET_OPERATOR_PRIVATE_KEY"),
-		],
-		saveDeployments: true,
-		url: process.env.LOCALHOST_RPC_URL || "http://localhost:8545",
-	},
-	localhostDst: {
-		name: "localhostDst",
-		type: networkTypes.localhost,
-		chainId: 1,
-		viemChain: localhostViemChain,
-		confirmations: 1,
-		chainSelector: BigInt(process.env.CL_CCIP_CHAIN_SELECTOR_LOCALHOST || "0"),
+		chainSelector: BigInt(process.env.CL_CCIP_CHAIN_SELECTOR_LOCALHOST || "1"),
 		accounts: [
 			localhostDeployerPK,
 			localhostProxyDeployerPK,

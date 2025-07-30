@@ -13,6 +13,9 @@ export type EnvPrefixes = {
 	verifierProxy: string;
 	verifierProxyAdmin: string;
 	lpToken: string;
+	iouToken: string;
+	parentPool: string;
+	childPool: string;
 	create3Factory: string;
 	pause: string;
 };

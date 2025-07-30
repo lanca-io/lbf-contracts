@@ -71,7 +71,7 @@ contract PoolBase is IPoolBase {
     function getCurrentDeficit() public view returns (uint256 deficit) {
         uint256 targetBalance = getTargetBalance();
         uint256 activeBalance = getActiveBalance();
-        deficit = activeBalance >= targetBalance ? 0 : targetBalance - activeBalance;
+        deficit =  activeBalance >= targetBalance ? 0 : targetBalance - activeBalance;
     }
 
     function getCurrentSurplus() public view returns (uint256 surplus) {
@@ -90,5 +90,10 @@ contract PoolBase is IPoolBase {
 
     function _postOutflow(uint256 outflowLiqTokenAmount) internal {
         s.poolBase().flowByDay[getTodayStartTimestamp()].outflow += outflowLiqTokenAmount;
+    }
+
+    function getPoolData() external view returns (uint256 deficit, uint256 surplus) {
+        deficit = getCurrentDeficit();
+        surplus = getCurrentSurplus();
     }
 }

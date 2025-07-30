@@ -4,10 +4,9 @@ node_modules
 # env files
 .env.*
 .env
-!.env.deployments
-!.env.clf
+!.env.deployments*
 !.env.tokens
-!.env.clccip
+.env.deployments.localhost
 
 # coverage
 coverage
