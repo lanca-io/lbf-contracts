@@ -5,6 +5,9 @@
     "bugs": "security@lanca.io",
     "homepage": "https://lanca.io",
     "description": "Lanca Bridging Framework Contracts. If you discover any security vulnerabilities, report them responsibly to security@lanca.io. Thank you!",
+    "engines": {
+        "node": "22.15.0"
+    },
     "scripts": {
         "chain": "hardhat node --network hardhat --no-deploy",
         "fork": "ETHEREUM_FORKING_ENABLED=true hardhat node --network hardhat --no-deploy",
