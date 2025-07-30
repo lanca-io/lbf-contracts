@@ -180,6 +180,7 @@ abstract contract Rebalancer is IRebalancer, PoolBase, ConceroClient {
             gasLimit: gasLimitForExecution
         });
 
+        // TODO: call it using interface
         (bool success, bytes memory returnData) = i_conceroRouter.staticcall(
             abi.encodeWithSignature(
                 "getMessageFee(uint24,bool,address,(address,uint256))",
