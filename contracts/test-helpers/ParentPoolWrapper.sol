@@ -3,8 +3,10 @@ pragma solidity ^0.8.28;
 
 import {ParentPool} from "../ParentPool/ParentPool.sol";
 import {LPToken} from "../ParentPool/LPToken.sol";
+import {Storage as s} from "../PoolBase/libraries/Storage.sol";
 
 contract ParentPoolWrapper is ParentPool {
+    using s for s.PoolBase;
     constructor(
         address liquidityToken,
         uint8 liquidityTokenDecimals,
@@ -25,7 +27,7 @@ contract ParentPoolWrapper is ParentPool {
 
     // Exposing internal functions for testing:
     function setTargetBalance(uint256 newTargetBalance) external {
-        _setTargetBalance(newTargetBalance);
+        s.poolBase().targetBalance = newTargetBalance;
     }
 
     function calculateNewTargetBalances(
@@ -35,7 +37,7 @@ contract ParentPoolWrapper is ParentPool {
     }
 
     function calculateLhsScore(
-        LiqTokenAmountFlow memory flow,
+        LiqTokenDailyFlow memory flow,
         uint256 targetBalance
     ) external returns (uint8) {
         return _calculateLhsScore(flow, targetBalance);
@@ -64,16 +66,5 @@ contract ParentPoolWrapper is ParentPool {
         uint256 totalChildPoolsActiveBalance
     ) external returns (uint256) {
         return _processWithdrawalsQueue(totalChildPoolsActiveBalance);
-    }
-
-    function updateTargetBalancesWithInflow(
-        uint256 totalLbfBalance,
-        uint256 totalAmountToWithdraw
-    ) external {
-        _updateTargetBalancesWithInflow(totalLbfBalance, totalAmountToWithdraw);
-    }
-
-    function updateTargetBalancesWithOutflow(uint256 totalLbfBalance, uint256 outflow) external {
-        _updateTargetBalancesWithOutflow(totalLbfBalance, outflow);
     }
 }
