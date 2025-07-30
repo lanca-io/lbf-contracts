@@ -24,7 +24,6 @@ interface IParentPool {
         uint256 balance;
         IPoolBase.LiqTokenDailyFlow dailyFlow;
         uint32 timestamp;
-        uint96 sendMessageFees; // @dev: in child pool chain native token.
     }
 
     error DepositQueueIsFull();
@@ -32,5 +31,5 @@ interface IParentPool {
     error QueuesAreNotFull();
 
     event DepositQueued(bytes32 indexed depositId, address indexed lp, uint256 amount);
-    event WithdrawQueued(bytes32 indexed withdrawId, address indexed lp, uint256 amount);
+    event WithdrawQueued(bytes32 indexed withdrawId, address indexed lp, uint256 liqTokenAmount);
 }
