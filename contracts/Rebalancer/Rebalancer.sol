@@ -93,7 +93,7 @@ abstract contract Rebalancer is IRebalancer, PoolBase, ConceroClient {
         require(iouTokenAmount > 0, InvalidAmount());
 
         // Validate destination pool exists
-        address destinationPoolAddress = s.rebalancer().dstPools[destinationChainSelector];
+        address destinationPoolAddress = s.poolBase().dstPools[destinationChainSelector];
         require(destinationPoolAddress != address(0), InvalidDestinationChain());
 
         // Burn IOU tokens from sender first (fail early if insufficient balance)
