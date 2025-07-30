@@ -194,7 +194,8 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer {
             totalRebalanceFee += rebalanceFee;
         }
 
-        // @dev do not clear this array in a loop because clearing it will affect getWithdrawalFee()
+        /* @dev do not clear this array in a loop because
+                clearing it will affect getWithdrawalFee() */
         delete s_parentPool.pendingWithdrawalIds;
 
         s_parentPool.totalWithdrawalAmountLocked -= totalLiquidityTokenAmountToWithdraw;
@@ -290,11 +291,10 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer {
             if (chainSelectors[i] != i_chainSelector) {
                 _updateChildPoolTargetBalance(chainSelectors[i], targetBalances[i]);
 
-                /* @dev we only delete the timestamp
-                        because that is enough to prevent it from passing
-                        _isChildPoolSnapshotTimestampInRange(snapshotTimestamp) and
-                        being used a second time
-                 */
+                /* @dev we only delete the timestamp because
+                        that is enough to prevent it from passing
+                        _isChildPoolSnapshotTimestampInRange(snapshotTimestamp)
+                        and being used a second time */
                 delete s_parentPool.childPoolsSubmissions[chainSelectors[i]].timestamp;
             } else {
                 _setTargetBalance(targetBalances[i]);
