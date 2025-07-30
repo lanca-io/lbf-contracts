@@ -82,6 +82,10 @@ abstract contract Rebalancer is IRebalancer, PoolBase, ConceroClient {
         return address(i_iouToken);
     }
 
+    function getRebalancerFee(uint256 amount) public pure returns (uint256) {
+        return (amount * REBALANCER_PREMIUM_BPS) / BPS_DENOMINATOR;
+    }
+
     function bridgeIOU(
         uint256 amount,
         uint24 chainSelector
@@ -183,5 +187,13 @@ abstract contract Rebalancer is IRebalancer, PoolBase, ConceroClient {
 
     function dstPools(uint24 chainSelector) external view returns (address) {
         return s.rebalancer().dstPools[chainSelector];
+    }
+
+    function getTotalRebalancingFee() public view returns (uint256) {
+        return s.rebalancer().totalRebalancingFee;
+    }
+
+    function _incrementRebalanceFee(uint256 amount) internal {
+        s.rebalancer().totalRebalancingFee += amount;
     }
 }

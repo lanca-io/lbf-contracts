@@ -21,8 +21,6 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer {
     error ChildPoolSnapshotsAreNotReady();
 
     uint32 internal constant UPDATE_TARGET_BALANCE_MESSAGE_GAS_LIMIT = 100_000;
-    uint16 internal constant GAS_LIMIT_OVERHEAD = 30_000; // @dev includes 25_000 initial tx gas + several slods
-    uint24 internal constant PROCESS_PENDING_WITHDRAWAL_GAS_LIMIT = 100_000; // @dev includes gas limit for process 1 pending withdrawal
     LPToken internal immutable i_lpToken;
     IPriceFeeds internal immutable i_priceFeeds;
 
@@ -55,7 +53,7 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer {
 
         s.ParentPool storage s_parentPool = s.parentPool();
         require(
-            s_parentPool.depositsQueueIds.length < s_parentPool.maxDepositQueueLength,
+            s_parentPool.depositsQueueIds.length < s_parentPool.depositQueueLength,
             DepositQueueIsFull()
         );
 
@@ -82,7 +80,7 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer {
         s.ParentPool storage s_parentPool = s.parentPool();
 
         require(
-            s_parentPool.withdrawalsQueueIds.length < s_parentPool.maxWithdrawalQueueLength,
+            s_parentPool.withdrawalsQueueIds.length < s_parentPool.withdrawalQueueLength,
             WithdrawalQueueIsFull()
         );
 
@@ -111,8 +109,8 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer {
         s.ParentPool storage s_parentPool = s.parentPool();
 
         return
-            s_parentPool.withdrawalsQueueIds.length == s_parentPool.maxWithdrawalQueueLength &&
-            s_parentPool.depositsQueueIds.length == s_parentPool.maxDepositQueueLength;
+            s_parentPool.withdrawalsQueueIds.length == s_parentPool.withdrawalQueueLength &&
+            s_parentPool.depositsQueueIds.length == s_parentPool.depositQueueLength;
     }
 
     function isReadyToProcessPendingWithdrawals() public view returns (bool) {
@@ -131,28 +129,21 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer {
             s_parentPool.totalLancaFeeInLiqToken;
     }
 
-    function getProcessingFees() public view returns (uint256, uint256) {
+    function getWithdrawalFee(uint256 amount) public view returns (uint256, uint256) {
         s.ParentPool storage s_parentPool = s.parentPool();
+        /* @dev We multiply this by 4 because we collect the fee from
+                the user upon withdrawal for both deposits
+                and withdrawals, and when depositing or withdrawing,
+                messages are sent twice: first childPools ->
+                parentPool, then parentPool -> childPools */
+        uint256 conceroFee = (s_parentPool.averageConceroMessageFee *
+            getSupportedChainSelectors().length *
+            4) / s_parentPool.pendingWithdrawalIds.length;
 
-        uint256 withdrawalsQueueLength = s_parentPool.withdrawalsQueueIds.length;
-        uint256 depositFee = s_parentPool.lastTriggerDepositWithdrawFeeInLiquidityToken /
-            (withdrawalsQueueLength + s_parentPool.depositsQueueIds.length);
-        uint256 withdrawFee = (s_parentPool.lastProcessPendingWithdrawFeeInLiquidityToken /
-            withdrawalsQueueLength) + depositFee;
-
-        return (depositFee, withdrawFee);
-    }
-
-    function getDepositFee() public view returns (uint256) {
-        s.ParentPool storage s_parentPool = s.parentPool();
-
-        return
-            s_parentPool.lastTriggerDepositWithdrawFeeInLiquidityToken /
-            (s_parentPool.withdrawalsQueueIds.length + s_parentPool.depositsQueueIds.length);
+        return (conceroFee, getRebalancerFee(amount));
     }
 
     function triggerDepositWithdrawProcess() external payable onlyLancaKeeper {
-        uint256 gasStart = gasleft();
         require(areQueuesFull(), QueuesAreNotFull());
 
         (
@@ -164,7 +155,7 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer {
 
         s.ParentPool storage s_parentPool = s.parentPool();
 
-        uint256 deposited = _processDepositsQueue(childPoolsBalance, getDepositFee());
+        uint256 deposited = _processDepositsQueue(childPoolsBalance);
         uint256 withdrawals = _processWithdrawalsQueue(childPoolsBalance);
         uint256 newTotalBalance = childPoolsBalance + getActiveBalance();
         uint256 totalRequestedWithdrawals = s_parentPool.remainingWithdrawalAmount + withdrawals;
@@ -175,13 +166,6 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer {
         } else {
             totalFeeInNative += _processOutflow(newTotalBalance, totalRequestedWithdrawals);
         }
-
-        uint256 gasUsed = gasStart - gasleft();
-
-        s_parentPool.lastTriggerDepositWithdrawFeeInLiquidityToken = uint96(
-            (totalFeeInNative + (GAS_LIMIT_OVERHEAD * tx.gasprice) + gasUsed) *
-                _getNativeToLiqTokenRate()
-        );
     }
 
     function processPendingWithdrawals() external onlyLancaKeeper {
@@ -197,52 +181,64 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer {
         bytes32[] memory pendingWithdrawalIds = s_parentPool.pendingWithdrawalIds;
         PendingWithdrawal memory pendingWithdrawal;
         uint256 totalLiquidityTokenAmountToWithdraw;
+        uint256 totalLancaFee;
+        uint256 totalRebalanceFee;
 
         for (uint256 i; i < pendingWithdrawalIds.length; ++i) {
             pendingWithdrawal = s_parentPool.pendingWithdrawals[pendingWithdrawalIds[i]];
             delete s_parentPool.pendingWithdrawals[pendingWithdrawalIds[i]];
             i_lpToken.burn(pendingWithdrawal.lpTokenAmountToWithdraw);
-            IERC20(i_liquidityToken).safeTransfer(
-                pendingWithdrawal.lp,
+
+            (uint256 conceroFee, uint256 rebalanceFee) = getWithdrawalFee(
                 pendingWithdrawal.liqTokenAmountToWithdraw
             );
-            totalLiquidityTokenAmountToWithdraw += pendingWithdrawal.liqTokenAmountToWithdraw;
+            uint256 amountToWithdrawWithFee = pendingWithdrawal.liqTokenAmountToWithdraw -
+                (conceroFee + rebalanceFee);
+
+            IERC20(i_liquidityToken).safeTransfer(pendingWithdrawal.lp, amountToWithdrawWithFee);
+            totalLiquidityTokenAmountToWithdraw += amountToWithdrawWithFee;
+            totalLancaFee += conceroFee;
+            totalRebalanceFee += rebalanceFee;
         }
 
+        // @dev do not clear this array in a loop because clearing it will affect getWithdrawalFee()
         delete s_parentPool.pendingWithdrawalIds;
 
         s_parentPool.totalWithdrawalAmountLocked -= totalLiquidityTokenAmountToWithdraw;
+        s_parentPool.totalLancaFeeInLiqToken += totalLancaFee;
+        _incrementRebalanceFee(totalRebalanceFee);
     }
 
     /*   INTERNAL FUNCTIONS   */
 
     function _processDepositsQueue(
-        uint256 totalChildPoolsActiveBalance,
-        uint256 depositFee
+        uint256 totalChildPoolsActiveBalance
     ) internal returns (uint256) {
         s.ParentPool storage s_parentPool = s.parentPool();
 
         bytes32[] memory depositsQueueIds = s_parentPool.depositsQueueIds;
         uint256 totalDepositedLiqTokenAmount;
-        uint256 amountToDeposit;
+        uint256 amountToDepositWithFee;
+        uint256 depositFee;
 
         for (uint256 i; i < depositsQueueIds.length; ++i) {
             Deposit memory deposit = s_parentPool.depositsQueue[depositsQueueIds[i]];
 
             delete s_parentPool.depositsQueue[depositsQueueIds[i]];
 
-            amountToDeposit = deposit.liquidityTokenAmountToDeposit - depositFee;
+            depositFee = getRebalancerFee(deposit.liquidityTokenAmountToDeposit);
+            amountToDepositWithFee = deposit.liquidityTokenAmountToDeposit - depositFee;
 
             uint256 lpTokenAmountToMint = _calculateLpTokenAmountToMint(
                 totalChildPoolsActiveBalance + getActiveBalance(),
-                amountToDeposit
+                amountToDepositWithFee
             );
 
             // TODO: may be more gas-optimal if you subtract one time outside the cycle
-            s_parentPool.totalDepositAmountInQueue -= amountToDeposit;
+            s_parentPool.totalDepositAmountInQueue -= amountToDepositWithFee;
             LPToken(i_lpToken).mint(deposit.lp, lpTokenAmountToMint);
-            totalDepositedLiqTokenAmount += amountToDeposit;
-            s_parentPool.totalLancaFeeInLiqToken += depositFee;
+            totalDepositedLiqTokenAmount += amountToDepositWithFee;
+            _incrementRebalanceFee(depositFee);
         }
 
         delete s_parentPool.depositsQueueIds;
@@ -312,7 +308,7 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer {
                 /* @dev we only delete the timestamp
                         because that is enough to prevent it from passing
                         _isChildPoolSnapshotTimestampInRange(snapshotTimestamp) and
-                         being used a second time
+                        being used a second time
                  */
                 delete s_parentPool.childPoolsSubmissions[chainSelectors[i]].timestamp;
             } else {

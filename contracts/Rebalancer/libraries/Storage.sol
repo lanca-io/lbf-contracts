@@ -6,6 +6,7 @@ library Storage {
 
     struct Rebalancer {
         mapping(uint24 => address) dstPools;
+        uint256 totalRebalancingFee;
     }
 
     function rebalancer() internal pure returns (Rebalancer storage rd) {

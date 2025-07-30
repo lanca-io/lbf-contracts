@@ -36,10 +36,9 @@ library Storage {
         uint256 remainingWithdrawalAmount;
         uint256 totalLancaFeeInLiqToken;
         address lancaKeeper;
-        uint8 maxWithdrawalQueueLength;
-        uint8 maxDepositQueueLength;
-        uint96 lastTriggerDepositWithdrawFeeInLiquidityToken;
-        uint96 lastProcessPendingWithdrawFeeInLiquidityToken;
+        uint16 withdrawalQueueLength;
+        uint16 depositQueueLength;
+        uint96 averageConceroMessageFee;
     }
 
     /* SLOT-BASED STORAGE ACCESS */

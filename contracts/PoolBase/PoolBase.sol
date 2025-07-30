@@ -35,8 +35,7 @@ contract PoolBase is IPoolBase {
     }
 
     function toLiqTokenDecimals(uint256 lpTokenAmount) public view returns (uint256) {
-        if (LP_TOKEN_DECIMALS == i_liquidityTokenDecimals) return lpTokenAmount;
-        return (lpTokenAmount * i_liquidityTokenDecimals) / LP_TOKEN_DECIMALS;
+        return toLiqTokenDecimals(lpTokenAmount, LP_TOKEN_DECIMALS);
     }
 
     function toLiqTokenDecimals(uint256 amount, uint8 decimals) public view returns (uint256) {
@@ -69,26 +68,6 @@ contract PoolBase is IPoolBase {
         return activeBalance - tagetBalance;
     }
 
-    function _setTargetBalance(uint256 updatedTargetBalance) internal {
-        s.poolBase().targetBalance = updatedTargetBalance;
-    }
-
-    function _postInflow(uint256 inflowLiqTokenAmount) internal virtual {
-        _incrementLiqInflow(inflowLiqTokenAmount);
-    }
-
-    function _postOutflow(uint256 outflowLiqTokenAmount) internal {
-        _incrementLiqOutflow(outflowLiqTokenAmount);
-    }
-
-    function _incrementLiqInflow(uint256 inflowAmount) internal {
-        s.poolBase().flowByDay[getTodayStartTimestamp()].inflow += inflowAmount;
-    }
-
-    function _incrementLiqOutflow(uint256 outflowAmount) internal {
-        s.poolBase().flowByDay[getTodayStartTimestamp()].outflow += outflowAmount;
-    }
-
     function getCurrentDeficit() public view returns (uint256 deficit) {
         uint256 targetBalance = getTargetBalance();
         uint256 activeBalance = getActiveBalance();
@@ -99,5 +78,17 @@ contract PoolBase is IPoolBase {
         uint256 targetBalance = getTargetBalance();
         uint256 activeBalance = getActiveBalance();
         surplus = activeBalance <= targetBalance ? 0 : activeBalance - targetBalance;
+    }
+
+    function _setTargetBalance(uint256 updatedTargetBalance) internal {
+        s.poolBase().targetBalance = updatedTargetBalance;
+    }
+
+    function _postInflow(uint256 inflowLiqTokenAmount) internal virtual {
+        s.poolBase().flowByDay[getTodayStartTimestamp()].inflow += inflowLiqTokenAmount;
+    }
+
+    function _postOutflow(uint256 outflowLiqTokenAmount) internal {
+        s.poolBase().flowByDay[getTodayStartTimestamp()].outflow += outflowLiqTokenAmount;
     }
 }
