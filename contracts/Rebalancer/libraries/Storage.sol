@@ -2,6 +2,8 @@
 pragma solidity ^0.8.28;
 
 library Storage {
+    // TODO: replace with keccak256(abi.encode(uint256(keccak256(abi.encodePacked("poolBase"))) - 1)) &
+    //            ~bytes32(uint256(0xff));
     bytes32 constant REBALANCER_NAMESPACE = keccak256("lanca.rebalancer.storage");
 
     struct Rebalancer {

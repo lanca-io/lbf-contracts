@@ -11,21 +11,18 @@ interface IRebalancer {
         bytes32 messageId
     );
     event IOUReceived(
-        uint24 indexed srcChainSelector,
-        address indexed receiver,
-        uint256 amount,
-        bytes32 messageId
+        bytes32 indexed messageId,
+        uint24 srcChainSelector,
+        address receiver,
+        uint256 amount
     );
-    event DstPoolSet(uint24 indexed chainSelector, address indexed poolAddress);
 
     error NoDeficitToFill();
     error NoSurplusToTake();
-    error TransferFailed();
     error InvalidDestinationChain();
     error InvalidAmount();
     error ConceroSendFailed();
     error UnauthorizedSender();
-    error InvalidMessageType();
     error GetMessageFeeFailed();
 
     /**
@@ -60,13 +57,6 @@ interface IRebalancer {
     ) external payable returns (bytes32 messageId);
 
     /**
-     * @notice Sets the destination pool address for a specific chain
-     * @param chainSelector Chain selector of the destination chain
-     * @param poolAddress Address of the pool on the destination chain
-     */
-    function setDstPool(uint24 chainSelector, address poolAddress) external;
-
-    /**
      * @notice Gets the message fee for bridging to a destination chain
      * @param dstChainSelector Destination chain selector
      * @param dstPool Destination pool address
@@ -78,11 +68,4 @@ interface IRebalancer {
         address dstPool,
         uint256 gasLimit
     ) external view returns (uint256 fee);
-
-    /**
-     * @notice Gets the destination pool address for a specific chain
-     * @param chainSelector Chain selector of the destination chain
-     * @return poolAddress Address of the pool on the destination chain
-     */
-    function dstPools(uint24 chainSelector) external view returns (address poolAddress);
 }

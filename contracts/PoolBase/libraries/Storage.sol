@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.28;
 
-import {IPoolBase} from "../interfaces/IPoolBase.sol";
+import {IPoolBase} from "../../PoolBase/interfaces/IPoolBase.sol";
 
 library Namespaces {
     bytes32 internal constant POOL_BASE =
@@ -11,9 +11,10 @@ library Namespaces {
 
 library Storage {
     struct PoolBase {
-        uint24[] supportedChainSelectors;
         uint256 targetBalance;
+        uint256 totalLancaFeeInLiqToken;
         mapping(uint32 timestamp => IPoolBase.LiqTokenDailyFlow flow) flowByDay;
+        mapping(uint24 chainSelector => address dstPool) dstPools;
     }
 
     /* SLOT-BASED STORAGE ACCESS */

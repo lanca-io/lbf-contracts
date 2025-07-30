@@ -1,46 +1,96 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.28;
 
-import {IPoolBase} from "./interfaces/IPoolBase.sol";
+import "../Rebalancer/interfaces/IRebalancer.sol";
+import "../common/CommonTypes.sol";
+import "../common/interfaces/ICommonErrors.sol";
+import {ConceroClient} from "@concero/v2-contracts/contracts/ConceroClient/ConceroClient.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {IPoolBase} from "./interfaces/IPoolBase.sol";
+import {Storage as rs} from "../Rebalancer/libraries/Storage.sol";
 import {Storage as s} from "./libraries/Storage.sol";
 
-contract PoolBase is IPoolBase {
+abstract contract PoolBase is IPoolBase, ConceroClient {
     using s for s.PoolBase;
+    using s for rs.Rebalancer;
+
+    error InvalidMessageType();
+
+    uint32 private constant SECONDS_IN_DAY = 86400;
 
     address internal immutable i_liquidityToken;
     uint8 internal immutable i_liquidityTokenDecimals;
     uint24 internal i_chainSelector;
-    uint8 private constant LP_TOKEN_DECIMALS = 16;
-    uint32 private constant SECONDS_IN_DAY = 86400;
 
-    constructor(address liquidityToken, uint8 liquidityTokenDecimals, uint24 chainSelector) {
+    constructor(
+        address liquidityToken,
+        address conceroRouter,
+        uint8 liquidityTokenDecimals,
+        uint24 chainSelector
+    ) ConceroClient(conceroRouter) {
         i_liquidityToken = liquidityToken;
         i_liquidityTokenDecimals = liquidityTokenDecimals;
         i_chainSelector = chainSelector;
     }
 
-    function getSupportedChainSelectors() public view returns (uint24[] memory) {
-        return s.poolBase().supportedChainSelectors;
-    }
-
     function getActiveBalance() public view virtual returns (uint256) {
-        // TODO: deduct the rebalancing fee in the future
-        return IERC20(i_liquidityToken).balanceOf(address(this));
+        return
+            IERC20(i_liquidityToken).balanceOf(address(this)) -
+            rs.rebalancer().totalRebalancingFee -
+            s.poolBase().totalLancaFeeInLiqToken;
     }
 
-    function toLpTokenDecimals(uint256 liquidityTokenAmount) public view returns (uint256) {
-        if (LP_TOKEN_DECIMALS == i_liquidityTokenDecimals) return liquidityTokenAmount;
-        return (liquidityTokenAmount * LP_TOKEN_DECIMALS) / i_liquidityTokenDecimals;
+    function _conceroReceive(
+        bytes32 messageId,
+        uint24 sourceChainSelector,
+        bytes calldata sender,
+        bytes calldata message
+    ) internal override {
+        address remoteSender = abi.decode(sender, (address));
+
+        require(
+            s.poolBase().dstPools[sourceChainSelector] == remoteSender,
+            ICommonErrors.UnauthorizedSender(
+                remoteSender,
+                s.poolBase().dstPools[sourceChainSelector]
+            )
+        );
+
+        (CommonTypes.MessageType messageType, bytes memory messageData) = abi.decode(
+            message,
+            (CommonTypes.MessageType, bytes)
+        );
+
+        if (messageType == CommonTypes.MessageType.BRIDGE_IOU) {
+            _handleConceroReceiveBridgeIou(messageId, sourceChainSelector, message);
+        } else {
+            revert InvalidMessageType();
+        }
     }
 
-    function toLiqTokenDecimals(uint256 lpTokenAmount) public view returns (uint256) {
-        return toLiqTokenDecimals(lpTokenAmount, LP_TOKEN_DECIMALS);
+    function _handleConceroReceiveBridgeIou(
+        bytes32 messageId,
+        uint24 sourceChainSelector,
+        bytes calldata messageData
+    ) internal virtual;
+
+    function getSurplus() public view returns (uint256) {
+        uint256 activeBalance = getActiveBalance();
+        uint256 tagetBalance = getTargetBalance();
+
+        if (activeBalance <= tagetBalance) return 0;
+        return activeBalance - tagetBalance;
     }
 
-    function toLiqTokenDecimals(uint256 amount, uint8 decimals) public view returns (uint256) {
-        if (decimals == i_liquidityTokenDecimals) return amount;
-        return (amount * i_liquidityTokenDecimals) / decimals;
+    function getDeficit() public view returns (uint256 deficit) {
+        uint256 targetBalance = getTargetBalance();
+        uint256 activeBalance = getActiveBalance();
+        deficit = activeBalance >= targetBalance ? 0 : targetBalance - activeBalance;
+    }
+
+    function getPoolData() external view returns (uint256 deficit, uint256 surplus) {
+        deficit = getDeficit();
+        surplus = getSurplus();
     }
 
     function getTargetBalance() public view returns (uint256) {
@@ -59,41 +109,11 @@ contract PoolBase is IPoolBase {
         return getTodayStartTimestamp() - 1;
     }
 
-    // TODO: move it to rebalancer module
-    function getSurplus() public view returns (uint256) {
-        uint256 activeBalance = getActiveBalance();
-        uint256 tagetBalance = getTargetBalance();
-
-        if (activeBalance <= tagetBalance) return 0;
-        return activeBalance - tagetBalance;
-    }
-
-    function getCurrentDeficit() public view returns (uint256 deficit) {
-        uint256 targetBalance = getTargetBalance();
-        uint256 activeBalance = getActiveBalance();
-        deficit =  activeBalance >= targetBalance ? 0 : targetBalance - activeBalance;
-    }
-
-    function getCurrentSurplus() public view returns (uint256 surplus) {
-        uint256 targetBalance = getTargetBalance();
-        uint256 activeBalance = getActiveBalance();
-        surplus = activeBalance <= targetBalance ? 0 : activeBalance - targetBalance;
-    }
-
-    function _setTargetBalance(uint256 updatedTargetBalance) internal {
-        s.poolBase().targetBalance = updatedTargetBalance;
-    }
-
     function _postInflow(uint256 inflowLiqTokenAmount) internal virtual {
         s.poolBase().flowByDay[getTodayStartTimestamp()].inflow += inflowLiqTokenAmount;
     }
 
     function _postOutflow(uint256 outflowLiqTokenAmount) internal {
         s.poolBase().flowByDay[getTodayStartTimestamp()].outflow += outflowLiqTokenAmount;
-    }
-
-    function getPoolData() external view returns (uint256 deficit, uint256 surplus) {
-        deficit = getCurrentDeficit();
-        surplus = getCurrentSurplus();
     }
 }

@@ -16,7 +16,7 @@ import {Storage as s} from "./libraries/Storage.sol";
  * @title Rebalancer
  * @notice Abstract contract for rebalancing pool liquidity
  */
-abstract contract Rebalancer is IRebalancer, PoolBase, ConceroClient {
+abstract contract Rebalancer is IRebalancer, PoolBase {
     using s for s.Rebalancer;
     using SafeERC20 for IERC20;
 
@@ -26,14 +26,14 @@ abstract contract Rebalancer is IRebalancer, PoolBase, ConceroClient {
 
     IOUToken internal immutable i_iouToken;
 
-    constructor(address iouToken, address conceroRouter) ConceroClient(conceroRouter) {
+    constructor(address iouToken) {
         i_iouToken = IOUToken(iouToken);
     }
 
     function fillDeficit(uint256 liquidityAmountToFill) external returns (uint256 iouTokensToMint) {
         require(liquidityAmountToFill > 0, InvalidAmount());
 
-        uint256 deficit = getCurrentDeficit();
+        uint256 deficit = getDeficit();
         require(deficit > 0, NoDeficitToFill());
 
         // Cap the amount to the actual deficit to prevent over-filling
@@ -59,7 +59,7 @@ abstract contract Rebalancer is IRebalancer, PoolBase, ConceroClient {
     ) external returns (uint256 liquidityTokensToReceive) {
         require(iouTokensToBurn > 0, InvalidAmount());
 
-        uint256 currentSurplus = getCurrentSurplus();
+        uint256 currentSurplus = getSurplus();
         require(currentSurplus > 0, NoSurplusToTake());
 
         // Calculate equivalent amount of surplus tokens (1:1 ratio)
@@ -125,46 +125,18 @@ abstract contract Rebalancer is IRebalancer, PoolBase, ConceroClient {
         return messageId;
     }
 
-    function _conceroReceive(
+    function _handleConceroReceiveBridgeIou(
         bytes32 messageId,
         uint24 sourceChainSelector,
-        bytes calldata sender,
-        bytes calldata message
+        bytes calldata messageData
     ) internal override {
-        // Decode sender address
-        address remoteSender = abi.decode(sender, (address));
+        (uint256 iouTokenAmount, address receiver) = abi.decode(messageData, (uint256, address));
 
-        require(s.rebalancer().dstPools[sourceChainSelector] == remoteSender, UnauthorizedSender());
+        require(iouTokenAmount > 0, InvalidAmount());
 
-        // Decode message type and data
-        (CommonTypes.MessageType messageType, bytes memory messageData) = abi.decode(
-            message,
-            (CommonTypes.MessageType, bytes)
-        );
+        i_iouToken.mint(receiver, iouTokenAmount);
 
-        if (messageType == CommonTypes.MessageType.BRIDGE_IOU) {
-            (uint256 iouTokenAmount, address receiverAddress) = abi.decode(
-                messageData,
-                (uint256, address)
-            );
-
-            require(iouTokenAmount > 0, InvalidAmount());
-            require(receiverAddress != address(0), InvalidAmount());
-
-            i_iouToken.mint(receiverAddress, iouTokenAmount);
-
-            emit IOUReceived(sourceChainSelector, receiverAddress, iouTokenAmount, messageId);
-        } else {
-            revert InvalidMessageType();
-        }
-    }
-
-    function setDstPool(uint24 destinationChainSelector, address destinationPoolAddress) external {
-        // TODO: Add access control - only owner/admin should call this
-        require(destinationPoolAddress != address(0), InvalidAmount());
-
-        s.rebalancer().dstPools[destinationChainSelector] = destinationPoolAddress;
-        emit DstPoolSet(destinationChainSelector, destinationPoolAddress);
+        emit IOUReceived(messageId, sourceChainSelector, receiver, iouTokenAmount);
     }
 
     function getMessageFee(
@@ -196,7 +168,7 @@ abstract contract Rebalancer is IRebalancer, PoolBase, ConceroClient {
         return abi.decode(returnData, (uint256));
     }
 
-    function dstPools(uint24 chainSelector) external view returns (address) {
-        return s.rebalancer().dstPools[chainSelector];
+    function getRebalancerFee(uint256 amount) public pure returns (uint256) {
+        return (amount * REBALANCER_PREMIUM_BPS) / BPS_DENOMINATOR;
     }
 }

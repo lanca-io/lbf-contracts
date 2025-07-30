@@ -1,26 +1,30 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.28;
 
-import {IConceroRouter} from "concero-v2/contracts/interfaces/IConceroRouter.sol";
-import {ConceroTypes} from "concero-v2/contracts/ConceroClient/ConceroTypes.sol";
+import {IConceroRouter} from "@concero/v2-contracts/contracts/interfaces/IConceroRouter.sol";
+import {ConceroTypes} from "@concero/v2-contracts/contracts/ConceroClient/ConceroTypes.sol";
 import {ICommonErrors} from "../common/interfaces/ICommonErrors.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {ILancaKeeper} from "./interfaces/ILancaKeeper.sol";
 import {IParentPool} from "./interfaces/IParentPool.sol";
 import {PoolBase} from "../PoolBase/PoolBase.sol";
 import {Storage as s} from "./libraries/Storage.sol";
+import {Storage as rs} from "../Rebalancer/libraries/Storage.sol";
+import {Storage as pbs} from "../PoolBase/libraries/Storage.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {LPToken} from "./LPToken.sol";
 import {Rebalancer} from "../Rebalancer/Rebalancer.sol";
-import {IPriceFeeds} from "../common/interfaces/IPriceFeeds.sol";
 
 contract ParentPool is IParentPool, ILancaKeeper, Rebalancer {
     using s for s.ParentPool;
+    using rs for rs.Rebalancer;
+    using pbs for pbs.PoolBase;
     using SafeERC20 for IERC20;
 
     error ChildPoolSnapshotsAreNotReady();
 
     uint32 internal constant UPDATE_TARGET_BALANCE_MESSAGE_GAS_LIMIT = 100_000;
+    uint8 private constant LP_TOKEN_DECIMALS = 16;
     LPToken internal immutable i_lpToken;
 
     modifier onlyLancaKeeper() {
@@ -39,7 +43,10 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer {
         address conceroRouter,
         uint24 chainSelector,
         address iouToken
-    ) Rebalancer(conceroRouter, iouToken, liquidityToken, liquidityTokenDecimals, chainSelector) {
+    )
+        PoolBase(liquidityToken, conceroRouter, liquidityTokenDecimals, chainSelector)
+        Rebalancer(iouToken)
+    {
         i_lpToken = LPToken(lpToken);
     }
 
@@ -97,6 +104,10 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer {
         emit WithdrawQueued(withdrawId, withdraw.lp, lpTokenAmount);
     }
 
+    function getSupportedChainSelectors() public view returns (uint24[] memory) {
+        return s.parentPool().supportedChainSelectors;
+    }
+
     function isReadyToTriggerDepositWithdrawProcess() external view returns (bool) {
         (bool success, ) = _getTotalChildPoolsActiveBalance();
         return success && areQueuesFull();
@@ -122,8 +133,7 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer {
         return
             super.getActiveBalance() -
             s_parentPool.totalDepositAmountInQueue -
-            s_parentPool.totalWithdrawalAmountLocked -
-            s_parentPool.totalLancaFeeInLiqToken;
+            s_parentPool.totalWithdrawalAmountLocked;
     }
 
     function getWithdrawalFee(uint256 amount) public view returns (uint256, uint256) {
@@ -200,10 +210,24 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer {
 
         s_parentPool.totalWithdrawalAmountLocked -= totalLiquidityTokenAmountToWithdraw;
         s_parentPool.totalLancaFeeInLiqToken += totalLancaFee;
-        _incrementRebalanceFee(totalRebalanceFee);
+        rs.rebalancer().totalRebalancingFee += totalRebalanceFee;
     }
 
     /*   INTERNAL FUNCTIONS   */
+
+    function _toLpTokenDecimals(uint256 liquidityTokenAmount) internal view returns (uint256) {
+        if (LP_TOKEN_DECIMALS == i_liquidityTokenDecimals) return liquidityTokenAmount;
+        return (liquidityTokenAmount * LP_TOKEN_DECIMALS) / i_liquidityTokenDecimals;
+    }
+
+    function _toLiqTokenDecimals(uint256 lpTokenAmount) internal view returns (uint256) {
+        return _toLiqTokenDecimals(lpTokenAmount, LP_TOKEN_DECIMALS);
+    }
+
+    function _toLiqTokenDecimals(uint256 amount, uint8 decimals) internal view returns (uint256) {
+        if (decimals == i_liquidityTokenDecimals) return amount;
+        return (amount * i_liquidityTokenDecimals) / decimals;
+    }
 
     function _processDepositsQueue(
         uint256 totalChildPoolsActiveBalance
@@ -214,6 +238,7 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer {
         uint256 totalDepositedLiqTokenAmount;
         uint256 amountToDepositWithFee;
         uint256 depositFee;
+        uint256 totalDepositFee;
 
         for (uint256 i; i < depositsQueueIds.length; ++i) {
             Deposit memory deposit = s_parentPool.depositsQueue[depositsQueueIds[i]];
@@ -222,6 +247,7 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer {
 
             depositFee = getRebalancerFee(deposit.liquidityTokenAmountToDeposit);
             amountToDepositWithFee = deposit.liquidityTokenAmountToDeposit - depositFee;
+            totalDepositFee += depositFee;
 
             uint256 lpTokenAmountToMint = _calculateLpTokenAmountToMint(
                 totalChildPoolsActiveBalance + getActiveBalance(),
@@ -232,10 +258,10 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer {
             s_parentPool.totalDepositAmountInQueue -= amountToDepositWithFee;
             LPToken(i_lpToken).mint(deposit.lp, lpTokenAmountToMint);
             totalDepositedLiqTokenAmount += amountToDepositWithFee;
-            _incrementRebalanceFee(depositFee);
         }
 
         delete s_parentPool.depositsQueueIds;
+        rs.rebalancer().totalRebalancingFee += totalDepositFee;
 
         return totalDepositedLiqTokenAmount;
     }
@@ -297,7 +323,7 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer {
                         and being used a second time */
                 delete s_parentPool.childPoolsSubmissions[chainSelectors[i]].timestamp;
             } else {
-                _setTargetBalance(targetBalances[i]);
+                pbs.poolBase().targetBalance += targetBalances[i];
             }
         }
     }
@@ -330,7 +356,7 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer {
                 s_parentPool.remainingWithdrawalAmount = remaining;
                 s_parentPool.minParentPoolTargetBalance = targetBalances[i];
 
-                _setTargetBalance(targetBalances[i] + remaining);
+                pbs.poolBase().targetBalance += remaining;
             }
         }
     }
@@ -342,11 +368,11 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer {
         uint256 lpTokenTotalSupply = IERC20(i_lpToken).totalSupply();
 
         if (lpTokenTotalSupply == 0) {
-            return toLpTokenDecimals(liquidityTokenAmountToDeposit);
+            return _toLpTokenDecimals(liquidityTokenAmountToDeposit);
         }
 
-        uint256 totalLbfActiveBalanceConverted = toLpTokenDecimals(totalLbfActiveBalance);
-        uint256 liquidityTokenAmountToDepositConverted = toLpTokenDecimals(
+        uint256 totalLbfActiveBalanceConverted = _toLpTokenDecimals(totalLbfActiveBalance);
+        uint256 liquidityTokenAmountToDepositConverted = _toLpTokenDecimals(
             liquidityTokenAmountToDeposit
         );
 
@@ -363,8 +389,8 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer {
 
         // @dev USDC_WITHDRAWABLE = POOL_BALANCE x (LP_INPUT_AMOUNT / TOTAL_LP)
         return
-            toLiqTokenDecimals(
-                (toLpTokenDecimals(totalCrossChainLiquidity) * lpTokenAmount) /
+            _toLiqTokenDecimals(
+                (_toLpTokenDecimals(totalCrossChainLiquidity) * lpTokenAmount) /
                     i_lpToken.totalSupply()
             );
     }
@@ -511,11 +537,11 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer {
         if (remainingWithdrawalAmount < inflowLiqTokenAmount) {
             delete s_parentPool.remainingWithdrawalAmount;
             s_parentPool.totalWithdrawalAmountLocked += remainingWithdrawalAmount;
-            _setTargetBalance(getTargetBalance() - remainingWithdrawalAmount);
+            pbs.poolBase().targetBalance -= remainingWithdrawalAmount;
         } else {
             s_parentPool.remainingWithdrawalAmount -= inflowLiqTokenAmount;
             s_parentPool.totalWithdrawalAmountLocked += inflowLiqTokenAmount;
-            _setTargetBalance(getTargetBalance() - inflowLiqTokenAmount);
+            pbs.poolBase().targetBalance -= inflowLiqTokenAmount;
         }
     }
 
