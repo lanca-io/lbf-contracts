@@ -25,11 +25,11 @@ const deployChildPool: DeploymentFunction = async function (
 	const iouTokenDeployment = await get("IOUToken");
 
 	const defaultArgs = [
+		getEnvVar(`CONCERO_ROUTER_${getNetworkEnvKey(name)}`) || "",
+		iouTokenDeployment.address,
 		getEnvVar(`USDC_${getNetworkEnvKey(name)}`) || "",
 		6, // USDC decimals
 		Number(chain.chainSelector), // Convert bigint to number for uint24
-		iouTokenDeployment.address,
-		getEnvVar(`CONCERO_ROUTER_${getNetworkEnvKey(name)}`) || "",
 	];
 
 	const args = deployOptions?.args || defaultArgs;

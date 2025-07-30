@@ -95,12 +95,12 @@ export class StateManager {
 			this.testClient.readContract({
 				address: poolAddress,
 				abi: poolAbi,
-				functionName: "getCurrentDeficit",
+				functionName: "getDeficit",
 			}),
 			this.testClient.readContract({
 				address: poolAddress,
 				abi: poolAbi,
-				functionName: "getCurrentSurplus",
+				functionName: "getSurplus",
 			}),
 		]);
 
