@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.28;
 
+import {IOUToken} from "../Rebalancer/IOUToken.sol";
 import "../Rebalancer/interfaces/IRebalancer.sol";
 import "../common/CommonTypes.sol";
 import "../common/interfaces/ICommonErrors.sol";
@@ -19,18 +20,21 @@ abstract contract PoolBase is IPoolBase, ConceroClient {
     uint32 private constant SECONDS_IN_DAY = 86400;
 
     address internal immutable i_liquidityToken;
+    IOUToken internal immutable i_iouToken;
     uint8 internal immutable i_liquidityTokenDecimals;
     uint24 internal i_chainSelector;
 
     constructor(
         address liquidityToken,
         address conceroRouter,
+        address iouToken,
         uint8 liquidityTokenDecimals,
         uint24 chainSelector
     ) ConceroClient(conceroRouter) {
         i_liquidityToken = liquidityToken;
         i_liquidityTokenDecimals = liquidityTokenDecimals;
         i_chainSelector = chainSelector;
+        i_iouToken = IOUToken(iouToken);
     }
 
     function getActiveBalance() public view virtual returns (uint256) {

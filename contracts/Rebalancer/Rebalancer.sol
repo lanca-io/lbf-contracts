@@ -24,12 +24,6 @@ abstract contract Rebalancer is IRebalancer, PoolBase {
     uint256 public constant REBALANCER_PREMIUM_BPS = 10;
     uint256 private constant DEFAULT_GAS_LIMIT = 300_000;
 
-    IOUToken internal immutable i_iouToken;
-
-    constructor(address iouToken) {
-        i_iouToken = IOUToken(iouToken);
-    }
-
     function fillDeficit(uint256 liquidityAmountToFill) external returns (uint256 iouTokensToMint) {
         require(liquidityAmountToFill > 0, InvalidAmount());
 
@@ -92,8 +86,10 @@ abstract contract Rebalancer is IRebalancer, PoolBase {
     ) external payable returns (bytes32 messageId) {
         require(iouTokenAmount > 0, InvalidAmount());
 
+        s.Rebalancer storage s_rebalancer = s.rebalancer();
+
         // Validate destination pool exists
-        address destinationPoolAddress = s.rebalancer().dstPools[destinationChainSelector];
+        address destinationPoolAddress = s_rebalancer.dstPools[destinationChainSelector];
         require(destinationPoolAddress != address(0), InvalidDestinationChain());
 
         // Burn IOU tokens from sender first (fail early if insufficient balance)
@@ -121,6 +117,8 @@ abstract contract Rebalancer is IRebalancer, PoolBase {
             crossChainMessage
         );
 
+        s_rebalancer.totalIouSent += iouTokenAmount;
+
         emit IOUBridged(msg.sender, destinationChainSelector, iouTokenAmount, messageId);
         return messageId;
     }
@@ -135,6 +133,8 @@ abstract contract Rebalancer is IRebalancer, PoolBase {
         require(iouTokenAmount > 0, InvalidAmount());
 
         i_iouToken.mint(receiver, iouTokenAmount);
+
+        s.rebalancer().totalIouReceived += iouTokenAmount;
 
         emit IOUReceived(messageId, sourceChainSelector, receiver, iouTokenAmount);
     }
