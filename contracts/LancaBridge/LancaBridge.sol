@@ -35,6 +35,7 @@ abstract contract LancaBridge is ILancaBridge, PoolBase, ReentrancyGuard {
         address dstPool = s.poolBase().dstPools[dstChainSelector];
         require(dstPool != address(0), InvalidDestinationPool());
 
+        _postInflow(tokenAmount);
         _depositTokens(token, msg.sender, tokenAmount);
 
         messageId = _sendMessage(
@@ -110,6 +111,8 @@ abstract contract LancaBridge is ILancaBridge, PoolBase, ReentrancyGuard {
             CommonTypes.BridgeType bridgeType,
             bytes memory dstCallData
         ) = _decodeMessage(messageData);
+
+        _postOutflow(tokenAmount);
 
         if (bridgeType == CommonTypes.BridgeType.CONTRACT_TRANSFER) {
             _withdrawTokens(token, tokenReceiver, tokenAmount);
