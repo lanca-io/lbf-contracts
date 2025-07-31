@@ -8,6 +8,7 @@ import {
     ConceroTypes
 } from "@concero/v2-contracts/contracts/interfaces/IConceroRouter.sol";
 
+import {LancaClient} from "../LancaClient/LancaClient.sol";
 import {ILancaBridge} from "./interfaces/ILancaBridge.sol";
 import {PoolBase, IERC20, CommonTypes} from "../PoolBase/PoolBase.sol";
 import {Storage as s} from "../PoolBase/libraries/Storage.sol";
@@ -177,5 +178,17 @@ abstract contract LancaBridge is ILancaBridge, PoolBase {
         address tokenReceiver,
         uint256 tokenAmount,
         bytes memory dstCallData
-    ) internal {}
+    ) internal {
+        bytes4 expectedSelector = LancaClient(tokenReceiver).lancaReceive(
+            token,
+            tokenSender,
+            tokenAmount,
+            dstCallData
+        );
+
+        require(
+            expectedSelector == LancaClient.lancaReceive.selector,
+            LancaClient.InvalidSelector()
+        );
+    }
 }
