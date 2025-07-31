@@ -101,7 +101,7 @@ abstract contract LancaBridge is ILancaBridge, PoolBase, ReentrancyGuard {
     function _handleConceroReceiveBridgeLiquidity(
         bytes32 messageId,
         uint24 sourceChainSelector,
-        bytes calldata messageData
+        bytes memory messageData
     ) internal override nonReentrant {
         (
             address token,
@@ -132,7 +132,7 @@ abstract contract LancaBridge is ILancaBridge, PoolBase, ReentrancyGuard {
     }
 
     function _decodeMessage(
-        bytes calldata messageData
+        bytes memory messageData
     )
         internal
         pure
