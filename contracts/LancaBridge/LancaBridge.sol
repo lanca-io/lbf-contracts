@@ -72,9 +72,9 @@ abstract contract LancaBridge is ILancaBridge, PoolBase, ReentrancyGuard {
     ) internal returns (bytes32 messageId) {
         bytes memory bridgeData;
         if (isTokenReceiverContract) {
-            bridgeData = abi.encode(msg.sender, token, tokenReceiver, tokenAmount, dstCallData);
+            bridgeData = abi.encode(token, msg.sender, tokenReceiver, tokenAmount, dstCallData);
         } else {
-            bridgeData = abi.encode(msg.sender, token, tokenReceiver, tokenAmount);
+            bridgeData = abi.encode(token, msg.sender, tokenReceiver, tokenAmount);
         }
 
         bytes memory messageData = abi.encode(
@@ -171,7 +171,7 @@ abstract contract LancaBridge is ILancaBridge, PoolBase, ReentrancyGuard {
 
     function _withdrawTokens(address token, address tokenReceiver, uint256 tokenAmount) internal {
         require(token == i_liquidityToken, OnlyAllowedTokens());
-        require(tokenAmount >= getActiveBalance(), ICommonErrors.InvalidAmount());
+        require(tokenAmount <= getActiveBalance(), ICommonErrors.InvalidAmount());
 
         IERC20(token).safeTransfer(tokenReceiver, tokenAmount);
     }
