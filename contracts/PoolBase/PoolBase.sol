@@ -87,12 +87,20 @@ abstract contract PoolBase is IPoolBase, ConceroClient, ConceroOwnable {
 
         if (messageType == CommonTypes.MessageType.BRIDGE_IOU) {
             _handleConceroReceiveBridgeIou(messageId, sourceChainSelector, message);
+        } else if (messageType == CommonTypes.MessageType.BRIDGE_LIQUIDITY) {
+            _handleConceroReceiveBridgeLiquidity(messageId, sourceChainSelector, message);
         } else {
             revert InvalidMessageType();
         }
     }
 
     function _handleConceroReceiveBridgeIou(
+        bytes32 messageId,
+        uint24 sourceChainSelector,
+        bytes calldata messageData
+    ) internal virtual;
+
+    function _handleConceroReceiveBridgeLiquidity(
         bytes32 messageId,
         uint24 sourceChainSelector,
         bytes calldata messageData
