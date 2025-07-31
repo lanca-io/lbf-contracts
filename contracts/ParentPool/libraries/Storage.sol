@@ -36,8 +36,8 @@ library Storage {
         uint256 remainingWithdrawalAmount;
         uint256 totalLancaFeeInLiqToken;
         address lancaKeeper;
-        uint16 withdrawalQueueLength;
-        uint16 depositQueueLength;
+        uint16 targetWithdrawalQueueLength;
+        uint16 targetDepositQueueLength;
         uint96 averageConceroMessageFee;
         uint256 minParentPoolTargetBalance;
     }

@@ -57,7 +57,7 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer {
 
         s.ParentPool storage s_parentPool = s.parentPool();
         require(
-            s_parentPool.depositsQueueIds.length < s_parentPool.depositQueueLength,
+            s_parentPool.depositsQueueIds.length < s_parentPool.targetDepositQueueLength,
             DepositQueueIsFull()
         );
 
@@ -84,7 +84,7 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer {
         s.ParentPool storage s_parentPool = s.parentPool();
 
         require(
-            s_parentPool.withdrawalsQueueIds.length < s_parentPool.withdrawalQueueLength,
+            s_parentPool.withdrawalsQueueIds.length < s_parentPool.targetWithdrawalQueueLength,
             WithdrawalQueueIsFull()
         );
 
@@ -117,8 +117,8 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer {
         s.ParentPool storage s_parentPool = s.parentPool();
 
         return
-            s_parentPool.withdrawalsQueueIds.length == s_parentPool.withdrawalQueueLength &&
-            s_parentPool.depositsQueueIds.length == s_parentPool.depositQueueLength;
+            s_parentPool.withdrawalsQueueIds.length == s_parentPool.targetWithdrawalQueueLength &&
+            s_parentPool.depositsQueueIds.length == s_parentPool.targetDepositQueueLength;
     }
 
     function isReadyToProcessPendingWithdrawals() public view returns (bool) {
