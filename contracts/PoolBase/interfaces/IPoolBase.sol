@@ -3,9 +3,10 @@ pragma solidity ^0.8.28;
 
 interface IPoolBase {
     enum ConceroMessageType {
-		BRIDGE_IOU,
+        BRIDGE_IOU,
         UPDATE_TARGET_BALANCE,
-        SEND_SNAPSHOT
+        SEND_SNAPSHOT,
+        BRIDGE
     }
 
     struct LiqTokenDailyFlow {

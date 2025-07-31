@@ -108,6 +108,8 @@ abstract contract PoolBase is IPoolBase, ConceroClient, ConceroOwnable {
             _handleConceroReceiveBridgeIou(messageId, sourceChainSelector, message);
         } else if (messageType == ConceroMessageType.SEND_SNAPSHOT) {
             _handleConceroReceiveSnapshot(messageId, sourceChainSelector, messageData);
+        } else if (messageType == ConceroMessageType.BRIDGE) {
+            _handleConceroReceiveBridgeLiquidity(messageId, sourceChainSelector, messageData);
         } else {
             revert InvalidMessageType();
         }
@@ -120,6 +122,12 @@ abstract contract PoolBase is IPoolBase, ConceroClient, ConceroOwnable {
     ) internal virtual;
 
     function _handleConceroReceiveSnapshot(
+        bytes32 messageId,
+        uint24 sourceChainSelector,
+        bytes memory messageData
+    ) internal virtual;
+
+    function _handleConceroReceiveBridgeLiquidity(
         bytes32 messageId,
         uint24 sourceChainSelector,
         bytes memory messageData

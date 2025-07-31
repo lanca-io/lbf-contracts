@@ -7,6 +7,7 @@ import {
 } from "@concero/v2-contracts/contracts/interfaces/IConceroRouter.sol";
 
 import {Rebalancer} from "../Rebalancer/Rebalancer.sol";
+import {LancaBridge} from "../LancaBridge/LancaBridge.sol";
 import {Storage as s} from "./libraries/Storage.sol";
 import {PoolBase} from "../PoolBase/PoolBase.sol";
 import {ICommonErrors} from "../common/interfaces/ICommonErrors.sol";
@@ -14,7 +15,7 @@ import {IParentPool} from "../ParentPool/interfaces/IParentPool.sol";
 import {Storage as rs} from "../Rebalancer/libraries/Storage.sol";
 import {Storage as pbs} from "../PoolBase/libraries/Storage.sol";
 
-contract ChildPool is Rebalancer {
+contract ChildPool is Rebalancer, LancaBridge {
     using s for s.ChildPool;
     using s for rs.Rebalancer;
     using pbs for pbs.PoolBase;
