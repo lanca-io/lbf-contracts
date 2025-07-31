@@ -2,6 +2,7 @@
 pragma solidity ^0.8.28;
 
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 import {
     IConceroRouter,
@@ -14,7 +15,7 @@ import {PoolBase, IERC20, CommonTypes} from "../PoolBase/PoolBase.sol";
 import {Storage as s} from "../PoolBase/libraries/Storage.sol";
 import {ICommonErrors} from "../common/interfaces/ICommonErrors.sol";
 
-abstract contract LancaBridge is ILancaBridge, PoolBase {
+abstract contract LancaBridge is ILancaBridge, PoolBase, ReentrancyGuard {
     using SafeERC20 for IERC20;
     using s for s.PoolBase;
 
@@ -28,7 +29,7 @@ abstract contract LancaBridge is ILancaBridge, PoolBase {
         bool isTokenReceiverContract,
         uint256 dstGasLimit,
         bytes calldata dstCallData
-    ) external payable /** nonReentrant */ returns (bytes32 messageId) {
+    ) external payable nonReentrant returns (bytes32 messageId) {
         require(tokenAmount > 0, ICommonErrors.InvalidAmount());
 
         address dstPool = s.poolBase().dstPools[dstChainSelector];
@@ -100,7 +101,7 @@ abstract contract LancaBridge is ILancaBridge, PoolBase {
         bytes32 messageId,
         uint24 sourceChainSelector,
         bytes calldata messageData
-    ) internal override {
+    ) internal override nonReentrant {
         (
             address token,
             address tokenSender,
