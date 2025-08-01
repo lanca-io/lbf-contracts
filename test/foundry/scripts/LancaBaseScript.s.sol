@@ -23,6 +23,7 @@ abstract contract LancaBaseScript is Script {
     uint256 public constant INITIAL_POOL_LIQUIDITY = 1_000_000e6;
 
     uint256 public constant GAS_LIMIT = 100_000;
+	bytes32 public constant DEFAULT_MESSAGE_ID = bytes32(uint256(1));
 
     constructor() {
         deployer = vm.envAddress("DEPLOYER_ADDRESS");
