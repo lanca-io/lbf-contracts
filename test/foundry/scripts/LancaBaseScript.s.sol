@@ -28,6 +28,7 @@ abstract contract LancaBaseScript is Script {
 	uint256 public constant GAS_LIMIT = 100_000;
 
     uint256 public constant GAS_LIMIT = 100_000;
+	bytes32 public constant DEFAULT_MESSAGE_ID = bytes32(uint256(1));
 
     constructor() {
         deployer = vm.envAddress("DEPLOYER_ADDRESS");
