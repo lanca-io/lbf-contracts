@@ -16,12 +16,9 @@ import {LancaBridgeBase} from "./LancaBridgeBase.sol";
 contract SendToken is LancaBridgeBase {
     function setUp() public override {
         super.setUp();
-
-        // For correct getYesterdayFlow calculation
-        vm.warp(block.timestamp + 1 days * 365);
     }
 
-    function test_bridge_fromPrenetToChildPool_Success() public {
+    function test_bridge_fromParentToChildPool_Success() public {
         uint256 messageFee = parentPool.getMessageFee(
             CHILD_POOL_CHAIN_SELECTOR,
             address(childPool),
@@ -51,7 +48,7 @@ contract SendToken is LancaBridgeBase {
             user,
             user,
             bridgeAmount - totalLancaFee,
-            address(0) // TODO: fix it
+            address(childPool)
         );
 
         vm.prank(user);
@@ -117,7 +114,7 @@ contract SendToken is LancaBridgeBase {
             user,
             user,
             bridgeAmount - totalLancaFee,
-            address(0) // TODO: fix it
+            address(parentPool)
         );
 
         vm.prank(user);
@@ -156,6 +153,14 @@ contract SendToken is LancaBridgeBase {
     function test_bridge_fromChildToChildPoolWithContractCall_Success() public {
         address secondChildPool = makeAddr("secondChildPool");
 		uint24 secondChildPoolChainSelector = 200;
+
+		uint24[] memory dstChainSelectors = new uint24[](1);
+		dstChainSelectors[0] = secondChildPoolChainSelector;
+		address[] memory dstPools = new address[](1);
+		dstPools[0] = secondChildPool;
+
+		vm.prank(deployer);
+		childPool.addDstPools(dstChainSelectors, dstPools);
 
         uint256 dstGasLimit = 200_000;
         uint256 messageFee = childPool.getMessageFeeForContractCall(
