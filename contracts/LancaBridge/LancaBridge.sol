@@ -9,6 +9,7 @@ import {
     ConceroTypes
 } from "@concero/v2-contracts/contracts/interfaces/IConceroRouter.sol";
 
+import {CommonConstants} from "../common/CommonConstants.sol";
 import {LancaClient} from "../LancaClient/LancaClient.sol";
 import {ILancaBridge} from "./interfaces/ILancaBridge.sol";
 import {PoolBase, IERC20, CommonTypes} from "../PoolBase/PoolBase.sol";
@@ -30,18 +31,18 @@ abstract contract LancaBridge is ILancaBridge, PoolBase, ReentrancyGuard {
         uint256 dstGasLimit,
         bytes calldata dstCallData
     ) external payable nonReentrant returns (bytes32 messageId) {
-        require(tokenAmount > 0, ICommonErrors.InvalidAmount());
-
         address dstPool = s.poolBase().dstPools[dstChainSelector];
         require(dstPool != address(0), InvalidDestinationPool());
 
-        _postInflow(tokenAmount);
-        _depositTokens(token, msg.sender, tokenAmount);
+        uint256 tokenAmountToBridge = _chargeTotalLancaFee(tokenAmount);
+
+        _postInflow(tokenAmountToBridge);
+        _deposit(token, msg.sender, tokenAmount);
 
         messageId = _sendMessage(
             token,
             tokenReceiver,
-            tokenAmount,
+            tokenAmountToBridge,
             dstChainSelector,
             isTokenReceiverContract,
             dstGasLimit,
@@ -55,7 +56,7 @@ abstract contract LancaBridge is ILancaBridge, PoolBase, ReentrancyGuard {
             token,
             msg.sender,
             tokenReceiver,
-            tokenAmount,
+            tokenAmountToBridge,
             dstPool
         );
     }
@@ -163,10 +164,19 @@ abstract contract LancaBridge is ILancaBridge, PoolBase, ReentrancyGuard {
         }
     }
 
-    function _depositTokens(address token, address tokenSender, uint256 tokenAmount) internal {
+    function _deposit(address token, address tokenSender, uint256 tokenAmount) internal {
         require(token == i_liquidityToken, OnlyAllowedTokens());
 
         IERC20(token).safeTransferFrom(tokenSender, address(this), tokenAmount);
+    }
+
+    function _chargeTotalLancaFee(uint256 tokenAmount) internal returns (uint256) {
+        uint256 totalLancaFee = getTotalLancaFee(tokenAmount);
+        require(totalLancaFee > 0, ICommonErrors.InvalidFeeAmount());
+
+        s.poolBase().totalLancaFeeInLiqToken += totalLancaFee;
+
+        return tokenAmount - totalLancaFee;
     }
 
     function _withdrawTokens(address token, address tokenReceiver, uint256 tokenAmount) internal {
@@ -194,5 +204,13 @@ abstract contract LancaBridge is ILancaBridge, PoolBase, ReentrancyGuard {
             expectedSelector == LancaClient.lancaReceive.selector,
             LancaClient.InvalidSelector()
         );
+    }
+
+    function getTotalLancaFee(uint256 tokenAmount) public pure returns (uint256) {
+        return
+            (tokenAmount *
+                (CommonConstants.LANCA_BRIDGE_PREMIUM_BPS +
+                    CommonConstants.LP_PREMIUM_BPS +
+                    CommonConstants.REBALANCER_PREMIUM_BPS)) / CommonConstants.BPS_DENOMINATOR;
     }
 }

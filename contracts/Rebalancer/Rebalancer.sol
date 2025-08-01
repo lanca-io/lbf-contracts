@@ -9,6 +9,7 @@ import {PoolBase} from "../PoolBase/PoolBase.sol";
 import {ConceroClient} from "@concero/v2-contracts/contracts/ConceroClient/ConceroClient.sol";
 import {ConceroTypes} from "@concero/v2-contracts/contracts/ConceroClient/ConceroTypes.sol";
 import {IConceroRouter} from "@concero/v2-contracts/contracts/interfaces/IConceroRouter.sol";
+import {CommonConstants} from "../common/CommonConstants.sol";
 import {Storage as s} from "./libraries/Storage.sol";
 
 /**
@@ -19,8 +20,6 @@ abstract contract Rebalancer is IRebalancer, PoolBase {
     using s for s.Rebalancer;
     using SafeERC20 for IERC20;
 
-    uint256 public constant BPS_DENOMINATOR = 10_000;
-    uint256 public constant REBALANCER_PREMIUM_BPS = 1;
     uint256 private constant DEFAULT_GAS_LIMIT = 300_000;
 
     function fillDeficit(uint256 liquidityAmountToFill) external returns (uint256 iouTokensToMint) {
@@ -40,7 +39,9 @@ abstract contract Rebalancer is IRebalancer, PoolBase {
 
         // Calculate IOU tokens to mint with premium
         iouTokensToMint =
-            (deficitFillable * (BPS_DENOMINATOR + REBALANCER_PREMIUM_BPS)) / BPS_DENOMINATOR;
+            (deficitFillable *
+                (CommonConstants.BPS_DENOMINATOR + CommonConstants.REBALANCER_PREMIUM_BPS)) /
+            CommonConstants.BPS_DENOMINATOR;
         i_iouToken.mint(msg.sender, iouTokensToMint);
 
         emit DeficitFilled(deficitFillable, iouTokensToMint);
@@ -154,6 +155,6 @@ abstract contract Rebalancer is IRebalancer, PoolBase {
     }
 
     function getRebalancerFee(uint256 amount) public pure returns (uint256) {
-        return (amount * REBALANCER_PREMIUM_BPS) / BPS_DENOMINATOR;
+        return (amount * CommonConstants.REBALANCER_PREMIUM_BPS) / CommonConstants.BPS_DENOMINATOR;
     }
 }
