@@ -2,10 +2,11 @@
 pragma solidity ^0.8.28;
 
 import {Rebalancer} from "../Rebalancer/Rebalancer.sol";
+import {LancaBridge} from "../LancaBridge/LancaBridge.sol";
 import {Storage as s} from "./libraries/Storage.sol";
 import {PoolBase} from "../PoolBase/PoolBase.sol";
 
-contract ChildPool is Rebalancer {
+contract ChildPool is Rebalancer, LancaBridge {
     using s for s.ChildPool;
 
     constructor(

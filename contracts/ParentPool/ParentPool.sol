@@ -14,8 +14,9 @@ import {Storage as pbs} from "../PoolBase/libraries/Storage.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {LPToken} from "./LPToken.sol";
 import {Rebalancer} from "../Rebalancer/Rebalancer.sol";
+import {LancaBridge} from "../LancaBridge/LancaBridge.sol";
 
-contract ParentPool is IParentPool, ILancaKeeper, Rebalancer {
+contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
     using s for s.ParentPool;
     using rs for rs.Rebalancer;
     using pbs for pbs.PoolBase;

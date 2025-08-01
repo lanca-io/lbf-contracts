@@ -1,0 +1,43 @@
+// SPDX-License-Identifier: UNLICENSED
+pragma solidity ^0.8.28;
+
+interface ILancaBridge {
+    event TokenSent(
+        bytes32 indexed messageId,
+        uint24 indexed dstChainSelector,
+        address indexed token,
+        address tokenSender,
+        address tokenReceiver,
+        uint256 tokenAmount,
+        address dstPool
+    );
+
+    event BridgeDelivered(
+        bytes32 indexed messageId,
+        uint24 indexed sourceChainSelector,
+        address indexed token,
+        address tokenSender,
+        address tokenReceiver,
+        uint256 tokenAmount
+    );
+
+    error OnlyAllowedTokens();
+    error InvalidBridgeType();
+    error InvalidDestinationPool();
+
+    function bridge(
+        address token,
+        address tokenReceiver,
+        uint256 tokenAmount,
+        uint24 dstChainSelector,
+        bool isTokenReceiverContract,
+        uint256 dstGasLimit,
+        bytes calldata dstCallData
+    ) external payable returns (bytes32 messageId);
+
+    function getMessageFeeForContractCall(
+        uint24 dstChainSelector,
+        address dstPool,
+        uint256 dstGasLimit
+    ) external view returns (uint256);
+}

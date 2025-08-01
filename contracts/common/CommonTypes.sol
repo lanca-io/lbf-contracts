@@ -4,6 +4,12 @@ pragma solidity ^0.8.28;
 // TODO: should be removed
 library CommonTypes {
     enum MessageType {
-        BRIDGE_IOU
+        BRIDGE_IOU,
+        BRIDGE_LIQUIDITY
+    }
+
+    enum BridgeType {
+        EOA_TRANSFER,
+        CONTRACT_TRANSFER
     }
 }

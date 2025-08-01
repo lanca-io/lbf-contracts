@@ -8,6 +8,7 @@ import "../common/interfaces/ICommonErrors.sol";
 import {ConceroClient} from "@concero/v2-contracts/contracts/ConceroClient/ConceroClient.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IPoolBase} from "./interfaces/IPoolBase.sol";
+import {CommonConstants} from "../common/CommonConstants.sol";
 import {Storage as rs} from "../Rebalancer/libraries/Storage.sol";
 import {Storage as s} from "./libraries/Storage.sol";
 import {ConceroOwnable} from "../common/ConceroOwnable.sol";
@@ -17,6 +18,7 @@ abstract contract PoolBase is IPoolBase, ConceroClient, ConceroOwnable {
     using s for rs.Rebalancer;
 
     error InvalidMessageType();
+    error PoolAlreadyExists(uint24 chainSelector);
 
     uint32 private constant SECONDS_IN_DAY = 86400;
 
@@ -36,6 +38,30 @@ abstract contract PoolBase is IPoolBase, ConceroClient, ConceroOwnable {
         i_liquidityTokenDecimals = liquidityTokenDecimals;
         i_chainSelector = chainSelector;
         i_iouToken = IOUToken(iouToken);
+    }
+
+    function addDstPools(
+        uint24[] calldata dstChainSelectors,
+        address[] calldata dstPools
+    ) external onlyOwner {
+        require(dstChainSelectors.length == dstPools.length, ICommonErrors.LengthMismatch());
+
+        s.PoolBase storage poolBaseStorage = s.poolBase();
+
+        for (uint256 i = 0; i < dstChainSelectors.length; i++) {
+            require(
+                poolBaseStorage.dstPools[dstChainSelectors[i]] == address(0),
+                PoolAlreadyExists(dstChainSelectors[i])
+            );
+            poolBaseStorage.dstPools[dstChainSelectors[i]] = dstPools[i];
+        }
+    }
+
+    function removeDstPools(uint24[] calldata dstChainSelectors) external onlyOwner {
+        s.PoolBase storage poolBaseStorage = s.poolBase();
+        for (uint256 i = 0; i < dstChainSelectors.length; i++) {
+            poolBaseStorage.dstPools[dstChainSelectors[i]] = address(0);
+        }
     }
 
     function getActiveBalance() public view virtual returns (uint256) {
@@ -87,6 +113,8 @@ abstract contract PoolBase is IPoolBase, ConceroClient, ConceroOwnable {
 
         if (messageType == CommonTypes.MessageType.BRIDGE_IOU) {
             _handleConceroReceiveBridgeIou(messageId, sourceChainSelector, message);
+        } else if (messageType == CommonTypes.MessageType.BRIDGE_LIQUIDITY) {
+            _handleConceroReceiveBridgeLiquidity(messageId, sourceChainSelector, messageData);
         } else {
             revert InvalidMessageType();
         }
@@ -96,6 +124,12 @@ abstract contract PoolBase is IPoolBase, ConceroClient, ConceroOwnable {
         bytes32 messageId,
         uint24 sourceChainSelector,
         bytes calldata messageData
+    ) internal virtual;
+
+    function _handleConceroReceiveBridgeLiquidity(
+        bytes32 messageId,
+        uint24 sourceChainSelector,
+        bytes memory messageData
     ) internal virtual;
 
     function getTargetBalance() public view returns (uint256) {
@@ -112,6 +146,19 @@ abstract contract PoolBase is IPoolBase, ConceroClient, ConceroOwnable {
 
     function getYesterdayStartTimestamp() public view returns (uint32) {
         return getTodayStartTimestamp() - 1;
+    }
+
+    function getLpFee(uint256 amount) public pure returns (uint256) {
+        return (amount * CommonConstants.LP_PREMIUM_BPS) / CommonConstants.BPS_DENOMINATOR;
+    }
+
+    function getBridgeFee(uint256 amount) public pure returns (uint256) {
+        return
+            (amount * (CommonConstants.LANCA_BRIDGE_PREMIUM_BPS)) / CommonConstants.BPS_DENOMINATOR;
+    }
+
+    function getRebalancerFee(uint256 amount) public pure returns (uint256) {
+        return (amount * CommonConstants.REBALANCER_PREMIUM_BPS) / CommonConstants.BPS_DENOMINATOR;
     }
 
     function _postInflow(uint256 inflowLiqTokenAmount) internal virtual {
