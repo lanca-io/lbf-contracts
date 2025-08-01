@@ -8,4 +8,5 @@ interface ICommonErrors {
     error InvalidFeeAmount();
     error InvalidDstChainSelector(uint24 dstChainSelector);
     error AmountIsToLow();
+    error LengthMismatch();
 }
