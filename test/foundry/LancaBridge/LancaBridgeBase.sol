@@ -54,8 +54,30 @@ abstract contract LancaBridgeBase is LancaTest {
             )
         );
 
+        addDstPools();
         fundTestAddresses();
         approveUSDCForAll();
+
+        // For correct getYesterdayFlow calculation
+        vm.warp(block.timestamp + 1 days * 365);
+    }
+
+    function addDstPools() internal {
+        vm.startPrank(deployer);
+        uint24[] memory dstChainSelectorsForChildPool = new uint24[](1);
+        address[] memory dstPoolsForChildPool = new address[](1);
+
+        dstChainSelectorsForChildPool[0] = PARENT_POOL_CHAIN_SELECTOR;
+        dstPoolsForChildPool[0] = address(parentPool);
+        childPool.addDstPools(dstChainSelectorsForChildPool, dstPoolsForChildPool);
+
+        uint24[] memory dstChainSelectorsForParentPool = new uint24[](1);
+        address[] memory dstPoolsForParentPool = new address[](1);
+
+        dstChainSelectorsForParentPool[0] = CHILD_POOL_CHAIN_SELECTOR;
+        dstPoolsForParentPool[0] = address(childPool);
+        parentPool.addDstPools(dstChainSelectorsForParentPool, dstPoolsForParentPool);
+        vm.stopPrank();
     }
 
     function fundTestAddresses() internal {
