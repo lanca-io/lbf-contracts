@@ -35,8 +35,6 @@ interface ILancaBridge {
         bytes calldata dstCallData
     ) external payable returns (bytes32 messageId);
 
-    function getTotalLancaFee(uint256 tokenAmount) external pure returns (uint256);
-
     function getMessageFeeForContractCall(
         uint24 dstChainSelector,
         address dstPool,

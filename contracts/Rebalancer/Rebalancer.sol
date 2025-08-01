@@ -154,8 +154,4 @@ abstract contract Rebalancer is IRebalancer, PoolBase {
 
         return abi.decode(returnData, (uint256));
     }
-
-    function getRebalancerFee(uint256 amount) public pure returns (uint256) {
-        return (amount * CommonConstants.REBALANCER_PREMIUM_BPS) / CommonConstants.BPS_DENOMINATOR;
-    }
 }

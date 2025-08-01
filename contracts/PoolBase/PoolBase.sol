@@ -8,6 +8,7 @@ import {ConceroOwnable} from "../common/ConceroOwnable.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IOUToken} from "../Rebalancer/IOUToken.sol";
 import {IPoolBase} from "./interfaces/IPoolBase.sol";
+import {CommonConstants} from "../common/CommonConstants.sol";
 import {Storage as rs} from "../Rebalancer/libraries/Storage.sol";
 import {Storage as s} from "./libraries/Storage.sol";
 
@@ -147,6 +148,19 @@ abstract contract PoolBase is IPoolBase, ConceroClient, ConceroOwnable {
 
     function getYesterdayStartTimestamp() public view returns (uint32) {
         return getTodayStartTimestamp() - 1;
+    }
+
+    function getLpFee(uint256 amount) public pure returns (uint256) {
+        return (amount * CommonConstants.LP_PREMIUM_BPS) / CommonConstants.BPS_DENOMINATOR;
+    }
+
+    function getBridgeFee(uint256 amount) public pure returns (uint256) {
+        return
+            (amount * (CommonConstants.LANCA_BRIDGE_PREMIUM_BPS)) / CommonConstants.BPS_DENOMINATOR;
+    }
+
+    function getRebalancerFee(uint256 amount) public pure returns (uint256) {
+        return (amount * CommonConstants.REBALANCER_PREMIUM_BPS) / CommonConstants.BPS_DENOMINATOR;
     }
 
     function _postInflow(uint256 inflowLiqTokenAmount) internal virtual {
