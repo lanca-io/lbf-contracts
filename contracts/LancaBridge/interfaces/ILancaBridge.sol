@@ -24,4 +24,22 @@ interface ILancaBridge {
     error OnlyAllowedTokens();
     error InvalidBridgeType();
     error InvalidDestinationPool();
+
+    function bridge(
+        address token,
+        address tokenReceiver,
+        uint256 tokenAmount,
+        uint24 dstChainSelector,
+        bool isTokenReceiverContract,
+        uint256 dstGasLimit,
+        bytes calldata dstCallData
+    ) external payable returns (bytes32 messageId);
+
+    function getTotalLancaFee(uint256 tokenAmount) external pure returns (uint256);
+
+    function getMessageFeeForContractCall(
+        uint24 dstChainSelector,
+        address dstPool,
+        uint256 dstGasLimit
+    ) external view returns (uint256);
 }

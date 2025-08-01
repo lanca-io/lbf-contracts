@@ -9,6 +9,7 @@ import {PoolBase} from "../PoolBase/PoolBase.sol";
 import {ConceroClient} from "@concero/v2-contracts/contracts/ConceroClient/ConceroClient.sol";
 import {ConceroTypes} from "@concero/v2-contracts/contracts/ConceroClient/ConceroTypes.sol";
 import {IConceroRouter} from "@concero/v2-contracts/contracts/interfaces/IConceroRouter.sol";
+import {ICommonErrors} from "../common/interfaces/ICommonErrors.sol";
 import {CommonConstants} from "../common/CommonConstants.sol";
 import {Storage as s} from "./libraries/Storage.sol";
 
@@ -23,7 +24,7 @@ abstract contract Rebalancer is IRebalancer, PoolBase {
     uint256 private constant DEFAULT_GAS_LIMIT = 300_000;
 
     function fillDeficit(uint256 liquidityAmountToFill) external returns (uint256 iouTokensToMint) {
-        require(liquidityAmountToFill > 0, InvalidAmount());
+        require(liquidityAmountToFill > 0, ICommonErrors.InvalidAmount());
 
         uint256 deficit = getDeficit();
         require(deficit > 0, NoDeficitToFill());
@@ -51,7 +52,7 @@ abstract contract Rebalancer is IRebalancer, PoolBase {
     function takeSurplus(
         uint256 iouTokensToBurn
     ) external returns (uint256 liquidityTokensToReceive) {
-        require(iouTokensToBurn > 0, InvalidAmount());
+        require(iouTokensToBurn > 0, ICommonErrors.InvalidAmount());
 
         uint256 currentSurplus = getSurplus();
         require(currentSurplus > 0, NoSurplusToTake());
@@ -73,7 +74,7 @@ abstract contract Rebalancer is IRebalancer, PoolBase {
         uint256 iouTokenAmount,
         uint24 destinationChainSelector
     ) external payable returns (bytes32 messageId) {
-        require(iouTokenAmount > 0, InvalidAmount());
+        require(iouTokenAmount > 0, ICommonErrors.InvalidAmount());
 
         s.Rebalancer storage s_rebalancer = s.rebalancer();
 
@@ -116,7 +117,7 @@ abstract contract Rebalancer is IRebalancer, PoolBase {
     ) internal override {
         (uint256 iouTokenAmount, address receiver) = abi.decode(messageData, (uint256, address));
 
-        require(iouTokenAmount > 0, InvalidAmount());
+        require(iouTokenAmount > 0, ICommonErrors.InvalidAmount());
 
         i_iouToken.mint(receiver, iouTokenAmount);
 
@@ -130,8 +131,8 @@ abstract contract Rebalancer is IRebalancer, PoolBase {
         address destinationPoolAddress,
         uint256 gasLimitForExecution
     ) external view returns (uint256 crossChainMessageFee) {
-        require(destinationPoolAddress != address(0), InvalidAmount());
-        require(gasLimitForExecution > 0, InvalidAmount());
+        require(destinationPoolAddress != address(0), ICommonErrors.InvalidAmount());
+        require(gasLimitForExecution > 0, ICommonErrors.InvalidAmount());
 
         ConceroTypes.EvmDstChainData memory destinationChainData = ConceroTypes.EvmDstChainData({
             receiver: destinationPoolAddress,

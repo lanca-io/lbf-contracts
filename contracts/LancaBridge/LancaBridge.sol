@@ -1,20 +1,20 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.28;
 
-import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 import {
-    IConceroRouter,
-    ConceroTypes
+    ConceroTypes,
+    IConceroRouter
 } from "@concero/v2-contracts/contracts/interfaces/IConceroRouter.sol";
 
+import {ILancaBridge} from "./interfaces/ILancaBridge.sol";
 import {CommonConstants} from "../common/CommonConstants.sol";
 import {LancaClient} from "../LancaClient/LancaClient.sol";
-import {ILancaBridge} from "./interfaces/ILancaBridge.sol";
 import {PoolBase, IERC20, CommonTypes} from "../PoolBase/PoolBase.sol";
-import {Storage as s} from "../PoolBase/libraries/Storage.sol";
 import {ICommonErrors} from "../common/interfaces/ICommonErrors.sol";
+import {Storage as s} from "../PoolBase/libraries/Storage.sol";
 
 abstract contract LancaBridge is ILancaBridge, PoolBase, ReentrancyGuard {
     using SafeERC20 for IERC20;
@@ -60,6 +60,8 @@ abstract contract LancaBridge is ILancaBridge, PoolBase, ReentrancyGuard {
             dstPool
         );
     }
+
+    /*   INTERNAL FUNCTIONS   */
 
     function _sendMessage(
         address token,
@@ -113,13 +115,16 @@ abstract contract LancaBridge is ILancaBridge, PoolBase, ReentrancyGuard {
             bytes memory dstCallData
         ) = _decodeMessage(messageData);
 
+        // Think about adding retry and increase _postOutflow() when balance is insufficient
+        require(getActiveBalance() >= tokenAmount, ICommonErrors.InvalidAmount());
+
         _postOutflow(tokenAmount);
 
         if (bridgeType == CommonTypes.BridgeType.CONTRACT_TRANSFER) {
-            _withdrawTokens(token, tokenReceiver, tokenAmount);
+            _bridgeReceive(token, tokenReceiver, tokenAmount);
             _callTokenReceiver(token, tokenSender, tokenReceiver, tokenAmount, dstCallData);
         } else {
-            _withdrawTokens(token, tokenReceiver, tokenAmount);
+            _bridgeReceive(token, tokenReceiver, tokenAmount);
         }
 
         emit BridgeDelivered(
@@ -164,12 +169,6 @@ abstract contract LancaBridge is ILancaBridge, PoolBase, ReentrancyGuard {
         }
     }
 
-    function _deposit(address token, address tokenSender, uint256 tokenAmount) internal {
-        require(token == i_liquidityToken, OnlyAllowedTokens());
-
-        IERC20(token).safeTransferFrom(tokenSender, address(this), tokenAmount);
-    }
-
     function _chargeTotalLancaFee(uint256 tokenAmount) internal returns (uint256) {
         uint256 totalLancaFee = getTotalLancaFee(tokenAmount);
         require(totalLancaFee > 0, ICommonErrors.InvalidFeeAmount());
@@ -179,9 +178,14 @@ abstract contract LancaBridge is ILancaBridge, PoolBase, ReentrancyGuard {
         return tokenAmount - totalLancaFee;
     }
 
-    function _withdrawTokens(address token, address tokenReceiver, uint256 tokenAmount) internal {
+    function _deposit(address token, address tokenSender, uint256 tokenAmount) internal {
         require(token == i_liquidityToken, OnlyAllowedTokens());
-        require(tokenAmount <= getActiveBalance(), ICommonErrors.InvalidAmount());
+
+        IERC20(token).safeTransferFrom(tokenSender, address(this), tokenAmount);
+    }
+
+    function _bridgeReceive(address token, address tokenReceiver, uint256 tokenAmount) internal {
+        require(token == i_liquidityToken, OnlyAllowedTokens());
 
         IERC20(token).safeTransfer(tokenReceiver, tokenAmount);
     }
@@ -206,11 +210,30 @@ abstract contract LancaBridge is ILancaBridge, PoolBase, ReentrancyGuard {
         );
     }
 
+    /*   GETTERS   */
+
     function getTotalLancaFee(uint256 tokenAmount) public pure returns (uint256) {
         return
             (tokenAmount *
                 (CommonConstants.LANCA_BRIDGE_PREMIUM_BPS +
                     CommonConstants.LP_PREMIUM_BPS +
                     CommonConstants.REBALANCER_PREMIUM_BPS)) / CommonConstants.BPS_DENOMINATOR;
+    }
+
+    function getMessageFeeForContractCall(
+        uint24 dstChainSelector,
+        address dstPool,
+        uint256 dstGasLimit
+    ) external view returns (uint256) {
+        return
+            IConceroRouter(i_conceroRouter).getMessageFee(
+                dstChainSelector,
+                false, // shouldFinaliseSrc
+                address(0), // feeToken (native)
+                ConceroTypes.EvmDstChainData({
+                    receiver: dstPool,
+                    gasLimit: BRIDGE_GAS_OVERHEAD + dstGasLimit
+                })
+            );
     }
 }

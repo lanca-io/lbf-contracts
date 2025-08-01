@@ -20,7 +20,6 @@ interface IRebalancer {
     error NoDeficitToFill();
     error NoSurplusToTake();
     error InvalidDestinationChain();
-    error InvalidAmount();
     error ConceroSendFailed();
     error UnauthorizedSender();
     error GetMessageFeeFailed();
