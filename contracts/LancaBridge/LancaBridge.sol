@@ -15,10 +15,12 @@ import {LancaClient} from "../LancaClient/LancaClient.sol";
 import {PoolBase, IERC20, CommonTypes} from "../PoolBase/PoolBase.sol";
 import {ICommonErrors} from "../common/interfaces/ICommonErrors.sol";
 import {Storage as s} from "../PoolBase/libraries/Storage.sol";
+import {Storage as rs} from "../Rebalancer/libraries/Storage.sol";
 
 abstract contract LancaBridge is ILancaBridge, PoolBase, ReentrancyGuard {
     using SafeERC20 for IERC20;
     using s for s.PoolBase;
+    using rs for rs.Rebalancer;
 
     uint256 internal constant BRIDGE_GAS_OVERHEAD = 100_000;
 
@@ -170,10 +172,15 @@ abstract contract LancaBridge is ILancaBridge, PoolBase, ReentrancyGuard {
     }
 
     function _chargeTotalLancaFee(uint256 tokenAmount) internal returns (uint256) {
-        uint256 totalLancaFee = getTotalLancaFee(tokenAmount);
+        uint256 lpFee = getLpFee(tokenAmount);
+        uint256 bridgeFee = getBridgeFee(tokenAmount);
+        uint256 rebalancerFee = getRebalancerFee(tokenAmount);
+
+        uint256 totalLancaFee = lpFee + bridgeFee + rebalancerFee;
         require(totalLancaFee > 0, ICommonErrors.InvalidFeeAmount());
 
-        s.poolBase().totalLancaFeeInLiqToken += totalLancaFee;
+        s.poolBase().totalLancaFeeInLiqToken += bridgeFee;
+        rs.rebalancer().totalRebalancingFee += rebalancerFee;
 
         return tokenAmount - totalLancaFee;
     }
@@ -211,14 +218,6 @@ abstract contract LancaBridge is ILancaBridge, PoolBase, ReentrancyGuard {
     }
 
     /*   GETTERS   */
-
-    function getTotalLancaFee(uint256 tokenAmount) public pure returns (uint256) {
-        return
-            (tokenAmount *
-                (CommonConstants.LANCA_BRIDGE_PREMIUM_BPS +
-                    CommonConstants.LP_PREMIUM_BPS +
-                    CommonConstants.REBALANCER_PREMIUM_BPS)) / CommonConstants.BPS_DENOMINATOR;
-    }
 
     function getMessageFeeForContractCall(
         uint24 dstChainSelector,
