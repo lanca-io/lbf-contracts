@@ -10,8 +10,9 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IPoolBase} from "./interfaces/IPoolBase.sol";
 import {Storage as rs} from "../Rebalancer/libraries/Storage.sol";
 import {Storage as s} from "./libraries/Storage.sol";
+import {ConceroOwnable} from "../common/ConceroOwnable.sol";
 
-abstract contract PoolBase is IPoolBase, ConceroClient {
+abstract contract PoolBase is IPoolBase, ConceroClient, ConceroOwnable {
     using s for s.PoolBase;
     using s for rs.Rebalancer;
 

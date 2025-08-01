@@ -42,11 +42,11 @@ abstract contract ParentPoolBase is LancaTest {
         );
 
         lpToken.grantRole(lpToken.MINTER_ROLE(), address(parentPool));
-        fundTestAddresses();
-        approveUSDCForAll();
+        _fundTestAddresses();
+        _approveUSDCForAll();
     }
 
-    function fundTestAddresses() internal {
+    function _fundTestAddresses() internal {
         vm.deal(user, 100 ether);
         vm.deal(liquidityProvider, 100 ether);
         vm.deal(operator, 100 ether);
@@ -59,7 +59,7 @@ abstract contract ParentPoolBase is LancaTest {
         vm.stopPrank();
     }
 
-    function approveUSDCForAll() internal {
+    function _approveUSDCForAll() internal {
         vm.prank(user);
         IERC20(usdc).approve(address(parentPool), type(uint256).max);
 
@@ -70,11 +70,15 @@ abstract contract ParentPoolBase is LancaTest {
         IERC20(usdc).approve(address(parentPool), type(uint256).max);
     }
 
-    function enterDepositQueue(address depositor, uint256 amount) internal returns (bytes32) {
+    function _enterDepositQueue(address depositor, uint256 amount) internal returns (bytes32) {
         vm.prank(depositor);
         vm.recordLogs();
         parentPool.enterDepositQueue(amount);
         Vm.Log[] memory entries = vm.getRecordedLogs();
         return entries[entries.length - 1].topics[1];
+    }
+
+    function _setTargetDepositQueueLength(uint256 length) internal {
+        vm.prank(deployer);
     }
 }

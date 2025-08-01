@@ -209,6 +209,16 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer {
         rs.rebalancer().totalRebalancingFee += totalRebalanceFee;
     }
 
+    /*   ADMIN FUNCTIONS   */
+
+    function setTargetDepositQueueLength(uint16 length) external onlyOwner {
+        s.parentPool().targetDepositQueueLength = length;
+    }
+
+    function setTargetWithdrawalQueueLength(uint16 length) external onlyOwner {
+        s.parentPool().targetWithdrawalQueueLength = length;
+    }
+
     /*   INTERNAL FUNCTIONS   */
 
     function _toLpTokenDecimals(uint256 liquidityTokenAmount) internal view returns (uint256) {
