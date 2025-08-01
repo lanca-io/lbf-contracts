@@ -17,6 +17,7 @@ abstract contract PoolBase is IPoolBase, ConceroClient, ConceroOwnable {
     using s for rs.Rebalancer;
 
     error InvalidMessageType();
+    error PoolAlreadyExists(uint24 chainSelector);
 
     uint32 private constant SECONDS_IN_DAY = 86400;
 
@@ -45,6 +46,30 @@ abstract contract PoolBase is IPoolBase, ConceroClient, ConceroOwnable {
         i_liquidityTokenDecimals = liquidityTokenDecimals;
         i_chainSelector = chainSelector;
         i_iouToken = IOUToken(iouToken);
+    }
+
+    function addDstPools(
+        uint24[] calldata dstChainSelectors,
+        address[] calldata dstPools
+    ) external onlyOwner {
+        require(dstChainSelectors.length == dstPools.length, ICommonErrors.LengthMismatch());
+
+        s.PoolBase storage poolBaseStorage = s.poolBase();
+
+        for (uint256 i = 0; i < dstChainSelectors.length; i++) {
+            require(
+                poolBaseStorage.dstPools[dstChainSelectors[i]] == address(0),
+                PoolAlreadyExists(dstChainSelectors[i])
+            );
+            poolBaseStorage.dstPools[dstChainSelectors[i]] = dstPools[i];
+        }
+    }
+
+    function removeDstPools(uint24[] calldata dstChainSelectors) external onlyOwner {
+        s.PoolBase storage poolBaseStorage = s.poolBase();
+        for (uint256 i = 0; i < dstChainSelectors.length; i++) {
+            poolBaseStorage.dstPools[dstChainSelectors[i]] = address(0);
+        }
     }
 
     function getActiveBalance() public view virtual returns (uint256) {

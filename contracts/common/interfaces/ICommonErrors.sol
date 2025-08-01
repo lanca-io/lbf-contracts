@@ -7,7 +7,8 @@ interface ICommonErrors {
     error InvalidAmount();
     error InvalidFeeAmount();
     error InvalidDstChainSelector(uint24 dstChainSelector);
-    error InvalidAmount();
     error InvalidChainSelector();
     error AddressShouldNotBeZero();
+    error AmountIsToLow();
+    error LengthMismatch();
 }
