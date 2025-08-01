@@ -1,7 +1,6 @@
+import { getNetworkEnvKey } from "@concero/contract-utils";
 import { DeployOptions, Deployment } from "hardhat-deploy/types";
 import { HardhatRuntimeEnvironment } from "hardhat/types";
-
-import { getNetworkEnvKey } from "@concero/contract-utils";
 
 import { conceroNetworks } from "../constants";
 import { log, updateEnvVariable } from "../utils";
@@ -24,7 +23,7 @@ const deployIOUToken: DeploymentFunction = async function (
 
 	const args = deployOptions?.args || [deployer, deployer];
 
-	const deployment = await deploy("IOUToken", {
+	const deployment = await deploy(deployOptions?.contract || "IOUToken", {
 		from: deployer,
 		args,
 		log: true,

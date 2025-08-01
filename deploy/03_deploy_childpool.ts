@@ -1,7 +1,6 @@
+import { getNetworkEnvKey } from "@concero/contract-utils";
 import { DeployOptions, Deployment } from "hardhat-deploy/types";
 import { HardhatRuntimeEnvironment } from "hardhat/types";
-
-import { getNetworkEnvKey } from "@concero/contract-utils";
 
 import { conceroNetworks } from "../constants";
 import { getEnvVar, log, updateEnvVariable } from "../utils";
@@ -16,17 +15,17 @@ const deployChildPool: DeploymentFunction = async function (
 	deployOptions?: Partial<DeployOptions>,
 ): Promise<Deployment> {
 	const { deployer } = await hre.getNamedAccounts();
-	const { deploy, get, execute } = hre.deployments;
+	const { deploy } = hre.deployments;
 	const { name } = hre.network;
 
 	const chain = conceroNetworks[name];
 	const { type: networkType } = chain;
 
-	const iouTokenDeployment = await get("IOUToken");
+	const iouTokenAddress = getEnvVar(`IOU_${getNetworkEnvKey(name)}`);
 
 	const defaultArgs = [
 		getEnvVar(`CONCERO_ROUTER_${getNetworkEnvKey(name)}`) || "",
-		iouTokenDeployment.address,
+		iouTokenAddress,
 		getEnvVar(`USDC_${getNetworkEnvKey(name)}`) || "",
 		6, // USDC decimals
 		Number(chain.chainSelector), // Convert bigint to number for uint24
@@ -49,19 +48,6 @@ const deployChildPool: DeploymentFunction = async function (
 		deployment.address,
 		`deployments.${networkType}`,
 	);
-
-	// Update IOUToken pool role to ChildPool
-	if (deployment.newlyDeployed) {
-		const MINTER_ROLE = hre.ethers.keccak256(hre.ethers.toUtf8Bytes("MINTER_ROLE"));
-		await execute(
-			"IOUToken",
-			{ from: deployer, log: true },
-			"grantRole",
-			MINTER_ROLE,
-			deployment.address,
-		);
-		log("Granted MINTER_ROLE to ChildPool on IOUToken", "deployChildPool", name);
-	}
 
 	return deployment;
 };

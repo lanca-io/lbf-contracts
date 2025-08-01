@@ -1,8 +1,7 @@
+import { getNetworkEnvKey } from "@concero/contract-utils";
 import { DeployOptions as HardhatDeployOptions } from "hardhat-deploy/dist/types";
 import { DeployOptions, Deployment } from "hardhat-deploy/types";
 import { HardhatRuntimeEnvironment } from "hardhat/types";
-
-import { getNetworkEnvKey } from "@concero/contract-utils";
 
 import { conceroNetworks } from "../constants";
 import { log, updateEnvVariable } from "../utils";
@@ -25,7 +24,7 @@ const deployLPToken: DeploymentFunction = async function (
 
 	const args = deployOptions?.args || [deployer, deployer];
 
-	const deployment = await deploy("LPToken", {
+	const deployment = await deploy(deployOptions?.contract || "LPToken", {
 		from: deployer,
 		args,
 		log: true,

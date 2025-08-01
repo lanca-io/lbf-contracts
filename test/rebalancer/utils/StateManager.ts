@@ -1,5 +1,4 @@
 import { toUtf8Bytes } from "ethers";
-
 import {
 	PublicActions,
 	TestClient,
@@ -58,21 +57,26 @@ export class StateManager {
 			value: parseEther(TEST_CONSTANTS.DEFAULT_ETH_BALANCE),
 		});
 
-		await this.testClient.writeContract({
-			address: this.deployments.IOUToken,
-			abi: IOUTokenArtifact.abi,
-			functionName: "grantRole",
-			args: [MINTER_ROLE, deployer],
-			account: deployer,
+		await this.testClient.setBalance({
+			address: operator,
+			value: parseEther(TEST_CONSTANTS.DEFAULT_ETH_BALANCE),
 		});
 
-		await this.testClient.writeContract({
-			address: this.deployments.LPToken,
-			abi: LPTokenArtifact.abi,
-			functionName: "grantRole",
-			args: [MINTER_ROLE, deployer],
-			account: deployer,
-		});
+		// await this.testClient.writeContract({
+		// 	address: this.deployments.IOUToken,
+		// 	abi: IOUTokenArtifact.abi,
+		// 	functionName: "grantRole",
+		// 	args: [MINTER_ROLE, deployer],
+		// 	account: deployer,
+		// });
+
+		// await this.testClient.writeContract({
+		// 	address: this.deployments.LPToken,
+		// 	abi: LPTokenArtifact.abi,
+		// 	functionName: "grantRole",
+		// 	args: [MINTER_ROLE, deployer],
+		// 	account: deployer,
+		// });
 	}
 
 	async getPoolState(poolAddress: `0x${string}`): Promise<PoolState> {
@@ -141,7 +145,6 @@ export class StateManager {
 		const mintFunction = getAbiItem({ abi: MockERC20Artifact.abi, name: "mint" });
 
 		if (mintFunction) {
-			// Use test client to impersonate and mint
 			await this.testClient.setBalance({
 				address: to,
 				value: parseEther(TEST_CONSTANTS.DEFAULT_ETH_BALANCE),
@@ -168,7 +171,7 @@ export class StateManager {
 			abi: MockERC20Artifact.abi,
 			functionName: "burn",
 			args: [from, amount],
-			account: from,
+			account: deployer,
 		});
 	}
 
@@ -204,7 +207,10 @@ export class StateManager {
 
 	async createSurplusState(poolAddress: `0x${string}`, surplusAmount: bigint): Promise<void> {
 		const currentState = await this.getPoolState(poolAddress);
-		const newTargetBalance = currentState.activeBalance - surplusAmount;
+		const newTargetBalance =
+			currentState.activeBalance >= surplusAmount
+				? currentState.activeBalance - surplusAmount
+				: surplusAmount;
 
 		await this.setTargetBalance(poolAddress, newTargetBalance);
 	}
@@ -296,10 +302,17 @@ export class StateManager {
 				reject(new Error(`Timeout waiting for ${eventName} event`));
 			}, timeoutMs);
 
-			const unwatch = this.createEventListener(poolAddress, eventName, event => {
+			const unwatch = this.createEventListener(poolAddress, eventName, logs => {
 				clearTimeout(timeout);
 				unwatch();
-				resolve(event);
+				// Format the event to match expected structure
+				resolve({
+					logs: logs.map(log => ({
+						eventName: log.eventName,
+						args: log.args,
+						...log,
+					})),
+				});
 			});
 		});
 	}
@@ -322,5 +335,55 @@ export class StateManager {
 	async getTestAccounts(): Promise<`0x${string}`[]> {
 		const accounts = await this.testClient.getAddresses();
 		return accounts as `0x${string}`[];
+	}
+
+	async resetState(): Promise<void> {
+		// Reset pool balances to 0
+		await this.setTokenBalance(this.deployments.USDC, this.deployments.ParentPool, 0n);
+		await this.setTokenBalance(this.deployments.USDC, this.deployments.ChildPool, 0n);
+
+		// Reset operator USDC and IOU balances to 0
+		await this.setTokenBalance(this.deployments.USDC, operator, 0n);
+		await this.setTokenBalance(this.deployments.IOUToken, operator, 0n);
+
+		// Reset operator allowances to 0 for USDC
+		//
+		await this.testClient.impersonateAccount({ address: operator });
+		await this.testClient.writeContract({
+			address: this.deployments.USDC,
+			abi: MockERC20Artifact.abi,
+			functionName: "approve",
+			args: [this.deployments.ParentPool, 0n],
+			account: operator,
+		});
+
+		await this.testClient.writeContract({
+			address: this.deployments.USDC,
+			abi: MockERC20Artifact.abi,
+			functionName: "approve",
+			args: [this.deployments.ChildPool, 0n],
+			account: operator,
+		});
+
+		// Reset operator allowances to 0 for IOU tokens
+		await this.testClient.writeContract({
+			address: this.deployments.IOUToken,
+			abi: IOUTokenArtifact.abi,
+			functionName: "approve",
+			args: [this.deployments.ParentPool, 0n],
+			account: operator,
+		});
+
+		await this.testClient.writeContract({
+			address: this.deployments.IOUToken,
+			abi: IOUTokenArtifact.abi,
+			functionName: "approve",
+			args: [this.deployments.ChildPool, 0n],
+			account: operator,
+		});
+
+		// Reset pool target balances to 0
+		await this.setTargetBalance(this.deployments.ParentPool, 0n);
+		await this.setTargetBalance(this.deployments.ChildPool, 0n);
 	}
 }

@@ -1,18 +1,19 @@
-import { ChildProcessWithoutNullStreams, spawn } from "child_process";
-import Mocha from "mocha";
-import path from "path";
-
 import "./configureEnv";
 
-import { DeployOptions } from "hardhat-deploy/types";
+import { ChildProcessWithoutNullStreams, spawn } from "child_process";
+import path from "path";
 
 import { initializeManagers } from "@lanca/rebalancer/src/utils/initializeManagers";
+import { DeployOptions } from "hardhat-deploy/types";
+import Mocha from "mocha";
 
 import { deployLPToken } from "../../deploy/00_deploy_lptoken";
 import { deployIOUToken } from "../../deploy/01_deploy_ioutoken";
 import { deployParentPool } from "../../deploy/02_deploy_parentpool";
 import { deployChildPool } from "../../deploy/03_deploy_childpool";
 import { deployMockERC20 } from "../../deploy/05_deploy_mock_erc20";
+import { setChildPoolVariables } from "../../tasks/deployChildPool";
+import { setParentPoolVariables } from "../../tasks/deployParentPool";
 import { compileContractsAsync } from "../../utils/compileContracts";
 import { TEST_CONSTANTS } from "./constants";
 import { StateManager } from "./utils/StateManager";
@@ -26,6 +27,8 @@ export type Deployment = {
 	USDC: string;
 };
 
+const hre = require("hardhat");
+
 export class RebalancerIntegrationTest {
 	private node: ChildProcessWithoutNullStreams | null = null;
 	private disposed = false;
@@ -33,16 +36,26 @@ export class RebalancerIntegrationTest {
 	async run(): Promise<void> {
 		this.registerSignalHandlers();
 
+		// Parse CLI flags
+		const args = process.argv.slice(2);
+		const skipRebalancer = args.includes("--skip-rebalancer");
+
 		await Promise.all([this.runChain(), compileContractsAsync({ quiet: true })]);
 
 		const deployments = await this.deployContracts();
+		await setChildPoolVariables(hre);
+		await setParentPoolVariables(hre);
 
 		const stateManager = new StateManager(deployments);
 		await stateManager.setupContracts();
 
 		const config = await this.configureRebalancer(deployments);
-
-		await initializeManagers(config);
+		// Conditionally initialize managers
+		if (!skipRebalancer) {
+			await initializeManagers(config);
+		} else {
+			console.log("Skipping initializeManagers due to --skip-rebalancer flag");
+		}
 
 		// Running Mocha
 		(global as any).deployments = deployments;
@@ -73,19 +86,11 @@ export class RebalancerIntegrationTest {
 	}
 
 	public async deployContracts(): Promise<Deployment> {
-		const hre = require("hardhat");
 		const deployOptions: Partial<DeployOptions> = {
 			log: false,
 		};
 
 		try {
-			const deployments = hre.deployments;
-			await deployments.delete("LPToken");
-			await deployments.delete("IOUToken");
-			await deployments.delete("MockERC20");
-			await deployments.delete("ParentPool");
-			await deployments.delete("ChildPool");
-
 			return {
 				LPToken: (await deployLPToken(hre, deployOptions)).address,
 				IOUToken: (await deployIOUToken(hre, deployOptions)).address,
