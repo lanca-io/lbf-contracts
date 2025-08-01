@@ -5,6 +5,8 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Script} from "forge-std/src/Script.sol";
 import {ConceroRouterMock} from "../mocks/ConceroRouterMock.sol";
 
+import {DeployMockConceroRouter} from "../scripts/deploy/DeployMockConceroRouter.s.sol";
+
 abstract contract LancaBaseScript is Script {
     address public immutable deployer;
     address public immutable proxyDeployer;
@@ -24,6 +26,8 @@ abstract contract LancaBaseScript is Script {
     uint256 internal constant MIN_TARGET_BALANCE = 10_000e6;
 
 	uint256 public constant GAS_LIMIT = 100_000;
+
+    uint256 public constant GAS_LIMIT = 100_000;
 
     constructor() {
         deployer = vm.envAddress("DEPLOYER_ADDRESS");
