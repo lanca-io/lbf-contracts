@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.28;
 
-import {IOUToken} from "../Rebalancer/IOUToken.sol";
-import "../Rebalancer/interfaces/IRebalancer.sol";
-import "../common/CommonTypes.sol";
-import "../common/interfaces/ICommonErrors.sol";
+import {IRebalancer} from "../Rebalancer/interfaces/IRebalancer.sol";
+import {CommonTypes} from "../common/CommonTypes.sol";
+import {ICommonErrors} from "../common/interfaces/ICommonErrors.sol";
 import {ConceroClient} from "@concero/v2-contracts/contracts/ConceroClient/ConceroClient.sol";
+import {ConceroOwnable} from "../common/ConceroOwnable.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {IOUToken} from "../Rebalancer/IOUToken.sol";
 import {IPoolBase} from "./interfaces/IPoolBase.sol";
 import {Storage as rs} from "../Rebalancer/libraries/Storage.sol";
 import {Storage as s} from "./libraries/Storage.sol";
-import {ConceroOwnable} from "../common/ConceroOwnable.sol";
 
 abstract contract PoolBase is IPoolBase, ConceroClient, ConceroOwnable {
     using s for s.PoolBase;
@@ -62,6 +62,13 @@ abstract contract PoolBase is IPoolBase, ConceroClient, ConceroOwnable {
     function getPoolData() external view returns (uint256 deficit, uint256 surplus) {
         deficit = getDeficit();
         surplus = getSurplus();
+    }
+
+    function setDstPool(uint24 chainSelector, address dstPool) public virtual onlyOwner {
+        require(chainSelector != i_chainSelector, ICommonErrors.InvalidChainSelector());
+        require(dstPool != address(0), ICommonErrors.AddressShouldNotBeZero());
+
+        s.poolBase().dstPools[chainSelector] = dstPool;
     }
 
     function _conceroReceive(

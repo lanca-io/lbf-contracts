@@ -28,7 +28,8 @@
         "size-contracts": "hardhat size-contracts",
         "check-updates": "npx npm-check-updates",
         "prepare": "husky",
-        "operator-setup": "bun test/operator/testOperator.ts"
+        "operator-setup": "bun test/operator/testOperator.ts",
+        "rebuild": "yarn clean && yarn compile"
     },
     "devDependencies": {
         "@chainlink/solhint-plugin-chainlink-solidity": "1.0.1",
