@@ -241,7 +241,7 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer {
 
         for (uint256 i; i < supportedChainSelectors.length; ++i) {
             require(
-                supportedChainSelectors[i] == chainSelector,
+                supportedChainSelectors[i] != chainSelector,
                 ICommonErrors.InvalidChainSelector()
             );
         }

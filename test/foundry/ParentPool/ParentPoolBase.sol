@@ -17,10 +17,28 @@ import {Vm} from "forge-std/src/Vm.sol";
 abstract contract ParentPoolBase is LancaTest {
     uint16 internal constant DEFAULT_TARGET_QUEUE_LENGTH = 5;
 
-    ParentPoolHarness public parentPool;
+    address internal s_childPool_1;
+    address internal s_childPool_2;
+    address internal s_childPool_3;
+    address internal s_childPool_4;
+    address internal s_childPool_5;
+
+    uint24 internal constant childPoolChainSelector_1 = 1;
+    uint24 internal constant childPoolChainSelector_2 = 2;
+    uint24 internal constant childPoolChainSelector_3 = 3;
+    uint24 internal constant childPoolChainSelector_4 = 4;
+    uint24 internal constant childPoolChainSelector_5 = 5;
+
+    ParentPoolHarness public s_parentPool;
     LPToken public lpToken;
 
     function setUp() public virtual {
+        s_childPool_1 = makeAddr("childPool_1");
+        s_childPool_2 = makeAddr("childPool_2");
+        s_childPool_3 = makeAddr("childPool_3");
+        s_childPool_4 = makeAddr("childPool_4");
+        s_childPool_5 = makeAddr("childPool_5");
+
         DeployMockERC20 deployMockERC20 = new DeployMockERC20();
         usdc = IERC20(deployMockERC20.deployERC20("USD Coin", "USDC", 6));
 
@@ -31,7 +49,7 @@ abstract contract ParentPoolBase is LancaTest {
         lpToken = LPToken(deployLPToken.deployLPToken(address(this), address(this)));
 
         DeployParentPool deployParentPool = new DeployParentPool();
-        parentPool = ParentPoolHarness(
+        s_parentPool = ParentPoolHarness(
             payable(
                 deployParentPool.deployParentPool(
                     address(usdc),
@@ -44,10 +62,11 @@ abstract contract ParentPoolBase is LancaTest {
             )
         );
 
-        lpToken.grantRole(lpToken.MINTER_ROLE(), address(parentPool));
+        lpToken.grantRole(lpToken.MINTER_ROLE(), address(s_parentPool));
         _fundTestAddresses();
         _approveUSDCForAll();
         _setQueuesLength();
+        _setSupportedChildPools();
     }
 
     /* HELPER FUNCTIONS */
@@ -67,19 +86,19 @@ abstract contract ParentPoolBase is LancaTest {
 
     function _approveUSDCForAll() internal {
         vm.prank(user);
-        usdc.approve(address(parentPool), type(uint256).max);
+        usdc.approve(address(s_parentPool), type(uint256).max);
 
         vm.prank(liquidityProvider);
-        usdc.approve(address(parentPool), type(uint256).max);
+        usdc.approve(address(s_parentPool), type(uint256).max);
 
         vm.prank(operator);
-        usdc.approve(address(parentPool), type(uint256).max);
+        usdc.approve(address(s_parentPool), type(uint256).max);
     }
 
     function _enterDepositQueue(address depositor, uint256 amount) internal returns (bytes32) {
         vm.prank(depositor);
         vm.recordLogs();
-        parentPool.enterDepositQueue(amount);
+        s_parentPool.enterDepositQueue(amount);
         Vm.Log[] memory entries = vm.getRecordedLogs();
         return entries[entries.length - 1].topics[1];
     }
@@ -87,15 +106,15 @@ abstract contract ParentPoolBase is LancaTest {
     function _enterWithdrawalQueue(address depositor, uint256 amount) internal returns (bytes32) {
         vm.prank(depositor);
         vm.recordLogs();
-        parentPool.enterWithdrawQueue(amount);
+        s_parentPool.enterWithdrawQueue(amount);
         Vm.Log[] memory entries = vm.getRecordedLogs();
         return entries[entries.length - 1].topics[1];
     }
 
     function _setQueuesLength() internal {
         vm.startPrank(deployer);
-        parentPool.setTargetDepositQueueLength(DEFAULT_TARGET_QUEUE_LENGTH);
-        parentPool.setTargetWithdrawalQueueLength(DEFAULT_TARGET_QUEUE_LENGTH);
+        s_parentPool.setTargetDepositQueueLength(DEFAULT_TARGET_QUEUE_LENGTH);
+        s_parentPool.setTargetWithdrawalQueueLength(DEFAULT_TARGET_QUEUE_LENGTH);
         vm.stopPrank();
     }
 
@@ -103,16 +122,29 @@ abstract contract ParentPoolBase is LancaTest {
         uint256 totalDepositAmount,
         uint256 totalWithdrawalAmount
     ) internal {
-        for (uint256 i; i < parentPool.getTargetDepositQueueLength(); ++i) {
-            _enterDepositQueue(user, totalDepositAmount / parentPool.getTargetDepositQueueLength());
-        }
-
-        for (uint256 i; i < parentPool.getTargetWithdrawalQueueLength(); ++i) {
-            _enterWithdrawalQueue(
+        for (uint256 i; i < s_parentPool.getTargetDepositQueueLength(); ++i) {
+            _enterDepositQueue(
                 user,
-                totalWithdrawalAmount / parentPool.getTargetWithdrawalQueueLength()
+                totalDepositAmount / s_parentPool.getTargetDepositQueueLength()
             );
         }
+
+        for (uint256 i; i < s_parentPool.getTargetWithdrawalQueueLength(); ++i) {
+            _enterWithdrawalQueue(
+                user,
+                totalWithdrawalAmount / s_parentPool.getTargetWithdrawalQueueLength()
+            );
+        }
+    }
+
+    function _setSupportedChildPools() internal {
+        vm.startPrank(deployer);
+        s_parentPool.setDstPool(childPoolChainSelector_1, s_childPool_1);
+        s_parentPool.setDstPool(childPoolChainSelector_2, s_childPool_2);
+        s_parentPool.setDstPool(childPoolChainSelector_3, s_childPool_3);
+        s_parentPool.setDstPool(childPoolChainSelector_4, s_childPool_4);
+        s_parentPool.setDstPool(childPoolChainSelector_5, s_childPool_5);
+        vm.stopPrank();
     }
 
     /* MINT FUNCTIONS */
