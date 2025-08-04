@@ -3,6 +3,7 @@ pragma solidity 0.8.28;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Script} from "forge-std/src/Script.sol";
+import {ConceroRouterMock} from "../mocks/ConceroRouterMock.sol";
 
 abstract contract LancaBaseScript is Script {
     address public immutable deployer;
@@ -11,7 +12,7 @@ abstract contract LancaBaseScript is Script {
     IERC20 public usdc;
     address public iouToken;
     address public conceroRouter;
-    address public s_lbfKeeper;
+    address public s_lancaKeeper;
 
     address public constant operator = address(0x4242424242424242424242424242424242424242);
     address public constant user = address(0x0101010101010101010101010101010101010101);
@@ -24,7 +25,7 @@ abstract contract LancaBaseScript is Script {
     constructor() {
         deployer = vm.envAddress("DEPLOYER_ADDRESS");
         proxyDeployer = vm.envAddress("PROXY_DEPLOYER_ADDRESS");
-        conceroRouter = address(0x1234000000000000000000000000000000000000);
-        s_lbfKeeper = makeAddr("lbfKeeper");
+        conceroRouter = address(new ConceroRouterMock());
+        s_lancaKeeper = makeAddr("lbfKeeper");
     }
 }

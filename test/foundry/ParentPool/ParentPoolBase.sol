@@ -67,6 +67,7 @@ abstract contract ParentPoolBase is LancaTest {
         _approveUSDCForAll();
         _setQueuesLength();
         _setSupportedChildPools();
+        _setLancaKeeper();
     }
 
     /* HELPER FUNCTIONS */
@@ -75,7 +76,7 @@ abstract contract ParentPoolBase is LancaTest {
         vm.deal(user, 100 ether);
         vm.deal(liquidityProvider, 100 ether);
         vm.deal(operator, 100 ether);
-        vm.deal(s_lbfKeeper, 10 ether);
+        vm.deal(s_lancaKeeper, 10 ether);
 
         vm.startPrank(deployer);
         MockERC20(address(usdc)).mint(user, 10_000_000e6);
@@ -145,6 +146,11 @@ abstract contract ParentPoolBase is LancaTest {
         s_parentPool.setDstPool(childPoolChainSelector_4, s_childPool_4);
         s_parentPool.setDstPool(childPoolChainSelector_5, s_childPool_5);
         vm.stopPrank();
+    }
+
+    function _setLancaKeeper() internal {
+        vm.prank(deployer);
+        s_parentPool.setLancaKeeper(s_lancaKeeper);
     }
 
     /* MINT FUNCTIONS */

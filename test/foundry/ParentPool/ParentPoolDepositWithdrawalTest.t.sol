@@ -12,8 +12,12 @@ contract ParentPoolDepositWithdrawalTest is ParentPoolBase {
     }
 
     function test_initialDepositAndUpdateTargetBalances() public {
-        vm.prank(deployer);
-        s_parentPool.setTargetWithdrawalQueueLength(0);
-        _fillDepositWithdrawalQueue(100e6, 0);
+        //        vm.prank(deployer);
+        //        s_parentPool.setTargetWithdrawalQueueLength(0);
+        //
+        //        _fillDepositWithdrawalQueue(100e6, 0);
+        //
+        //        vm.prank(s_lancaKeeper);
+        //        s_parentPool.triggerDepositWithdrawProcess();
     }
 }

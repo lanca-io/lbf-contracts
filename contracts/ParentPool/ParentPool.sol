@@ -249,6 +249,10 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer {
         s_parentPool.supportedChainSelectors.push(chainSelector);
     }
 
+    function setLancaKeeper(address lancaKeeper) external onlyOwner {
+        s.parentPool().lancaKeeper = lancaKeeper;
+    }
+
     /*   INTERNAL FUNCTIONS   */
 
     function _processDepositsQueue(uint256 totalPoolsBalance) internal returns (uint256) {
