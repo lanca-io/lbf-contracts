@@ -22,10 +22,12 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer {
     using SafeERC20 for IERC20;
 
     error ChildPoolSnapshotsAreNotReady();
+    error InvalidLiqTokenDecimals();
 
     uint32 internal constant UPDATE_TARGET_BALANCE_MESSAGE_GAS_LIMIT = 100_000;
-    uint8 private constant LP_TOKEN_DECIMALS = 16;
+
     LPToken internal immutable i_lpToken;
+    uint8 private immutable i_lpTokenDecimals;
 
     modifier onlyLancaKeeper() {
         require(
@@ -48,6 +50,9 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer {
         Rebalancer()
     {
         i_lpToken = LPToken(lpToken);
+        i_lpTokenDecimals = i_lpToken.decimals();
+        // todo: move it to only one var
+        require(i_lpTokenDecimals == liquidityTokenDecimals, InvalidLiqTokenDecimals());
     }
 
     receive() external payable {}
@@ -104,7 +109,7 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer {
         emit WithdrawQueued(withdrawId, withdraw.lp, lpTokenAmount);
     }
 
-    function getSupportedChainSelectors() public view returns (uint24[] memory) {
+    function getChildPoolChainSelectors() public view returns (uint24[] memory) {
         return s.parentPool().supportedChainSelectors;
     }
 
@@ -143,10 +148,18 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer {
                 messages are sent twice: first childPools ->
                 parentPool, then parentPool -> childPools */
         uint256 conceroFee = (s_parentPool.averageConceroMessageFee *
-            getSupportedChainSelectors().length *
+            getChildPoolChainSelectors().length *
             4) / s_parentPool.pendingWithdrawalIds.length;
 
         return (conceroFee, getRebalancerFee(amount));
+    }
+
+    function getTargetDepositQueueLength() public view returns (uint16) {
+        return s.parentPool().targetDepositQueueLength;
+    }
+
+    function getTargetWithdrawalQueueLength() public view returns (uint16) {
+        return s.parentPool().targetWithdrawalQueueLength;
     }
 
     function triggerDepositWithdrawProcess() external payable onlyLancaKeeper {
@@ -219,21 +232,28 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer {
         s.parentPool().targetWithdrawalQueueLength = length;
     }
 
+    function setDstPool(uint24 chainSelector, address dstPool) public override onlyOwner {
+        super.setDstPool(chainSelector, dstPool);
+
+        s.ParentPool storage s_parentPool = s.parentPool();
+
+        uint24[] memory supportedChainSelectors = s_parentPool.supportedChainSelectors;
+
+        for (uint256 i; i < supportedChainSelectors.length; ++i) {
+            require(
+                supportedChainSelectors[i] != chainSelector,
+                ICommonErrors.InvalidChainSelector()
+            );
+        }
+
+        s_parentPool.supportedChainSelectors.push(chainSelector);
+    }
+
+    function setLancaKeeper(address lancaKeeper) external onlyOwner {
+        s.parentPool().lancaKeeper = lancaKeeper;
+    }
+
     /*   INTERNAL FUNCTIONS   */
-
-    function _toLpTokenDecimals(uint256 liquidityTokenAmount) internal view returns (uint256) {
-        if (LP_TOKEN_DECIMALS == i_liquidityTokenDecimals) return liquidityTokenAmount;
-        return (liquidityTokenAmount * LP_TOKEN_DECIMALS) / i_liquidityTokenDecimals;
-    }
-
-    function _toLiqTokenDecimals(uint256 lpTokenAmount) internal view returns (uint256) {
-        return _toLiqTokenDecimals(lpTokenAmount, LP_TOKEN_DECIMALS);
-    }
-
-    function _toLiqTokenDecimals(uint256 amount, uint8 decimals) internal view returns (uint256) {
-        if (decimals == i_liquidityTokenDecimals) return amount;
-        return (amount * i_liquidityTokenDecimals) / decimals;
-    }
 
     function _processDepositsQueue(uint256 totalPoolsBalance) internal returns (uint256) {
         s.ParentPool storage s_parentPool = s.parentPool();
@@ -369,16 +389,9 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer {
     ) internal view returns (uint256) {
         uint256 lpTokenTotalSupply = IERC20(i_lpToken).totalSupply();
 
-        if (lpTokenTotalSupply == 0) return _toLpTokenDecimals(liquidityTokenAmountToDeposit);
+        if (lpTokenTotalSupply == 0) return liquidityTokenAmountToDeposit;
 
-        uint256 totalLbfActiveBalanceConverted = _toLpTokenDecimals(totalLbfActiveBalance);
-        uint256 liquidityTokenAmountToDepositConverted = _toLpTokenDecimals(
-            liquidityTokenAmountToDeposit
-        );
-
-        return
-            (lpTokenTotalSupply * liquidityTokenAmountToDepositConverted) /
-            totalLbfActiveBalanceConverted;
+        return (lpTokenTotalSupply * liquidityTokenAmountToDeposit) / totalLbfActiveBalance;
     }
 
     function _calculateWithdrawableAmount(
@@ -386,10 +399,7 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer {
         uint256 lpTokenAmount
     ) internal view returns (uint256) {
         // @dev USDC_WITHDRAWABLE = POOL_BALANCE x (LP_INPUT_AMOUNT / TOTAL_LP)
-        return
-            _toLiqTokenDecimals(
-                (_toLpTokenDecimals(totalPoolsBalance) * lpTokenAmount) / i_lpToken.totalSupply()
-            );
+        return (totalPoolsBalance * lpTokenAmount) / i_lpToken.totalSupply();
     }
 
     function _calculateNewTargetBalances(
@@ -397,7 +407,7 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer {
     ) internal view returns (uint24[] memory, uint256[] memory) {
         s.ParentPool storage s_parentPool = s.parentPool();
 
-        uint24[] memory childPoolChainSelectors = getSupportedChainSelectors();
+        uint24[] memory childPoolChainSelectors = getChildPoolChainSelectors();
         uint24[] memory chainSelectors = new uint24[](childPoolChainSelectors.length + 1);
         uint256[] memory weights = new uint256[](chainSelectors.length);
         LiqTokenDailyFlow memory dailyFlow;

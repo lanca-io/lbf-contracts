@@ -6,4 +6,6 @@ interface ICommonErrors {
     error UnauthorizedSender(address caller, address expected);
     error InvalidDstChainSelector(uint24 dstChainSelector);
     error AmountIsToLow();
+    error InvalidChainSelector();
+    error AddressShouldNotBeZero();
 }
