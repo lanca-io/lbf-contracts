@@ -2,7 +2,6 @@
 pragma solidity ^0.8.28;
 
 import {IRebalancer} from "../Rebalancer/interfaces/IRebalancer.sol";
-import {CommonTypes} from "../common/CommonTypes.sol";
 import {ICommonErrors} from "../common/interfaces/ICommonErrors.sol";
 import {ConceroClient} from "@concero/v2-contracts/contracts/ConceroClient/ConceroClient.sol";
 import {ConceroOwnable} from "../common/ConceroOwnable.sol";
@@ -107,8 +106,8 @@ abstract contract PoolBase is IPoolBase, ConceroClient, ConceroOwnable {
 
         if (messageType == IPoolBase.ConceroMessageType.BRIDGE_IOU) {
             _handleConceroReceiveBridgeIou(messageId, sourceChainSelector, message);
-		} else if(messageType == IPoolBase.ConceroMessageType.SEND_SNAPSHOT) {
-			_handleConceroReceiveSnapshot(messageId, sourceChainSelector, messageData);
+        } else if (messageType == IPoolBase.ConceroMessageType.SEND_SNAPSHOT) {
+            _handleConceroReceiveSnapshot(messageId, sourceChainSelector, messageData);
         } else {
             revert InvalidMessageType();
         }
@@ -120,11 +119,11 @@ abstract contract PoolBase is IPoolBase, ConceroClient, ConceroOwnable {
         bytes calldata messageData
     ) internal virtual;
 
-	function _handleConceroReceiveSnapshot(
-		bytes32 messageId,
-		uint24 sourceChainSelector,
-		bytes memory messageData
-	) internal virtual;
+    function _handleConceroReceiveSnapshot(
+        bytes32 messageId,
+        uint24 sourceChainSelector,
+        bytes memory messageData
+    ) internal virtual;
 
     function getTargetBalance() public view returns (uint256) {
         return s.poolBase().targetBalance;

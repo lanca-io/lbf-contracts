@@ -9,7 +9,6 @@ import {PoolBase, IPoolBase} from "../PoolBase/PoolBase.sol";
 import {ConceroClient} from "@concero/v2-contracts/contracts/ConceroClient/ConceroClient.sol";
 import {ConceroTypes} from "@concero/v2-contracts/contracts/ConceroClient/ConceroTypes.sol";
 import {IConceroRouter} from "@concero/v2-contracts/contracts/interfaces/IConceroRouter.sol";
-import {CommonTypes} from "../common/CommonTypes.sol";
 import {Storage as s} from "./libraries/Storage.sol";
 
 /**
