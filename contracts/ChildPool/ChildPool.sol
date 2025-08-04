@@ -21,7 +21,11 @@ contract ChildPool is Rebalancer {
 
     uint32 internal constant SEND_SNAPSHOT_MESSAGE_GAS_LIMIT = 100_000;
 
-    event SnapshotSent(bytes32 indexed messageId, IParentPool.SnapshotSubmission snapshot);
+    event SnapshotSent(
+        bytes32 indexed messageId,
+        uint24 indexed parentPoolChainSelector,
+        IParentPool.SnapshotSubmission snapshot
+    );
 
     constructor(
         address conceroRouter,
@@ -74,7 +78,7 @@ contract ChildPool is Rebalancer {
             messagePayload
         );
 
-        emit SnapshotSent(messageId, snapshot);
+        emit SnapshotSent(messageId, parentPoolChainSelector, snapshot);
     }
 
     function _handleConceroReceiveSnapshot(

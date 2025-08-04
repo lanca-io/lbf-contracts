@@ -8,6 +8,8 @@ import {DeployChildPool} from "../scripts/deploy/DeployChildPool.s.sol";
 
 import {ChildPool} from "../../../contracts/ChildPool/ChildPool.sol";
 import {IOUToken} from "../../../contracts/Rebalancer/IOUToken.sol";
+import {IParentPool} from "../../../contracts/ParentPool/interfaces/IParentPool.sol";
+import {IPoolBase} from "../../../contracts/PoolBase/interfaces/IPoolBase.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 abstract contract ChildPoolBase is LancaTest {
@@ -33,6 +35,9 @@ abstract contract ChildPoolBase is LancaTest {
 
         fundTestAddresses();
         approveUSDCForAll();
+
+        // For correct getYesterdayFlow calculation
+        vm.warp(block.timestamp + 1 days);
     }
 
     function fundTestAddresses() internal {
@@ -57,5 +62,11 @@ abstract contract ChildPoolBase is LancaTest {
 
         vm.prank(operator);
         IERC20(usdc).approve(address(childPool), type(uint256).max);
+    }
+
+    function encodeMessageForSendSnapshot(
+        IParentPool.SnapshotSubmission memory snapshot
+    ) internal pure returns (bytes memory) {
+        return abi.encode(IPoolBase.ConceroMessageType.SEND_SNAPSHOT, snapshot);
     }
 }
