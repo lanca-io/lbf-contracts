@@ -40,4 +40,13 @@ const envPrefixes: EnvPrefixes = {
 	pause: "CONCERO_PAUSE",
 };
 
-export { viemReceiptConfig, writeContractConfig, ProxyEnum, envPrefixes, getViemReceiptConfig };
+const parentPoolChainSelector = 421614;
+
+export {
+	viemReceiptConfig,
+	writeContractConfig,
+	ProxyEnum,
+	envPrefixes,
+	getViemReceiptConfig,
+	parentPoolChainSelector,
+};

@@ -13,6 +13,7 @@ library Storage {
     struct PoolBase {
         uint256 targetBalance;
         uint256 totalLancaFeeInLiqToken;
+        address lancaKeeper;
         mapping(uint32 timestamp => IPoolBase.LiqTokenDailyFlow flow) flowByDay;
         mapping(uint24 chainSelector => address dstPool) dstPools;
     }

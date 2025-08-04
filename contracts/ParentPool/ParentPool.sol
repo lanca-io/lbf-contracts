@@ -29,15 +29,6 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer {
     LPToken internal immutable i_lpToken;
     uint8 private immutable i_lpTokenDecimals;
 
-    modifier onlyLancaKeeper() {
-        require(
-            msg.sender == s.parentPool().lancaKeeper,
-            ICommonErrors.UnauthorizedCaller(msg.sender, s.parentPool().lancaKeeper)
-        );
-
-        _;
-    }
-
     constructor(
         address liquidityToken,
         uint8 liquidityTokenDecimals,
@@ -107,6 +98,21 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer {
         s_parentPool.withdrawalsQueueIds.push(withdrawId);
 
         emit WithdrawQueued(withdrawId, withdraw.lp, lpTokenAmount);
+    }
+
+    function _handleConceroReceiveSnapshot(
+        bytes32 messageId,
+        uint24 sourceChainSelector,
+        bytes memory messageData
+    ) internal override {
+        (IParentPool.SnapshotSubmission memory snapshot) = abi.decode(
+            messageData,
+            (IParentPool.SnapshotSubmission)
+        );
+
+        s.parentPool().childPoolsSubmissions[sourceChainSelector] = snapshot;
+
+        emit IParentPool.SnapshotReceived(messageId, sourceChainSelector, snapshot);
     }
 
     function getChildPoolChainSelectors() public view returns (uint24[] memory) {
@@ -247,10 +253,6 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer {
         }
 
         s_parentPool.supportedChainSelectors.push(chainSelector);
-    }
-
-    function setLancaKeeper(address lancaKeeper) external onlyOwner {
-        s.parentPool().lancaKeeper = lancaKeeper;
     }
 
     /*   INTERNAL FUNCTIONS   */

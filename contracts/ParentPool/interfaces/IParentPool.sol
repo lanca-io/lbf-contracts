@@ -35,4 +35,9 @@ interface IParentPool {
 
     event DepositQueued(bytes32 indexed depositId, address indexed lp, uint256 amount);
     event WithdrawQueued(bytes32 indexed withdrawId, address indexed lp, uint256 liqTokenAmount);
+    event SnapshotReceived(
+        bytes32 indexed messageId,
+        uint24 indexed sourceChainSelector,
+        SnapshotSubmission snapshot
+    );
 }

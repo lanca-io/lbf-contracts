@@ -9,7 +9,6 @@ import {PoolBase} from "../PoolBase/PoolBase.sol";
 import {ConceroClient} from "@concero/v2-contracts/contracts/ConceroClient/ConceroClient.sol";
 import {ConceroTypes} from "@concero/v2-contracts/contracts/ConceroClient/ConceroTypes.sol";
 import {IConceroRouter} from "@concero/v2-contracts/contracts/interfaces/IConceroRouter.sol";
-import {CommonTypes} from "../common/CommonTypes.sol";
 import {Storage as s} from "./libraries/Storage.sol";
 
 /**
@@ -86,10 +85,7 @@ abstract contract Rebalancer is IRebalancer, PoolBase {
 
         // Encode message data
         bytes memory messageData = abi.encode(iouTokenAmount, msg.sender);
-        bytes memory crossChainMessage = abi.encode(
-            CommonTypes.MessageType.BRIDGE_IOU,
-            messageData
-        );
+        bytes memory crossChainMessage = abi.encode(ConceroMessageType.BRIDGE_IOU, messageData);
 
         // Prepare destination chain data
         ConceroTypes.EvmDstChainData memory destinationChainData = ConceroTypes.EvmDstChainData({

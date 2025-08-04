@@ -2,7 +2,6 @@
 pragma solidity ^0.8.28;
 
 import {IRebalancer} from "../Rebalancer/interfaces/IRebalancer.sol";
-import {CommonTypes} from "../common/CommonTypes.sol";
 import {ICommonErrors} from "../common/interfaces/ICommonErrors.sol";
 import {ConceroClient} from "@concero/v2-contracts/contracts/ConceroClient/ConceroClient.sol";
 import {ConceroOwnable} from "../common/ConceroOwnable.sol";
@@ -24,6 +23,15 @@ abstract contract PoolBase is IPoolBase, ConceroClient, ConceroOwnable {
     IOUToken internal immutable i_iouToken;
     uint8 internal immutable i_liquidityTokenDecimals;
     uint24 internal i_chainSelector;
+
+    modifier onlyLancaKeeper() {
+        require(
+            msg.sender == s.poolBase().lancaKeeper,
+            ICommonErrors.UnauthorizedCaller(msg.sender, s.poolBase().lancaKeeper)
+        );
+
+        _;
+    }
 
     constructor(
         address liquidityToken,
@@ -71,6 +79,10 @@ abstract contract PoolBase is IPoolBase, ConceroClient, ConceroOwnable {
         s.poolBase().dstPools[chainSelector] = dstPool;
     }
 
+    function setLancaKeeper(address lancaKeeper) external onlyOwner {
+        s.poolBase().lancaKeeper = lancaKeeper;
+    }
+
     function _conceroReceive(
         bytes32 messageId,
         uint24 sourceChainSelector,
@@ -87,13 +99,15 @@ abstract contract PoolBase is IPoolBase, ConceroClient, ConceroOwnable {
             )
         );
 
-        (CommonTypes.MessageType messageType, bytes memory messageData) = abi.decode(
+        (ConceroMessageType messageType, bytes memory messageData) = abi.decode(
             message,
-            (CommonTypes.MessageType, bytes)
+            (ConceroMessageType, bytes)
         );
 
-        if (messageType == CommonTypes.MessageType.BRIDGE_IOU) {
+        if (messageType == ConceroMessageType.BRIDGE_IOU) {
             _handleConceroReceiveBridgeIou(messageId, sourceChainSelector, message);
+        } else if (messageType == ConceroMessageType.SEND_SNAPSHOT) {
+            _handleConceroReceiveSnapshot(messageId, sourceChainSelector, messageData);
         } else {
             revert InvalidMessageType();
         }
@@ -103,6 +117,12 @@ abstract contract PoolBase is IPoolBase, ConceroClient, ConceroOwnable {
         bytes32 messageId,
         uint24 sourceChainSelector,
         bytes calldata messageData
+    ) internal virtual;
+
+    function _handleConceroReceiveSnapshot(
+        bytes32 messageId,
+        uint24 sourceChainSelector,
+        bytes memory messageData
     ) internal virtual;
 
     function getTargetBalance() public view returns (uint256) {
