@@ -2,12 +2,10 @@
 /* solhint-disable func-name-mixedcase */
 pragma solidity 0.8.28;
 
-import {ConceroTypes} from "@concero/v2-contracts/contracts/interfaces/IConceroRouter.sol";
-
 import {ChildPool} from "contracts/ChildPool/ChildPool.sol";
 import {IOUToken} from "contracts/Rebalancer/IOUToken.sol";
-import {IPoolBase} from "contracts/PoolBase/interfaces/IPoolBase.sol";
 import {IParentPool} from "contracts/ParentPool/interfaces/IParentPool.sol";
+import {IPoolBase} from "contracts/PoolBase/interfaces/IPoolBase.sol";
 import {ChildPoolWrapper} from "contracts/test-helpers/ChildPoolWrapper.sol";
 
 import {ChildPoolBase} from "./ChildPoolBase.sol";
@@ -81,7 +79,7 @@ contract SendSnapshot is ChildPoolBase {
                 PARENT_POOL_CHAIN_SELECTOR,
                 false,
                 address(0),
-                encodeMessageForSendSnapshot(snapshot)
+                abi.encode(IPoolBase.ConceroMessageType.SEND_SNAPSHOT, abi.encode(snapshot))
             )
         );
 

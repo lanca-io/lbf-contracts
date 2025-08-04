@@ -68,7 +68,10 @@ contract ChildPool is Rebalancer {
             dstChainData
         );
 
-        bytes memory messagePayload = abi.encode(ConceroMessageType.SEND_SNAPSHOT, snapshot);
+        bytes memory messagePayload = abi.encode(
+            ConceroMessageType.SEND_SNAPSHOT,
+            abi.encode(snapshot)
+        );
 
         bytes32 messageId = IConceroRouter(i_conceroRouter).conceroSend{value: messageFee}(
             parentPoolChainSelector,

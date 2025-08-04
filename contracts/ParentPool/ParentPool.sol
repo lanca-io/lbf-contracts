@@ -7,7 +7,7 @@ import {ICommonErrors} from "../common/interfaces/ICommonErrors.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {ILancaKeeper} from "./interfaces/ILancaKeeper.sol";
 import {IParentPool} from "./interfaces/IParentPool.sol";
-import {PoolBase, IPoolBase} from "../PoolBase/PoolBase.sol";
+import {PoolBase} from "../PoolBase/PoolBase.sol";
 import {Storage as s} from "./libraries/Storage.sol";
 import {Storage as rs} from "../Rebalancer/libraries/Storage.sol";
 import {Storage as pbs} from "../PoolBase/libraries/Storage.sol";
@@ -105,15 +105,8 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer {
         uint24 sourceChainSelector,
         bytes memory messageData
     ) internal override {
-        (IPoolBase.ConceroMessageType messageType, bytes memory decodedMessageData) = abi.decode(
-            messageData,
-            (IPoolBase.ConceroMessageType, bytes)
-        );
-
-        require(messageType == IPoolBase.ConceroMessageType.SEND_SNAPSHOT, InvalidMessageType());
-
         (IParentPool.SnapshotSubmission memory snapshot) = abi.decode(
-            decodedMessageData,
+            messageData,
             (IParentPool.SnapshotSubmission)
         );
 

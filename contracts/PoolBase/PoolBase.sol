@@ -99,14 +99,14 @@ abstract contract PoolBase is IPoolBase, ConceroClient, ConceroOwnable {
             )
         );
 
-        (IPoolBase.ConceroMessageType messageType, bytes memory messageData) = abi.decode(
+        (ConceroMessageType messageType, bytes memory messageData) = abi.decode(
             message,
-            (IPoolBase.ConceroMessageType, bytes)
+            (ConceroMessageType, bytes)
         );
 
-        if (messageType == IPoolBase.ConceroMessageType.BRIDGE_IOU) {
+        if (messageType == ConceroMessageType.BRIDGE_IOU) {
             _handleConceroReceiveBridgeIou(messageId, sourceChainSelector, message);
-        } else if (messageType == IPoolBase.ConceroMessageType.SEND_SNAPSHOT) {
+        } else if (messageType == ConceroMessageType.SEND_SNAPSHOT) {
             _handleConceroReceiveSnapshot(messageId, sourceChainSelector, messageData);
         } else {
             revert InvalidMessageType();

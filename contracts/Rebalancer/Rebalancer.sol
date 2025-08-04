@@ -5,7 +5,7 @@ import {IRebalancer} from "./interfaces/IRebalancer.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IOUToken} from "./IOUToken.sol";
-import {PoolBase, IPoolBase} from "../PoolBase/PoolBase.sol";
+import {PoolBase} from "../PoolBase/PoolBase.sol";
 import {ConceroClient} from "@concero/v2-contracts/contracts/ConceroClient/ConceroClient.sol";
 import {ConceroTypes} from "@concero/v2-contracts/contracts/ConceroClient/ConceroTypes.sol";
 import {IConceroRouter} from "@concero/v2-contracts/contracts/interfaces/IConceroRouter.sol";
@@ -96,10 +96,7 @@ abstract contract Rebalancer is IRebalancer, PoolBase {
 
         // Encode message data
         bytes memory messageData = abi.encode(iouTokenAmount, msg.sender);
-        bytes memory crossChainMessage = abi.encode(
-            IPoolBase.ConceroMessageType.BRIDGE_IOU,
-            messageData
-        );
+        bytes memory crossChainMessage = abi.encode(ConceroMessageType.BRIDGE_IOU, messageData);
 
         // Prepare destination chain data
         ConceroTypes.EvmDstChainData memory destinationChainData = ConceroTypes.EvmDstChainData({
