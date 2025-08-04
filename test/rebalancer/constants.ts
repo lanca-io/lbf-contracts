@@ -11,7 +11,7 @@ export const TEST_CONSTANTS = {
 	// Test timeouts (in milliseconds)
 	DEFAULT_TIMEOUT: 10000,
 	EVENT_TIMEOUT: 10000,
-	BALANCE_TIMEOUT: 10000,
+	BALANCE_TIMEOUT: 2000,
 	EVENT_POLLING_INTERVAL_MS: 100,
 
 	// Test values
