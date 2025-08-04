@@ -25,46 +25,7 @@ contract ParentPoolWrapper is ParentPool {
         )
     {}
 
-    // Exposing internal functions for testing:
-    function setTargetBalance(uint256 newTargetBalance) external {
+    function exposed_setTargetBalance(uint256 newTargetBalance) external {
         s.poolBase().targetBalance = newTargetBalance;
-    }
-
-    function calculateNewTargetBalances(
-        uint256 totalLbfBalance
-    ) external returns (uint24[] memory, uint256[] memory) {
-        return _calculateNewTargetBalances(totalLbfBalance);
-    }
-
-    function calculateLhsScore(
-        LiqTokenDailyFlow memory flow,
-        uint256 targetBalance
-    ) external returns (uint8) {
-        return _calculateLhsScore(flow, targetBalance);
-    }
-
-    function calculateParentPoolTargetBalanceWeight() external returns (uint256) {
-        return _calculateParentPoolTargetBalanceWeight();
-    }
-
-    function updateChildPoolTargetBalance(
-        uint24 dstChainSelector,
-        uint256 newTargetBalance
-    ) external {
-        _updateChildPoolTargetBalance(dstChainSelector, newTargetBalance);
-    }
-
-    function postInflowRebalance(uint256 inflowLiqTokenAmount) external {
-        _postInflowRebalance(inflowLiqTokenAmount);
-    }
-
-    function processDepositsQueue(uint256 totalChildPoolsActiveBalance) external returns (uint256) {
-        return _processDepositsQueue(totalChildPoolsActiveBalance);
-    }
-
-    function processWithdrawalsQueue(
-        uint256 totalChildPoolsActiveBalance
-    ) external returns (uint256) {
-        return _processWithdrawalsQueue(totalChildPoolsActiveBalance);
     }
 }

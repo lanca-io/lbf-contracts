@@ -1,19 +1,21 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.28;
 
-import {IConceroRouter} from "@concero/v2-contracts/contracts/interfaces/IConceroRouter.sol";
 import {ConceroTypes} from "@concero/v2-contracts/contracts/ConceroClient/ConceroTypes.sol";
 import {ICommonErrors} from "../common/interfaces/ICommonErrors.sol";
+import {IConceroRouter} from "@concero/v2-contracts/contracts/interfaces/IConceroRouter.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {ILancaKeeper} from "./interfaces/ILancaKeeper.sol";
 import {IParentPool} from "./interfaces/IParentPool.sol";
-import {PoolBase} from "../PoolBase/PoolBase.sol";
-import {Storage as s} from "./libraries/Storage.sol";
-import {Storage as rs} from "../Rebalancer/libraries/Storage.sol";
-import {Storage as pbs} from "../PoolBase/libraries/Storage.sol";
-import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {LPToken} from "./LPToken.sol";
+import {PoolBase} from "../PoolBase/PoolBase.sol";
 import {Rebalancer} from "../Rebalancer/Rebalancer.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {Storage as pbs} from "../PoolBase/libraries/Storage.sol";
+import {Storage as rs} from "../Rebalancer/libraries/Storage.sol";
+import {Storage as s} from "./libraries/Storage.sol";
+
+import "forge-std/src/console.sol";
 
 contract ParentPool is IParentPool, ILancaKeeper, Rebalancer {
     using s for s.ParentPool;
@@ -25,6 +27,7 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer {
     error InvalidLiqTokenDecimals();
 
     uint32 internal constant UPDATE_TARGET_BALANCE_MESSAGE_GAS_LIMIT = 100_000;
+    uint24 internal constant INITIAL_TARGET_BALANCE = 10_000; // @dev this amount does not include decimals
 
     LPToken internal immutable i_lpToken;
     uint8 private immutable i_lpTokenDecimals;
@@ -424,8 +427,9 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer {
             tagetBalance = s_parentPool.dstChainsTargetBalances[childPoolChainSelectors[i]];
             targetBalancesSum += tagetBalance;
 
-            // TODO: double check what should we do if tagetBalance initially 0
-            weights[i] = tagetBalance * _calculateLhsScore(dailyFlow, tagetBalance);
+            weights[i] = tagetBalance == 0
+                ? (INITIAL_TARGET_BALANCE * i_liquidityTokenDecimals)
+                : tagetBalance * _calculateLiquidityHealthScore(dailyFlow, tagetBalance);
             totalWeight += weights[i];
         }
 
@@ -445,19 +449,17 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer {
         return (chainSelectors, newTargetBalances);
     }
 
-    // TODO: rename
-    function _calculateLurScore(
+    function _calculateLiquidityUtilisationRatioScore(
         uint256 inflow,
         uint256 outflow,
         uint256 tagetBalance
     ) internal view returns (uint8) {
+        if (tagetBalance == 0) return 1;
         uint256 lur = (inflow + outflow) / tagetBalance;
-
         return uint8(1 - (lur / (s.parentPool().lhsCalculationFactors.lurScoreSensitivity + lur)));
     }
 
-    // TODO: rename to net drain rate
-    function _calculateNdrScore(
+    function _calculateNetDrainRateScore(
         uint256 inflow,
         uint256 outflow,
         uint256 tagetBalance
@@ -468,12 +470,20 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer {
         return uint8(1 - ndr);
     }
 
-    function _calculateLhsScore(
+    function _calculateLiquidityHealthScore(
         LiqTokenDailyFlow memory dailyFlow,
         uint256 tagetBalance
     ) internal view returns (uint8) {
-        uint8 lurScore = _calculateLurScore(dailyFlow.inflow, dailyFlow.outflow, tagetBalance);
-        uint8 ndrScore = _calculateNdrScore(dailyFlow.inflow, dailyFlow.outflow, tagetBalance);
+        uint8 lurScore = _calculateLiquidityUtilisationRatioScore(
+            dailyFlow.inflow,
+            dailyFlow.outflow,
+            tagetBalance
+        );
+        uint8 ndrScore = _calculateNetDrainRateScore(
+            dailyFlow.inflow,
+            dailyFlow.outflow,
+            tagetBalance
+        );
         s.ParentPool storage s_parentPool = s.parentPool();
 
         uint8 lhs = (s_parentPool.lhsCalculationFactors.lurScoreWeight * lurScore) +
@@ -492,7 +502,7 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer {
 
     function _calculateParentPoolTargetBalanceWeight() internal view returns (uint256) {
         uint256 targetBalance = getTargetBalance();
-        return targetBalance * _calculateLhsScore(getYesterdayFlow(), targetBalance);
+        return targetBalance * _calculateLiquidityHealthScore(getYesterdayFlow(), targetBalance);
     }
 
     function _updateChildPoolTargetBalance(
@@ -540,6 +550,7 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer {
         uint256 remainingWithdrawalAmount = s_parentPool.remainingWithdrawalAmount;
 
         if (remainingWithdrawalAmount == 0) return;
+        // TODO: add min target balance check
 
         if (remainingWithdrawalAmount < inflowLiqTokenAmount) {
             delete s_parentPool.remainingWithdrawalAmount;
@@ -553,7 +564,7 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer {
     }
 
     function _isChildPoolSnapshotTimestampInRange(uint32 timestamp) internal view returns (bool) {
-        if (timestamp > block.timestamp) return false;
+        if ((timestamp == 0) || (timestamp > block.timestamp)) return false;
         return (block.timestamp - timestamp) <= (30 minutes);
     }
 

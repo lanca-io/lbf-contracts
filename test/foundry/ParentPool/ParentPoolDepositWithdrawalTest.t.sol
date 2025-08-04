@@ -16,6 +16,9 @@ contract ParentPoolDepositWithdrawalTest is ParentPoolBase {
         //        s_parentPool.setTargetWithdrawalQueueLength(0);
         //
         //        _fillDepositWithdrawalQueue(100e6, 0);
+        //        _fillChildPoolSnapshots();
+        //
+        //        vm.warp(NOW_TIMESTAMP);
         //
         //        vm.prank(s_lancaKeeper);
         //        s_parentPool.triggerDepositWithdrawProcess();
