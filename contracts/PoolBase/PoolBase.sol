@@ -25,6 +25,15 @@ abstract contract PoolBase is IPoolBase, ConceroClient, ConceroOwnable {
     uint8 internal immutable i_liquidityTokenDecimals;
     uint24 internal i_chainSelector;
 
+    modifier onlyLancaKeeper() {
+        require(
+            msg.sender == s.poolBase().lancaKeeper,
+            ICommonErrors.UnauthorizedCaller(msg.sender, s.poolBase().lancaKeeper)
+        );
+
+        _;
+    }
+
     constructor(
         address liquidityToken,
         address conceroRouter,
@@ -69,6 +78,10 @@ abstract contract PoolBase is IPoolBase, ConceroClient, ConceroOwnable {
         require(dstPool != address(0), ICommonErrors.AddressShouldNotBeZero());
 
         s.poolBase().dstPools[chainSelector] = dstPool;
+    }
+
+    function setLancaKeeper(address lancaKeeper) external onlyOwner {
+        s.poolBase().lancaKeeper = lancaKeeper;
     }
 
     function _conceroReceive(

@@ -29,15 +29,6 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer {
     LPToken internal immutable i_lpToken;
     uint8 private immutable i_lpTokenDecimals;
 
-    modifier onlyLancaKeeper() {
-        require(
-            msg.sender == s.parentPool().lancaKeeper,
-            ICommonErrors.UnauthorizedCaller(msg.sender, s.parentPool().lancaKeeper)
-        );
-
-        _;
-    }
-
     constructor(
         address liquidityToken,
         uint8 liquidityTokenDecimals,
@@ -247,10 +238,6 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer {
         }
 
         s_parentPool.supportedChainSelectors.push(chainSelector);
-    }
-
-    function setLancaKeeper(address lancaKeeper) external onlyOwner {
-        s.parentPool().lancaKeeper = lancaKeeper;
     }
 
     /*   INTERNAL FUNCTIONS   */
