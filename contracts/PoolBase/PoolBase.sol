@@ -100,13 +100,15 @@ abstract contract PoolBase is IPoolBase, ConceroClient, ConceroOwnable {
             )
         );
 
-        (CommonTypes.MessageType messageType, bytes memory messageData) = abi.decode(
+        (IPoolBase.ConceroMessageType messageType, bytes memory messageData) = abi.decode(
             message,
-            (CommonTypes.MessageType, bytes)
+            (IPoolBase.ConceroMessageType, bytes)
         );
 
-        if (messageType == CommonTypes.MessageType.BRIDGE_IOU) {
+        if (messageType == IPoolBase.ConceroMessageType.BRIDGE_IOU) {
             _handleConceroReceiveBridgeIou(messageId, sourceChainSelector, message);
+		} else if(messageType == IPoolBase.ConceroMessageType.SEND_SNAPSHOT) {
+			_handleConceroReceiveSnapshot(messageId, sourceChainSelector, messageData);
         } else {
             revert InvalidMessageType();
         }
@@ -117,6 +119,12 @@ abstract contract PoolBase is IPoolBase, ConceroClient, ConceroOwnable {
         uint24 sourceChainSelector,
         bytes calldata messageData
     ) internal virtual;
+
+	function _handleConceroReceiveSnapshot(
+		bytes32 messageId,
+		uint24 sourceChainSelector,
+		bytes memory messageData
+	) internal virtual;
 
     function getTargetBalance() public view returns (uint256) {
         return s.poolBase().targetBalance;
