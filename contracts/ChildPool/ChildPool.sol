@@ -20,27 +20,23 @@ contract ChildPool is Rebalancer {
     using pbs for pbs.PoolBase;
 
     uint32 internal constant SEND_SNAPSHOT_MESSAGE_GAS_LIMIT = 100_000;
-
-    event SnapshotSent(
-        bytes32 indexed messageId,
-        uint24 indexed parentPoolChainSelector,
-        IParentPool.SnapshotSubmission snapshot
-    );
+    uint24 internal immutable i_parentPoolChainSelector;
 
     constructor(
         address conceroRouter,
         address iouToken,
         address liquidityToken,
         uint8 liquidityTokenDecimals,
-        uint24 chainSelector
+        uint24 chainSelector,
+        uint24 parentPoolChainSelector
     )
         PoolBase(liquidityToken, conceroRouter, iouToken, liquidityTokenDecimals, chainSelector)
         Rebalancer()
-    {}
+    {
+        i_parentPoolChainSelector = parentPoolChainSelector;
+    }
 
-    function sendSnapshotToParentPool(
-        uint24 parentPoolChainSelector
-    ) external payable onlyLancaKeeper {
+    function sendSnapshotToParentPool() external payable onlyLancaKeeper {
         IParentPool.SnapshotSubmission memory snapshot = IParentPool.SnapshotSubmission({
             balance: getActiveBalance(),
             dailyFlow: getYesterdayFlow(),
@@ -50,10 +46,10 @@ contract ChildPool is Rebalancer {
             timestamp: uint32(block.timestamp)
         });
 
-        address parentPool = pbs.poolBase().dstPools[parentPoolChainSelector];
+        address parentPool = pbs.poolBase().dstPools[i_parentPoolChainSelector];
         require(
             parentPool != address(0),
-            ICommonErrors.InvalidDstChainSelector(parentPoolChainSelector)
+            ICommonErrors.InvalidDstChainSelector(i_parentPoolChainSelector)
         );
 
         ConceroTypes.EvmDstChainData memory dstChainData = ConceroTypes.EvmDstChainData({
@@ -62,7 +58,7 @@ contract ChildPool is Rebalancer {
         });
 
         uint256 messageFee = IConceroRouter(i_conceroRouter).getMessageFee(
-            parentPoolChainSelector,
+            i_parentPoolChainSelector,
             false,
             address(0),
             dstChainData
@@ -73,17 +69,16 @@ contract ChildPool is Rebalancer {
             abi.encode(snapshot)
         );
 
-        bytes32 messageId = IConceroRouter(i_conceroRouter).conceroSend{value: messageFee}(
-            parentPoolChainSelector,
+        IConceroRouter(i_conceroRouter).conceroSend{value: messageFee}(
+            i_parentPoolChainSelector,
             false,
             address(0),
             dstChainData,
             messagePayload
         );
-
-        emit SnapshotSent(messageId, parentPoolChainSelector, snapshot);
     }
 
+    // TODO: we have to find a way to avoid this
     function _handleConceroReceiveSnapshot(
         bytes32 messageId,
         uint24 sourceChainSelector,

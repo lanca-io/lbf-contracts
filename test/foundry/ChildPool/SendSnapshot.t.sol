@@ -24,7 +24,8 @@ contract SendSnapshot is ChildPoolBase {
             iouToken,
             address(usdc),
             6,
-            CHILD_POOL_CHAIN_SELECTOR
+            CHILD_POOL_CHAIN_SELECTOR,
+            PARENT_POOL_CHAIN_SELECTOR
         );
 
         childPool.setLancaKeeper(s_lancaKeeper);
@@ -83,10 +84,7 @@ contract SendSnapshot is ChildPoolBase {
             )
         );
 
-        vm.expectEmit(true, true, true, true);
-        emit ChildPool.SnapshotSent(messageId, PARENT_POOL_CHAIN_SELECTOR, snapshot);
-
         vm.prank(s_lancaKeeper);
-        childPool.sendSnapshotToParentPool{value: messageFee}(PARENT_POOL_CHAIN_SELECTOR);
+        childPool.sendSnapshotToParentPool{value: messageFee}();
     }
 }

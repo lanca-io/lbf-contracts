@@ -14,8 +14,18 @@ contract ChildPoolWrapper is ChildPool {
         address iouToken,
         address liquidityToken,
         uint8 liquidityTokenDecimals,
-        uint24 chainSelector
-    ) ChildPool(conceroRouter, iouToken, liquidityToken, liquidityTokenDecimals, chainSelector) {}
+        uint24 chainSelector,
+        uint24 parentPoolChainSelector
+    )
+        ChildPool(
+            conceroRouter,
+            iouToken,
+            liquidityToken,
+            liquidityTokenDecimals,
+            chainSelector,
+            parentPoolChainSelector
+        )
+    {}
 
     // Expose internal functions for testing
     function setTargetBalance(uint256 newTargetBalance) external {
