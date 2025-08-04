@@ -35,7 +35,7 @@ const deployLPToken: DeploymentFunction = async function (
 
 	log(`LPToken deployed at: ${deployment.address}`, "deployLPToken", name);
 	updateEnvVariable(
-		`LPTOKEN_${getNetworkEnvKey(name)}`,
+		`LPT_${getNetworkEnvKey(name)}`,
 		deployment.address,
 		`deployments.${networkType}`,
 	);

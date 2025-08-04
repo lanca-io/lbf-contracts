@@ -56,23 +56,12 @@ abstract contract Rebalancer is IRebalancer, PoolBase {
         uint256 currentSurplus = getSurplus();
         require(currentSurplus > 0, NoSurplusToTake());
 
-        // Calculate equivalent amount of surplus tokens (1:1 ratio)
         liquidityTokensToReceive = iouTokensToBurn;
-        uint256 actualIouTokensToBurn = iouTokensToBurn;
+        i_iouToken.burnFrom(msg.sender, iouTokensToBurn);
 
-        // Cap the amount to the actual surplus
-        if (liquidityTokensToReceive > currentSurplus) {
-            liquidityTokensToReceive = currentSurplus;
-            actualIouTokensToBurn = currentSurplus;
-        }
-
-        // Burn IOU tokens from caller first (fail early if insufficient balance)
-        i_iouToken.burnFrom(msg.sender, actualIouTokensToBurn);
-
-        // Safe transfer liquidity tokens to the caller
         IERC20(i_liquidityToken).safeTransfer(msg.sender, liquidityTokensToReceive);
 
-        emit SurplusTaken(liquidityTokensToReceive, actualIouTokensToBurn);
+        emit SurplusTaken(liquidityTokensToReceive, iouTokensToBurn);
         return liquidityTokensToReceive;
     }
 

@@ -3,7 +3,6 @@ import "./configureEnv";
 import { ChildProcessWithoutNullStreams, spawn } from "child_process";
 import path from "path";
 
-import { initializeManagers } from "@lanca/rebalancer/src/utils/initializeManagers";
 import { DeployOptions } from "hardhat-deploy/types";
 import Mocha from "mocha";
 
@@ -18,6 +17,7 @@ import { compileContractsAsync } from "../../utils/compileContracts";
 import { TEST_CONSTANTS } from "./constants";
 import { StateManager } from "./utils/StateManager";
 import { localhostViemChain } from "./utils/localhostViemChain";
+import { initializeManagers } from "/Users/oleg/Documents/Code/lanca/rebalancer/src/utils/initializeManagers";
 
 export type Deployment = {
 	LPToken: string;
@@ -50,6 +50,8 @@ export class RebalancerIntegrationTest {
 		await stateManager.setupContracts();
 
 		const config = await this.configureRebalancer(deployments);
+		// console.log("Config:", config);
+
 		// Conditionally initialize managers
 		if (!skipRebalancer) {
 			await initializeManagers(config);
@@ -65,7 +67,12 @@ export class RebalancerIntegrationTest {
 			reporter: "spec",
 		});
 		mocha.addFile(path.resolve(__dirname, "Rebalancer.test.ts"));
-		mocha.run(failures => (process.exitCode = failures ? 1 : 0));
+		mocha.run(failures => {
+			process.exitCode = failures ? 1 : 0;
+			this.teardown().then(() => {
+				process.exit(process.exitCode);
+			});
+		});
 	}
 
 	private async runChain(): Promise<void> {

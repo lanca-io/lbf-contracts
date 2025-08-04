@@ -1,5 +1,3 @@
-import { IOU_TOKEN_DECIMALS } from "@lanca/rebalancer/src/constants";
-
 export const TEST_CONSTANTS = {
 	// Network constants
 	LOCALHOST_URL: "http://127.0.0.1:8545",
@@ -8,12 +6,13 @@ export const TEST_CONSTANTS = {
 
 	// Token constants
 	USDC_DECIMALS: 6,
-	IOU_TOKEN_DECIMALS: 18,
+	IOU_TOKEN_DECIMALS: 6,
 
 	// Test timeouts (in milliseconds)
-	DEFAULT_TIMEOUT: 120000,
+	DEFAULT_TIMEOUT: 10000,
 	EVENT_TIMEOUT: 10000,
-	BALANCE_TIMEOUT: 60000,
+	BALANCE_TIMEOUT: 10000,
+	EVENT_POLLING_INTERVAL_MS: 100,
 
 	// Test values
 	DEFAULT_IOU_MINT_AMOUNT: "100",
