@@ -34,7 +34,7 @@ const deployIOUToken: DeploymentFunction = async function (
 
 	log(`IOUToken deployed at: ${deployment.address}`, "deployIOUToken", name);
 	updateEnvVariable(
-		`IOUTOKEN_${getNetworkEnvKey(name)}`,
+		`IOU_${getNetworkEnvKey(name)}`,
 		deployment.address,
 		`deployments.${networkType}`,
 	);

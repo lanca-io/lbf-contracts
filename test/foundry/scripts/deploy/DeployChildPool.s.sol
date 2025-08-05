@@ -22,7 +22,8 @@ contract DeployChildPool is LancaBaseScript {
             _iouToken,
             liquidityToken,
             liquidityTokenDecimals,
-            chainSelector
+            chainSelector,
+            PARENT_POOL_CHAIN_SELECTOR
         );
 
         console.log("Deployed ChildPool:");

@@ -3,6 +3,7 @@ import { DeployOptions, Deployment } from "hardhat-deploy/types";
 import { HardhatRuntimeEnvironment } from "hardhat/types";
 
 import { conceroNetworks } from "../constants";
+import { parentPoolChainSelector } from "../constants/deploymentVariables";
 import { getEnvVar, log, updateEnvVariable } from "../utils";
 
 type DeploymentFunction = (
@@ -29,6 +30,7 @@ const deployChildPool: DeploymentFunction = async function (
 		getEnvVar(`USDC_${getNetworkEnvKey(name)}`) || "",
 		6, // USDC decimals
 		Number(chain.chainSelector), // Convert bigint to number for uint24
+		parentPoolChainSelector,
 	];
 
 	const args = deployOptions?.args || defaultArgs;

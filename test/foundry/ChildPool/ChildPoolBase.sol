@@ -33,6 +33,9 @@ abstract contract ChildPoolBase is LancaTest {
 
         fundTestAddresses();
         approveUSDCForAll();
+
+        // For correct getYesterdayFlow calculation
+        vm.warp(block.timestamp + 1 days);
     }
 
     function fundTestAddresses() internal {

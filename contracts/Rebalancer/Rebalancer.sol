@@ -9,7 +9,6 @@ import {PoolBase} from "../PoolBase/PoolBase.sol";
 import {ConceroClient} from "@concero/v2-contracts/contracts/ConceroClient/ConceroClient.sol";
 import {ConceroTypes} from "@concero/v2-contracts/contracts/ConceroClient/ConceroTypes.sol";
 import {IConceroRouter} from "@concero/v2-contracts/contracts/interfaces/IConceroRouter.sol";
-import {CommonTypes} from "../common/CommonTypes.sol";
 import {Storage as s} from "./libraries/Storage.sol";
 
 /**
@@ -56,23 +55,12 @@ abstract contract Rebalancer is IRebalancer, PoolBase {
         uint256 currentSurplus = getSurplus();
         require(currentSurplus > 0, NoSurplusToTake());
 
-        // Calculate equivalent amount of surplus tokens (1:1 ratio)
         liquidityTokensToReceive = iouTokensToBurn;
-        uint256 actualIouTokensToBurn = iouTokensToBurn;
+        i_iouToken.burnFrom(msg.sender, iouTokensToBurn);
 
-        // Cap the amount to the actual surplus
-        if (liquidityTokensToReceive > currentSurplus) {
-            liquidityTokensToReceive = currentSurplus;
-            actualIouTokensToBurn = currentSurplus;
-        }
-
-        // Burn IOU tokens from caller first (fail early if insufficient balance)
-        i_iouToken.burnFrom(msg.sender, actualIouTokensToBurn);
-
-        // Safe transfer liquidity tokens to the caller
         IERC20(i_liquidityToken).safeTransfer(msg.sender, liquidityTokensToReceive);
 
-        emit SurplusTaken(liquidityTokensToReceive, actualIouTokensToBurn);
+        emit SurplusTaken(liquidityTokensToReceive, iouTokensToBurn);
         return liquidityTokensToReceive;
     }
 
@@ -97,10 +85,7 @@ abstract contract Rebalancer is IRebalancer, PoolBase {
 
         // Encode message data
         bytes memory messageData = abi.encode(iouTokenAmount, msg.sender);
-        bytes memory crossChainMessage = abi.encode(
-            CommonTypes.MessageType.BRIDGE_IOU,
-            messageData
-        );
+        bytes memory crossChainMessage = abi.encode(ConceroMessageType.BRIDGE_IOU, messageData);
 
         // Prepare destination chain data
         ConceroTypes.EvmDstChainData memory destinationChainData = ConceroTypes.EvmDstChainData({

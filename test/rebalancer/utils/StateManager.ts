@@ -198,23 +198,6 @@ export class StateManager {
 		});
 	}
 
-	async createDeficitState(poolAddress: `0x${string}`, deficitAmount: bigint): Promise<void> {
-		const currentState = await this.getPoolState(poolAddress);
-		const newTargetBalance = currentState.activeBalance + deficitAmount;
-
-		await this.setTargetBalance(poolAddress, newTargetBalance);
-	}
-
-	async createSurplusState(poolAddress: `0x${string}`, surplusAmount: bigint): Promise<void> {
-		const currentState = await this.getPoolState(poolAddress);
-		const newTargetBalance =
-			currentState.activeBalance >= surplusAmount
-				? currentState.activeBalance - surplusAmount
-				: surplusAmount;
-
-		await this.setTargetBalance(poolAddress, newTargetBalance);
-	}
-
 	async transferTokens(
 		tokenAddress: `0x${string}`,
 		from: `0x${string}`,
@@ -288,13 +271,14 @@ export class StateManager {
 			abi: poolAbi,
 			eventName,
 			onLogs: callback,
+			pollingInterval: TEST_CONSTANTS.EVENT_POLLING_INTERVAL_MS,
 		});
 	}
 
 	async waitForRebalancerEvent(
 		poolAddress: `0x${string}`,
 		eventName: "DeficitFilled" | "SurplusTaken",
-		timeoutMs: number = 30000,
+		timeoutMs: number,
 	): Promise<any> {
 		return new Promise((resolve, reject) => {
 			const timeout = setTimeout(() => {
@@ -337,6 +321,34 @@ export class StateManager {
 		return accounts as `0x${string}`[];
 	}
 
+	async readAllowance(
+		tokenAddress: `0x${string}`,
+		owner: `0x${string}`,
+		spender: `0x${string}`,
+	): Promise<bigint> {
+		return await this.testClient.readContract({
+			address: tokenAddress,
+			abi: IOUTokenArtifact.abi,
+			functionName: "allowance",
+			args: [owner, spender],
+		});
+	}
+
+	async setAllowance(
+		tokenAddress: `0x${string}`,
+		spender: `0x${string}`,
+		amount: bigint,
+	): Promise<void> {
+		await this.testClient.impersonateAccount({ address: operator });
+		await this.testClient.writeContract({
+			address: tokenAddress,
+			abi: IOUTokenArtifact.abi,
+			functionName: "approve",
+			args: [spender, amount],
+			account: operator,
+		});
+	}
+
 	async resetState(): Promise<void> {
 		// Reset pool balances to 0
 		await this.setTokenBalance(this.deployments.USDC, this.deployments.ParentPool, 0n);
@@ -347,8 +359,9 @@ export class StateManager {
 		await this.setTokenBalance(this.deployments.IOUToken, operator, 0n);
 
 		// Reset operator allowances to 0 for USDC
-		//
+
 		await this.testClient.impersonateAccount({ address: operator });
+
 		await this.testClient.writeContract({
 			address: this.deployments.USDC,
 			abi: MockERC20Artifact.abi,

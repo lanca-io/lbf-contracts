@@ -23,6 +23,8 @@ abstract contract LancaBaseScript is Script {
     uint256 public constant INITIAL_POOL_LIQUIDITY = 1_000_000e6;
     uint256 internal constant MIN_TARGET_BALANCE = 10_000e6;
 
+	uint256 public constant GAS_LIMIT = 100_000;
+
     constructor() {
         deployer = vm.envAddress("DEPLOYER_ADDRESS");
         proxyDeployer = vm.envAddress("PROXY_DEPLOYER_ADDRESS");
