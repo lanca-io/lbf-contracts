@@ -152,18 +152,18 @@ contract SendToken is LancaBridgeBase {
 
     function test_bridge_fromChildToChildPoolWithContractCall_Success() public {
         address secondChildPool = makeAddr("secondChildPool");
-		uint24 secondChildPoolChainSelector = 200;
+        uint24 secondChildPoolChainSelector = 200;
 
-		uint24[] memory dstChainSelectors = new uint24[](1);
-		dstChainSelectors[0] = secondChildPoolChainSelector;
-		address[] memory dstPools = new address[](1);
-		dstPools[0] = secondChildPool;
+        uint24[] memory dstChainSelectors = new uint24[](1);
+        dstChainSelectors[0] = secondChildPoolChainSelector;
+        address[] memory dstPools = new address[](1);
+        dstPools[0] = secondChildPool;
 
-		vm.prank(deployer);
-		childPool.addDstPools(dstChainSelectors, dstPools);
+        vm.prank(deployer);
+        childPool.addDstPools(dstChainSelectors, dstPools);
 
         uint256 dstGasLimit = 200_000;
-        uint256 messageFee = childPool.getMessageFeeForContractCall(
+        uint256 messageFee = childPool.getMessageFee(
             secondChildPoolChainSelector,
             secondChildPool,
             dstGasLimit
@@ -183,10 +183,7 @@ contract SendToken is LancaBridgeBase {
             callData // dstCallData for contract call
         );
 
-        assertEq(
-            MockConceroRouter(conceroRouter).dstChainSelector(),
-            secondChildPoolChainSelector
-        );
+        assertEq(MockConceroRouter(conceroRouter).dstChainSelector(), secondChildPoolChainSelector);
         assertEq(MockConceroRouter(conceroRouter).shouldFinaliseSrc(), false);
         assertEq(MockConceroRouter(conceroRouter).feeToken(), address(0));
 

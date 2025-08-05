@@ -117,7 +117,7 @@ abstract contract LancaBridge is ILancaBridge, PoolBase, ReentrancyGuard {
             bytes memory dstCallData
         ) = _decodeMessage(messageData);
 
-        // Think about adding retry and increase _postOutflow() when balance is insufficient
+        // todo: Think about adding retry and increase _postOutflow() when balance is insufficient
         require(getActiveBalance() >= tokenAmount, ICommonErrors.InvalidAmount());
 
         _postOutflow(tokenAmount);
@@ -219,7 +219,7 @@ abstract contract LancaBridge is ILancaBridge, PoolBase, ReentrancyGuard {
 
     /*   GETTERS   */
 
-    function getMessageFeeForContractCall(
+    function getMessageFee(
         uint24 dstChainSelector,
         address dstPool,
         uint256 dstGasLimit

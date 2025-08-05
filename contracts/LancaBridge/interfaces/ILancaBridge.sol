@@ -35,7 +35,7 @@ interface ILancaBridge {
         bytes calldata dstCallData
     ) external payable returns (bytes32 messageId);
 
-    function getMessageFeeForContractCall(
+    function getMessageFee(
         uint24 dstChainSelector,
         address dstPool,
         uint256 dstGasLimit
