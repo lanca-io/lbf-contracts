@@ -21,7 +21,7 @@ abstract contract LancaBridgeBase is LancaTest {
 
     function setUp() public virtual {
         DeployMockERC20 deployMockERC20 = new DeployMockERC20();
-        usdc = deployMockERC20.deployERC20("USD Coin", "USDC", 6);
+        usdc = IERC20(deployMockERC20.deployERC20("USD Coin", "USDC", 6));
 
         DeployIOUToken deployIOUToken = new DeployIOUToken();
         iouToken = address(IOUToken(deployIOUToken.deployIOUToken(deployer, address(0))));
@@ -32,7 +32,7 @@ abstract contract LancaBridgeBase is LancaTest {
         DeployChildPool deployChildPool = new DeployChildPool();
         childPool = ChildPool(
             deployChildPool.deployChildPool(
-                usdc,
+                address(usdc),
                 6,
                 CHILD_POOL_CHAIN_SELECTOR,
                 address(iouToken),
@@ -44,7 +44,7 @@ abstract contract LancaBridgeBase is LancaTest {
         parentPool = ParentPool(
             payable(
                 deployParentPool.deployParentPool(
-                    usdc,
+                    address(usdc),
                     6,
                     address(lpToken),
                     conceroRouter,
@@ -84,13 +84,12 @@ abstract contract LancaBridgeBase is LancaTest {
         vm.deal(user, 100 ether);
         vm.deal(liquidityProvider, 100 ether);
         vm.deal(operator, 100 ether);
-        vm.deal(lancaKeeper, 10 ether);
 
         vm.startPrank(deployer);
-        MockERC20(usdc).mint(user, 10_000_000e6);
-        MockERC20(usdc).mint(liquidityProvider, 50_000_000e6);
-        MockERC20(usdc).mint(operator, 1_000_000e6);
-        MockERC20(usdc).mint(address(childPool), INITIAL_POOL_LIQUIDITY);
+        MockERC20(address(usdc)).mint(user, 10_000_000e6);
+        MockERC20(address(usdc)).mint(liquidityProvider, 50_000_000e6);
+        MockERC20(address(usdc)).mint(operator, 1_000_000e6);
+        MockERC20(address(usdc)).mint(address(childPool), INITIAL_POOL_LIQUIDITY);
         vm.stopPrank();
     }
 

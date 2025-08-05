@@ -12,7 +12,7 @@ import {ReentrancyGuard} from "./ReentrancyGuard.sol";
 import {ILancaBridge} from "./interfaces/ILancaBridge.sol";
 import {CommonConstants} from "../common/CommonConstants.sol";
 import {LancaClient} from "../LancaClient/LancaClient.sol";
-import {PoolBase, IERC20, CommonTypes} from "../PoolBase/PoolBase.sol";
+import {PoolBase, IERC20} from "../PoolBase/PoolBase.sol";
 import {ICommonErrors} from "../common/interfaces/ICommonErrors.sol";
 import {Storage as s} from "../PoolBase/libraries/Storage.sol";
 import {Storage as rs} from "../Rebalancer/libraries/Storage.sol";
@@ -22,13 +22,20 @@ abstract contract LancaBridge is ILancaBridge, PoolBase, ReentrancyGuard {
     using s for s.PoolBase;
     using rs for rs.Rebalancer;
 
+    enum BridgeType {
+        CONTRACT_TRANSFER,
+        EOA_TRANSFER
+    }
+
     uint256 internal constant BRIDGE_GAS_OVERHEAD = 100_000;
 
     function bridge(
+        // TODO: remove token from this function cuz pool per token
         address token,
         address tokenReceiver,
         uint256 tokenAmount,
         uint24 dstChainSelector,
+        // TODO: remove isTokenReceiverContract param. Instead of it check if contract supports lanca client interface and than call _lancaReceive or just transfer token to receiver
         bool isTokenReceiverContract,
         uint256 dstGasLimit,
         bytes calldata dstCallData
@@ -83,9 +90,7 @@ abstract contract LancaBridge is ILancaBridge, PoolBase, ReentrancyGuard {
         }
 
         bytes memory messageData = abi.encode(
-            isTokenReceiverContract
-                ? CommonTypes.BridgeType.CONTRACT_TRANSFER
-                : CommonTypes.BridgeType.EOA_TRANSFER,
+            isTokenReceiverContract ? BridgeType.CONTRACT_TRANSFER : BridgeType.EOA_TRANSFER,
             bridgeData
         );
 
@@ -99,7 +104,7 @@ abstract contract LancaBridge is ILancaBridge, PoolBase, ReentrancyGuard {
                     ? BRIDGE_GAS_OVERHEAD + dstGasLimit
                     : BRIDGE_GAS_OVERHEAD
             }),
-            abi.encode(CommonTypes.MessageType.BRIDGE_LIQUIDITY, messageData)
+            abi.encode(ConceroMessageType.BRIDGE, messageData)
         );
     }
 
@@ -113,7 +118,7 @@ abstract contract LancaBridge is ILancaBridge, PoolBase, ReentrancyGuard {
             address tokenSender,
             address tokenReceiver,
             uint256 tokenAmount,
-            CommonTypes.BridgeType bridgeType,
+            BridgeType bridgeType,
             bytes memory dstCallData
         ) = _decodeMessage(messageData);
 
@@ -122,7 +127,7 @@ abstract contract LancaBridge is ILancaBridge, PoolBase, ReentrancyGuard {
 
         _postOutflow(tokenAmount);
 
-        if (bridgeType == CommonTypes.BridgeType.CONTRACT_TRANSFER) {
+        if (bridgeType == BridgeType.CONTRACT_TRANSFER) {
             _bridgeReceive(token, tokenReceiver, tokenAmount);
             _callTokenReceiver(token, tokenSender, tokenReceiver, tokenAmount, dstCallData);
         } else {
@@ -149,19 +154,19 @@ abstract contract LancaBridge is ILancaBridge, PoolBase, ReentrancyGuard {
             address tokenSender,
             address tokenReceiver,
             uint256 tokenAmount,
-            CommonTypes.BridgeType bridgeType,
+            BridgeType bridgeType,
             bytes memory dstCallData
         )
     {
         bytes memory bridgeData;
-        (bridgeType, bridgeData) = abi.decode(messageData, (CommonTypes.BridgeType, bytes));
+        (bridgeType, bridgeData) = abi.decode(messageData, (BridgeType, bytes));
 
-        if (bridgeType == CommonTypes.BridgeType.EOA_TRANSFER) {
+        if (bridgeType == BridgeType.EOA_TRANSFER) {
             (token, tokenSender, tokenReceiver, tokenAmount) = abi.decode(
                 bridgeData,
                 (address, address, address, uint256)
             );
-        } else if (bridgeType == CommonTypes.BridgeType.CONTRACT_TRANSFER) {
+        } else if (bridgeType == BridgeType.CONTRACT_TRANSFER) {
             (token, tokenSender, tokenReceiver, tokenAmount, dstCallData) = abi.decode(
                 bridgeData,
                 (address, address, address, uint256, bytes)
