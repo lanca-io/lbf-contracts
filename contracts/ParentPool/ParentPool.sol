@@ -15,8 +15,6 @@ import {Storage as pbs} from "../PoolBase/libraries/Storage.sol";
 import {Storage as rs} from "../Rebalancer/libraries/Storage.sol";
 import {Storage as s} from "./libraries/Storage.sol";
 
-import "forge-std/src/console.sol";
-
 contract ParentPool is IParentPool, ILancaKeeper, Rebalancer {
     using s for s.ParentPool;
     using rs for rs.Rebalancer;
@@ -27,10 +25,10 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer {
     error InvalidLiqTokenDecimals();
 
     uint32 internal constant UPDATE_TARGET_BALANCE_MESSAGE_GAS_LIMIT = 100_000;
-    uint24 internal constant INITIAL_TARGET_BALANCE = 10_000; // @dev this amount does not include decimals
 
     LPToken internal immutable i_lpToken;
     uint8 private immutable i_lpTokenDecimals;
+    uint256 internal immutable i_minTargetBalance;
 
     modifier onlyLancaKeeper() {
         require(
@@ -47,7 +45,8 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer {
         address lpToken,
         address conceroRouter,
         uint24 chainSelector,
-        address iouToken
+        address iouToken,
+        uint256 minTargetBalance
     )
         PoolBase(liquidityToken, conceroRouter, iouToken, liquidityTokenDecimals, chainSelector)
         Rebalancer()
@@ -56,6 +55,8 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer {
         i_lpTokenDecimals = i_lpToken.decimals();
         // todo: move it to only one var
         require(i_lpTokenDecimals == liquidityTokenDecimals, InvalidLiqTokenDecimals());
+
+        i_minTargetBalance = minTargetBalance;
     }
 
     receive() external payable {}
@@ -165,7 +166,7 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer {
         return s.parentPool().targetWithdrawalQueueLength;
     }
 
-    function triggerDepositWithdrawProcess() external payable onlyLancaKeeper {
+    function triggerDepositWithdrawProcess() external onlyLancaKeeper {
         require(areQueuesFull(), QueuesAreNotFull());
 
         (bool areChildPoolSnapshotsReady, uint256 totalPoolsBalance) = _getTotalLbfBalance();
@@ -282,7 +283,7 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer {
             );
 
             // TODO: may be more gas-optimal if you subtract one time outside the cycle
-            s_parentPool.totalDepositAmountInQueue -= amountToDepositWithFee;
+            s_parentPool.totalDepositAmountInQueue -= deposit.liquidityTokenAmountToDeposit;
             LPToken(i_lpToken).mint(deposit.lp, lpTokenAmountToMint);
             totalDepositedLiqTokenAmount += amountToDepositWithFee;
         }
@@ -424,11 +425,11 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer {
             chainSelectors[i] = childPoolChainSelectors[i];
             dailyFlow = s_parentPool.childPoolsSubmissions[childPoolChainSelectors[i]].dailyFlow;
 
-            tagetBalance = s_parentPool.dstChainsTargetBalances[childPoolChainSelectors[i]];
+            tagetBalance = s_parentPool.childPoolTargetBalances[childPoolChainSelectors[i]];
             targetBalancesSum += tagetBalance;
 
-            weights[i] = tagetBalance == 0
-                ? (INITIAL_TARGET_BALANCE * i_liquidityTokenDecimals)
+            weights[i] = tagetBalance < i_minTargetBalance
+                ? (i_minTargetBalance)
                 : tagetBalance * _calculateLiquidityHealthScore(dailyFlow, tagetBalance);
             totalWeight += weights[i];
         }
@@ -502,7 +503,10 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer {
 
     function _calculateParentPoolTargetBalanceWeight() internal view returns (uint256) {
         uint256 targetBalance = getTargetBalance();
-        return targetBalance * _calculateLiquidityHealthScore(getYesterdayFlow(), targetBalance);
+        return
+            targetBalance < i_minTargetBalance
+                ? (i_minTargetBalance)
+                : targetBalance * _calculateLiquidityHealthScore(getYesterdayFlow(), targetBalance);
     }
 
     function _updateChildPoolTargetBalance(
@@ -511,10 +515,10 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer {
     ) internal {
         s.ParentPool storage s_parentPool = s.parentPool();
 
-        if (s_parentPool.dstChainsTargetBalances[dstChainSelector] == newTargetBalance) return;
-        s_parentPool.dstChainsTargetBalances[dstChainSelector] = newTargetBalance;
+        if (s_parentPool.childPoolTargetBalances[dstChainSelector] == newTargetBalance) return;
+        s_parentPool.childPoolTargetBalances[dstChainSelector] = newTargetBalance;
 
-        address childPool = s_parentPool.childPools[dstChainSelector];
+        address childPool = pbs.poolBase().dstPools[dstChainSelector];
         require(childPool != address(0), ICommonErrors.InvalidDstChainSelector(dstChainSelector));
 
         ConceroTypes.EvmDstChainData memory dstChainData = ConceroTypes.EvmDstChainData({

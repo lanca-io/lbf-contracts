@@ -15,7 +15,8 @@ contract DeployParentPool is LancaBaseScript {
         address _lpToken,
         address _conceroRouter,
         uint24 chainSelector,
-        address _iouToken
+        address _iouToken,
+        uint256 minTargetBalance
     ) public returns (address) {
         vm.startBroadcast(deployer);
 
@@ -25,7 +26,8 @@ contract DeployParentPool is LancaBaseScript {
             _lpToken,
             _conceroRouter,
             chainSelector,
-            _iouToken
+            _iouToken,
+            minTargetBalance
         );
 
         console.log("Deployed ParentPool:");
@@ -54,7 +56,8 @@ contract DeployParentPool is LancaBaseScript {
                 _lpToken,
                 conceroRouter,
                 PARENT_POOL_CHAIN_SELECTOR,
-                _iouToken
+                _iouToken,
+                MIN_TARGET_BALANCE
             );
     }
 }

@@ -60,7 +60,8 @@ abstract contract ParentPoolBase is LancaTest {
                     address(lpToken),
                     conceroRouter,
                     PARENT_POOL_CHAIN_SELECTOR,
-                    address(iouToken)
+                    address(iouToken),
+                    MIN_TARGET_BALANCE
                 )
             )
         );
@@ -80,6 +81,7 @@ abstract contract ParentPoolBase is LancaTest {
         vm.deal(liquidityProvider, 100 ether);
         vm.deal(operator, 100 ether);
         vm.deal(s_lancaKeeper, 10 ether);
+        vm.deal(address(s_parentPool), 10 ether);
 
         vm.startPrank(deployer);
         MockERC20(address(usdc)).mint(user, 10_000_000e6);
@@ -123,22 +125,22 @@ abstract contract ParentPoolBase is LancaTest {
     }
 
     function _fillDepositWithdrawalQueue(
-        uint256 totalDepositAmount,
-        uint256 totalWithdrawalAmount
-    ) internal {
+        uint256 amountToDepositPerUser,
+        uint256 amountToWithdrawPerUser
+    ) internal returns (uint256, uint256) {
+        uint256 totalDeposited;
         for (uint256 i; i < s_parentPool.getTargetDepositQueueLength(); ++i) {
-            _enterDepositQueue(
-                user,
-                totalDepositAmount / s_parentPool.getTargetDepositQueueLength()
-            );
+            _enterDepositQueue(user, amountToDepositPerUser);
+            totalDeposited += amountToDepositPerUser;
         }
 
+        uint256 totalWithdraw;
         for (uint256 i; i < s_parentPool.getTargetWithdrawalQueueLength(); ++i) {
-            _enterWithdrawalQueue(
-                user,
-                totalWithdrawalAmount / s_parentPool.getTargetWithdrawalQueueLength()
-            );
+            _enterWithdrawalQueue(user, amountToWithdrawPerUser);
+            totalWithdraw += amountToWithdrawPerUser;
         }
+
+        return (totalDeposited, totalWithdraw);
     }
 
     function _setSupportedChildPools() internal {
@@ -157,12 +159,7 @@ abstract contract ParentPoolBase is LancaTest {
     }
 
     function _fillChildPoolSnapshots() internal {
-        uint24[] memory childPoolChainSelectors = new uint24[](5);
-        childPoolChainSelectors[0] = childPoolChainSelector_1;
-        childPoolChainSelectors[1] = childPoolChainSelector_2;
-        childPoolChainSelectors[2] = childPoolChainSelector_3;
-        childPoolChainSelectors[3] = childPoolChainSelector_4;
-        childPoolChainSelectors[4] = childPoolChainSelector_5;
+        uint24[] memory childPoolChainSelectors = _getChildPoolsChainSelectors();
 
         for (uint256 i; i < childPoolChainSelectors.length; ++i) {
             s_parentPool.exposed_setChildPoolSnapshot(
@@ -177,6 +174,17 @@ abstract contract ParentPoolBase is LancaTest {
                 })
             );
         }
+    }
+
+    function _getChildPoolsChainSelectors() internal returns (uint24[] memory) {
+        uint24[] memory childPoolChainSelectors = new uint24[](5);
+        childPoolChainSelectors[0] = childPoolChainSelector_1;
+        childPoolChainSelectors[1] = childPoolChainSelector_2;
+        childPoolChainSelectors[2] = childPoolChainSelector_3;
+        childPoolChainSelectors[3] = childPoolChainSelector_4;
+        childPoolChainSelectors[4] = childPoolChainSelector_5;
+
+        return childPoolChainSelectors;
     }
 
     /* MINT FUNCTIONS */
