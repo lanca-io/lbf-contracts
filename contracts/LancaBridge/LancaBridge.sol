@@ -225,7 +225,7 @@ abstract contract LancaBridge is ILancaBridge, PoolBase, ReentrancyGuard {
         uint256 dstGasLimit
     ) external view returns (uint256) {
         return
-            IConceroRouter(i_conceroRouter).getMessageFee()(
+            IConceroRouter(i_conceroRouter).getMessageFee(
                 dstChainSelector,
                 false, // shouldFinaliseSrc
                 address(0), // feeToken (native)
