@@ -219,13 +219,13 @@ abstract contract LancaBridge is ILancaBridge, PoolBase, ReentrancyGuard {
 
     /*   GETTERS   */
 
-    function getMessageFee(
+    function getBridgeFee(
         uint24 dstChainSelector,
         address dstPool,
         uint256 dstGasLimit
     ) external view returns (uint256) {
         return
-            IConceroRouter(i_conceroRouter).getMessageFee(
+            IConceroRouter(i_conceroRouter).getBridgeFee(
                 dstChainSelector,
                 false, // shouldFinaliseSrc
                 address(0), // feeToken (native)

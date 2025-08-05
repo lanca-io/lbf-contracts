@@ -19,7 +19,7 @@ contract SendToken is LancaBridgeBase {
     }
 
     function test_bridge_fromParentToChildPool_Success() public {
-        uint256 messageFee = parentPool.getMessageFee(
+        uint256 messageFee = parentPool.getBridgeFee(
             CHILD_POOL_CHAIN_SELECTOR,
             address(childPool),
             GAS_LIMIT
@@ -85,7 +85,7 @@ contract SendToken is LancaBridgeBase {
     }
 
     function test_bridge_fromChildPoolToParentPool_Success() public {
-        uint256 messageFee = parentPool.getMessageFee(
+        uint256 messageFee = parentPool.getBridgeFee(
             PARENT_POOL_CHAIN_SELECTOR,
             address(parentPool),
             GAS_LIMIT
@@ -163,7 +163,7 @@ contract SendToken is LancaBridgeBase {
         childPool.addDstPools(dstChainSelectors, dstPools);
 
         uint256 dstGasLimit = 200_000;
-        uint256 messageFee = childPool.getMessageFee(
+        uint256 messageFee = childPool.getBridgeFee(
             secondChildPoolChainSelector,
             secondChildPool,
             dstGasLimit
