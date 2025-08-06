@@ -21,6 +21,7 @@ abstract contract LancaBaseScript is Script {
     uint24 public constant PARENT_POOL_CHAIN_SELECTOR = 1000;
     uint24 public constant CHILD_POOL_CHAIN_SELECTOR = 100;
     uint256 public constant INITIAL_POOL_LIQUIDITY = 1_000_000e6;
+    uint256 internal constant MIN_TARGET_BALANCE = 10_000e6;
 
 	uint256 public constant GAS_LIMIT = 100_000;
 

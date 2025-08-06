@@ -20,7 +20,7 @@ abstract contract Rebalancer is IRebalancer, PoolBase {
     using SafeERC20 for IERC20;
 
     uint256 public constant BPS_DENOMINATOR = 10_000;
-    uint256 public constant REBALANCER_PREMIUM_BPS = 10;
+    uint256 public constant REBALANCER_PREMIUM_BPS = 1;
     uint256 private constant DEFAULT_GAS_LIMIT = 300_000;
 
     function fillDeficit(uint256 liquidityAmountToFill) external returns (uint256 iouTokensToMint) {

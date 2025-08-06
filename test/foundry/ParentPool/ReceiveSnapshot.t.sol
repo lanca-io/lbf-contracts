@@ -4,28 +4,12 @@ pragma solidity 0.8.28;
 
 import {IPoolBase} from "contracts/PoolBase/interfaces/IPoolBase.sol";
 import {IParentPool} from "contracts/ParentPool/interfaces/IParentPool.sol";
-import {ParentPoolWrapper} from "contracts/test-helpers/ParentPoolWrapper.sol";
 
 import {ParentPoolBase} from "../ParentPool/ParentPoolBase.sol";
 
 contract ReceiveSnapshot is ParentPoolBase {
-    ParentPoolWrapper public parentPoolWrapper;
-
     function setUp() public override {
         super.setUp();
-
-        vm.startPrank(deployer);
-        parentPoolWrapper = new ParentPoolWrapper(
-            address(usdc),
-            6,
-            address(lpToken),
-            conceroRouter,
-            PARENT_POOL_CHAIN_SELECTOR,
-            address(iouToken)
-        );
-
-        parentPoolWrapper.setDstPool(childPoolChainSelector_1, s_childPool_1);
-        vm.stopPrank();
     }
 
     function test_ReceiveSnapshot_Success() public {
@@ -64,15 +48,15 @@ contract ReceiveSnapshot is ParentPoolBase {
         emit IParentPool.SnapshotReceived(messageId, childPoolChainSelector_1, snapshot);
 
         vm.prank(conceroRouter);
-        parentPoolWrapper.conceroReceive(
+        s_parentPool.conceroReceive(
             messageId,
             childPoolChainSelector_1,
             abi.encode(s_childPool_1),
             abi.encode(IPoolBase.ConceroMessageType.SEND_SNAPSHOT, abi.encode(snapshot))
         );
 
-        IParentPool.SnapshotSubmission memory receivedSnapshot = parentPoolWrapper
-            .getChildPoolSubmission(childPoolChainSelector_1);
+        IParentPool.SnapshotSubmission memory receivedSnapshot = s_parentPool
+            .exposed_getChildPoolSnapshot(childPoolChainSelector_1);
 
         assertEq(receivedSnapshot.balance, activeBalance);
         assertEq(receivedSnapshot.dailyFlow.inflow, inflow);

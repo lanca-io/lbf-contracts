@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.28;
 
-import {Script} from "forge-std/src/Script.sol";
-import {console} from "forge-std/src/Console.sol";
+import {ParentPoolHarness} from "../../harnesses/ParentPoolHarness.sol";
+import {LancaBaseScript} from "../LancaBaseScript.s.sol";
 
 import {ParentPool} from "../../../../contracts/ParentPool/ParentPool.sol";
-import {LancaBaseScript} from "../LancaBaseScript.s.sol";
+import {Script} from "forge-std/src/Script.sol";
+import {console} from "forge-std/src/Console.sol";
 
 contract DeployParentPool is LancaBaseScript {
     function deployParentPool(
@@ -14,17 +15,19 @@ contract DeployParentPool is LancaBaseScript {
         address _lpToken,
         address _conceroRouter,
         uint24 chainSelector,
-        address _iouToken
+        address _iouToken,
+        uint256 minTargetBalance
     ) public returns (address) {
         vm.startBroadcast(deployer);
 
-        ParentPool pool = new ParentPool(
+        ParentPoolHarness pool = new ParentPoolHarness(
             liquidityToken,
             liquidityTokenDecimals,
             _lpToken,
             _conceroRouter,
             chainSelector,
-            _iouToken
+            _iouToken,
+            minTargetBalance
         );
 
         console.log("Deployed ParentPool:");
@@ -53,7 +56,8 @@ contract DeployParentPool is LancaBaseScript {
                 _lpToken,
                 conceroRouter,
                 PARENT_POOL_CHAIN_SELECTOR,
-                _iouToken
+                _iouToken,
+                MIN_TARGET_BALANCE
             );
     }
 }
