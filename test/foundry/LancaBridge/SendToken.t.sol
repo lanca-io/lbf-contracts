@@ -10,13 +10,15 @@ import {IPoolBase} from "contracts/PoolBase/interfaces/IPoolBase.sol";
 
 import {LancaBridgeBase} from "./LancaBridgeBase.sol";
 
+import {console} from "forge-std/src/console.sol";
+
 contract SendToken is LancaBridgeBase {
     function setUp() public override {
         super.setUp();
     }
 
     function test_bridge_fromParentToChildPool_Success() public {
-        uint256 messageFee = parentPool.getBridgeFee(
+        uint256 messageFee = parentPool.getBridgeNativeFee(
             CHILD_POOL_CHAIN_SELECTOR,
             address(childPool),
             GAS_LIMIT
@@ -41,17 +43,16 @@ contract SendToken is LancaBridgeBase {
             address(usdc),
             user,
             user,
-            bridgeAmount - totalLancaFee
+            bridgeAmount - totalLancaFee,
+            0,
+            ""
         );
 
         bytes32 messageId = _getMessageId(
             CHILD_POOL_CHAIN_SELECTOR,
             false,
             address(0),
-            abi.encode(
-                IPoolBase.ConceroMessageType.BRIDGE,
-                abi.encode(ILancaBridge.BridgeType.EOA_TRANSFER, messageData)
-            )
+            abi.encode(IPoolBase.ConceroMessageType.BRIDGE, messageData)
         );
 
         vm.expectEmit(true, true, true, true);
@@ -70,7 +71,6 @@ contract SendToken is LancaBridgeBase {
             user,
             bridgeAmount,
             CHILD_POOL_CHAIN_SELECTOR,
-            false, // isTokenReceiverContract
             0, // dstGasLimit for contract call
             "" // dstCallData for contract call
         );
@@ -98,7 +98,7 @@ contract SendToken is LancaBridgeBase {
     }
 
     function test_bridge_fromChildPoolToParentPool_Success() public {
-        uint256 messageFee = parentPool.getBridgeFee(
+        uint256 messageFee = parentPool.getBridgeNativeFee(
             PARENT_POOL_CHAIN_SELECTOR,
             address(parentPool),
             GAS_LIMIT
@@ -123,17 +123,16 @@ contract SendToken is LancaBridgeBase {
             address(usdc),
             user,
             user,
-            bridgeAmount - totalLancaFee
+            bridgeAmount - totalLancaFee,
+            0,
+            ""
         );
 
         bytes32 messageId = _getMessageId(
             PARENT_POOL_CHAIN_SELECTOR,
             false,
             address(0),
-            abi.encode(
-                IPoolBase.ConceroMessageType.BRIDGE,
-                abi.encode(ILancaBridge.BridgeType.EOA_TRANSFER, messageData)
-            )
+            abi.encode(IPoolBase.ConceroMessageType.BRIDGE, messageData)
         );
 
         vm.expectEmit(true, true, true, true);
@@ -152,8 +151,7 @@ contract SendToken is LancaBridgeBase {
             user,
             bridgeAmount,
             PARENT_POOL_CHAIN_SELECTOR,
-            false, // isTokenReceiverContract
-            GAS_LIMIT, // dstGasLimit for contract call
+            0, // dstGasLimit for contract call
             "" // dstCallData for contract call
         );
 
@@ -179,7 +177,7 @@ contract SendToken is LancaBridgeBase {
         );
     }
 
-    function bridge_fromChildToChildPoolWithContractCall_Success() public {
+    function test_bridge_fromChildToChildPoolWithContractCall_Success() public {
         address secondChildPool = makeAddr("secondChildPool");
         uint24 secondChildPoolChainSelector = 200;
 
@@ -192,7 +190,7 @@ contract SendToken is LancaBridgeBase {
         childPool.addDstPools(dstChainSelectors, dstPools);
 
         uint256 dstGasLimit = 200_000;
-        uint256 messageFee = childPool.getBridgeFee(
+        uint256 messageFee = childPool.getBridgeNativeFee(
             secondChildPoolChainSelector,
             secondChildPool,
             dstGasLimit
@@ -206,9 +204,24 @@ contract SendToken is LancaBridgeBase {
             user,
             bridgeAmount,
             secondChildPoolChainSelector,
-            true, // isTokenReceiverContract
             dstGasLimit, // dstGasLimit for contract call
             callData // dstCallData for contract call
         );
+    }
+
+    function test_bridge_revertIfInvalidDstGasLimitOrCallData() public {
+        vm.expectRevert(abi.encodeWithSelector(ILancaBridge.InvalidDstGasLimitOrCallData.selector));
+
+        bytes memory nonZeroBytes = "0x01";
+
+        vm.prank(user);
+        childPool.bridge{value: 0}(user, 100e6, PARENT_POOL_CHAIN_SELECTOR, 0, nonZeroBytes);
+
+        uint256 nonZeroGasLimit = GAS_LIMIT;
+
+        vm.expectRevert(abi.encodeWithSelector(ILancaBridge.InvalidDstGasLimitOrCallData.selector));
+
+        vm.prank(user);
+        childPool.bridge{value: 0}(user, 100e6, PARENT_POOL_CHAIN_SELECTOR, nonZeroGasLimit, "");
     }
 }
