@@ -2,10 +2,6 @@
 pragma solidity ^0.8.28;
 
 interface ILancaBridge {
-    enum BridgeType {
-        CONTRACT_TRANSFER,
-        EOA_TRANSFER
-    }
 
     event TokenSent(
         bytes32 indexed messageId,
@@ -27,19 +23,18 @@ interface ILancaBridge {
     );
 
     error OnlyAllowedTokens();
-    error InvalidBridgeType();
     error InvalidDestinationPool();
+	error InvalidDstGasLimitOrCallData();
 
     function bridge(
         address tokenReceiver,
         uint256 tokenAmount,
         uint24 dstChainSelector,
-        bool isTokenReceiverContract,
         uint256 dstGasLimit,
         bytes calldata dstCallData
     ) external payable returns (bytes32 messageId);
 
-    function getBridgeFee(
+    function getBridgeNativeFee(
         uint24 dstChainSelector,
         address dstPool,
         uint256 dstGasLimit

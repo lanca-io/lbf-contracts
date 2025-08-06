@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.28;
 
+import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 import {
@@ -10,9 +11,9 @@ import {
 
 import {ReentrancyGuard} from "./ReentrancyGuard.sol";
 import {ILancaBridge} from "./interfaces/ILancaBridge.sol";
-import {LancaClient} from "../LancaClient/LancaClient.sol";
 import {PoolBase, IERC20} from "../PoolBase/PoolBase.sol";
 import {ICommonErrors} from "../common/interfaces/ICommonErrors.sol";
+import {ILancaClient} from "../LancaClient/interfaces/ILancaClient.sol";
 import {Storage as s} from "../PoolBase/libraries/Storage.sol";
 import {Storage as rs} from "../Rebalancer/libraries/Storage.sol";
 
@@ -27,8 +28,6 @@ abstract contract LancaBridge is ILancaBridge, PoolBase, ReentrancyGuard {
         address tokenReceiver,
         uint256 tokenAmount,
         uint24 dstChainSelector,
-        // TODO: remove isTokenReceiverContract param. Instead of it check if contract supports lanca client interface and than call _lancaReceive or just transfer token to receiver
-        bool isTokenReceiverContract,
         uint256 dstGasLimit,
         bytes calldata dstCallData
     ) external payable nonReentrant returns (bytes32 messageId) {
@@ -44,7 +43,6 @@ abstract contract LancaBridge is ILancaBridge, PoolBase, ReentrancyGuard {
             tokenReceiver,
             tokenAmountToBridge,
             dstChainSelector,
-            isTokenReceiverContract,
             dstGasLimit,
             dstCallData,
             dstPool
@@ -67,27 +65,23 @@ abstract contract LancaBridge is ILancaBridge, PoolBase, ReentrancyGuard {
         address tokenReceiver,
         uint256 tokenAmount,
         uint24 dstChainSelector,
-        bool isTokenReceiverContract,
         uint256 dstGasLimit,
         bytes calldata dstCallData,
         address dstPool
     ) internal returns (bytes32 messageId) {
-        bytes memory bridgeData;
-        if (isTokenReceiverContract) {
-            bridgeData = abi.encode(
-                i_liquidityToken,
-                msg.sender,
-                tokenReceiver,
-                tokenAmount,
-                dstCallData
-            );
-        } else {
-            bridgeData = abi.encode(i_liquidityToken, msg.sender, tokenReceiver, tokenAmount);
-        }
+        require(
+            (dstGasLimit == 0 && dstCallData.length == 0) ||
+                (dstGasLimit > 0 && dstCallData.length > 0),
+            InvalidDstGasLimitOrCallData()
+        );
 
         bytes memory messageData = abi.encode(
-            isTokenReceiverContract ? BridgeType.CONTRACT_TRANSFER : BridgeType.EOA_TRANSFER,
-            bridgeData
+            i_liquidityToken,
+            msg.sender,
+            tokenReceiver,
+            tokenAmount,
+            dstGasLimit,
+            dstCallData
         );
 
         messageId = IConceroRouter(i_conceroRouter).conceroSend{value: msg.value}(
@@ -96,9 +90,7 @@ abstract contract LancaBridge is ILancaBridge, PoolBase, ReentrancyGuard {
             address(0),
             ConceroTypes.EvmDstChainData({
                 receiver: dstPool,
-                gasLimit: isTokenReceiverContract
-                    ? BRIDGE_GAS_OVERHEAD + dstGasLimit
-                    : BRIDGE_GAS_OVERHEAD
+                gasLimit: BRIDGE_GAS_OVERHEAD + dstGasLimit
             }),
             abi.encode(ConceroMessageType.BRIDGE, messageData)
         );
@@ -114,7 +106,7 @@ abstract contract LancaBridge is ILancaBridge, PoolBase, ReentrancyGuard {
             address tokenSender,
             address tokenReceiver,
             uint256 tokenAmount,
-            BridgeType bridgeType,
+            uint256 dstGasLimit,
             bytes memory dstCallData
         ) = _decodeMessage(messageData);
 
@@ -123,11 +115,17 @@ abstract contract LancaBridge is ILancaBridge, PoolBase, ReentrancyGuard {
 
         _postOutflow(tokenAmount);
 
-        if (bridgeType == BridgeType.CONTRACT_TRANSFER) {
+        if (dstGasLimit == 0 && dstCallData.length == 0) {
             _bridgeReceive(token, tokenReceiver, tokenAmount);
-            _callTokenReceiver(token, tokenSender, tokenReceiver, tokenAmount, dstCallData);
-        } else {
+        } else if (_isValidContractReceiver(tokenReceiver)) {
             _bridgeReceive(token, tokenReceiver, tokenAmount);
+
+            ILancaClient(tokenReceiver).lancaReceive{gas: dstGasLimit}(
+                token,
+                tokenSender,
+                tokenAmount,
+                dstCallData
+            );
         }
 
         emit BridgeDelivered(
@@ -140,6 +138,17 @@ abstract contract LancaBridge is ILancaBridge, PoolBase, ReentrancyGuard {
         );
     }
 
+    function _isValidContractReceiver(address tokenReceiver) internal view returns (bool) {
+        if (
+            tokenReceiver.code.length == 0 ||
+            !IERC165(tokenReceiver).supportsInterface(type(ILancaClient).interfaceId)
+        ) {
+            return false;
+        }
+
+        return true;
+    }
+
     function _decodeMessage(
         bytes memory messageData
     )
@@ -150,26 +159,14 @@ abstract contract LancaBridge is ILancaBridge, PoolBase, ReentrancyGuard {
             address tokenSender,
             address tokenReceiver,
             uint256 tokenAmount,
-            BridgeType bridgeType,
+            uint256 dstGasLimit,
             bytes memory dstCallData
         )
     {
-        bytes memory bridgeData;
-        (bridgeType, bridgeData) = abi.decode(messageData, (BridgeType, bytes));
-
-        if (bridgeType == BridgeType.EOA_TRANSFER) {
-            (token, tokenSender, tokenReceiver, tokenAmount) = abi.decode(
-                bridgeData,
-                (address, address, address, uint256)
-            );
-        } else if (bridgeType == BridgeType.CONTRACT_TRANSFER) {
-            (token, tokenSender, tokenReceiver, tokenAmount, dstCallData) = abi.decode(
-                bridgeData,
-                (address, address, address, uint256, bytes)
-            );
-        } else {
-            revert InvalidBridgeType();
-        }
+        (token, tokenSender, tokenReceiver, tokenAmount, dstGasLimit, dstCallData) = abi.decode(
+            messageData,
+            (address, address, address, uint256, uint256, bytes)
+        );
     }
 
     function _chargeTotalLancaFee(uint256 tokenAmount) internal returns (uint256) {
@@ -196,29 +193,9 @@ abstract contract LancaBridge is ILancaBridge, PoolBase, ReentrancyGuard {
         IERC20(token).safeTransfer(tokenReceiver, tokenAmount);
     }
 
-    function _callTokenReceiver(
-        address token,
-        address tokenSender,
-        address tokenReceiver,
-        uint256 tokenAmount,
-        bytes memory dstCallData
-    ) internal {
-        bytes4 expectedSelector = LancaClient(tokenReceiver).lancaReceive(
-            token,
-            tokenSender,
-            tokenAmount,
-            dstCallData
-        );
-
-        require(
-            expectedSelector == LancaClient.lancaReceive.selector,
-            LancaClient.InvalidSelector()
-        );
-    }
-
     /*   GETTERS   */
 
-    function getBridgeFee(
+    function getBridgeNativeFee(
         uint24 dstChainSelector,
         address dstPool,
         uint256 dstGasLimit
