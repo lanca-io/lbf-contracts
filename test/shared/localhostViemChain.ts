@@ -1,6 +1,6 @@
 import { defineChain } from "viem";
 
-import { TEST_CONSTANTS } from "../constants";
+import { TEST_CONSTANTS } from "../rebalancer/constants";
 
 export const localhostViemChain = /*#__PURE__*/ defineChain({
 	id: TEST_CONSTANTS.LOCALHOST_CHAIN_ID,

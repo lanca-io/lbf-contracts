@@ -49,7 +49,7 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer {
     receive() external payable {}
 
     function enterDepositQueue(uint256 liquidityTokenAmount) external {
-        require(liquidityTokenAmount > 0, ICommonErrors.AmountIsToLow());
+        require(liquidityTokenAmount > 0, ICommonErrors.InvalidAmount());
 
         s.ParentPool storage s_parentPool = s.parentPool();
         require(
@@ -75,7 +75,7 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer {
     }
 
     function enterWithdrawQueue(uint256 lpTokenAmount) external {
-        require(lpTokenAmount > 0, ICommonErrors.AmountIsToLow());
+        require(lpTokenAmount > 0, ICommonErrors.InvalidAmount());
 
         s.ParentPool storage s_parentPool = s.parentPool();
 
@@ -148,6 +148,12 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer {
 
     function getWithdrawalFee(uint256 amount) public view returns (uint256, uint256) {
         s.ParentPool storage s_parentPool = s.parentPool();
+        uint256 pendingWithdrawalCount = s_parentPool.pendingWithdrawalIds.length;
+
+        if (pendingWithdrawalCount == 0) {
+            return (0, getRebalancerFee(amount));
+        }
+
         /* @dev We multiply this by 4 because we collect the fee from
                 the user upon withdrawal for both deposits
                 and withdrawals, and when depositing or withdrawing,
@@ -155,7 +161,7 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer {
                 parentPool, then parentPool -> childPools */
         uint256 conceroFee = (s_parentPool.averageConceroMessageFee *
             getChildPoolChainSelectors().length *
-            4) / s_parentPool.pendingWithdrawalIds.length;
+            4) / pendingWithdrawalCount;
 
         return (conceroFee, getRebalancerFee(amount));
     }

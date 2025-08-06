@@ -6,18 +6,13 @@ import path from "path";
 import { DeployOptions } from "hardhat-deploy/types";
 import Mocha from "mocha";
 
-import { deployLPToken } from "../../deploy/00_deploy_lptoken";
-import { deployIOUToken } from "../../deploy/01_deploy_ioutoken";
 import { deployParentPool } from "../../deploy/02_deploy_parentpool";
 import { deployChildPool } from "../../deploy/03_deploy_childpool";
-import { deployMockERC20 } from "../../deploy/05_deploy_mock_erc20";
-import { setChildPoolVariables } from "../../tasks/deployChildPool";
-import { setParentPoolVariables } from "../../tasks/deployParentPool";
 import { compileContractsAsync } from "../../utils/compileContracts";
 import { localhostViemChain } from "../shared/localhostViemChain";
 import { TEST_CONSTANTS } from "./constants";
 import { StateManager } from "./utils/StateManager";
-import { initializeManagers } from "/Users/oleg/Documents/Code/lanca/rebalancer/src/utils/initializeManagers";
+import { initializeManagers } from "/Users/oleg/Documents/Code/lanca/keeper/src/utils/initializeManagers";
 
 export type Deployment = {
 	LPToken: string;
@@ -29,7 +24,7 @@ export type Deployment = {
 
 const hre = require("hardhat");
 
-export class RebalancerIntegrationTest {
+export class KeeperIntegrationTest {
 	private node: ChildProcessWithoutNullStreams | null = null;
 	private disposed = false;
 
@@ -38,25 +33,22 @@ export class RebalancerIntegrationTest {
 
 		// Parse CLI flags
 		const args = process.argv.slice(2);
-		const skipRebalancer = args.includes("--skip-rebalancer");
+		const skipKeeper = args.includes("--skip-keeper");
 
 		await Promise.all([this.runChain(), compileContractsAsync({ quiet: true })]);
 
 		const deployments = await this.deployContracts();
-		await setChildPoolVariables(hre);
-		await setParentPoolVariables(hre);
 
 		const stateManager = new StateManager(deployments);
 		await stateManager.setupContracts();
 
-		const config = await this.configureRebalancer(deployments);
-		// console.log("Config:", config);
+		const config = await this.configureKeeper(deployments);
 
-		// Conditionally initialize managers
-		if (!skipRebalancer) {
-			await initializeManagers(config);
+		console.log(config);
+		if (!skipKeeper) {
+			initializeManagers(config);
 		} else {
-			console.log("Skipping initializeManagers due to --skip-rebalancer flag");
+			console.log("Skipping initializeManagers due to --skip-keeper flag");
 		}
 
 		// Running Mocha
@@ -66,7 +58,7 @@ export class RebalancerIntegrationTest {
 			ui: "bdd",
 			reporter: "spec",
 		});
-		mocha.addFile(path.resolve(__dirname, "Rebalancer.test.ts"));
+		mocha.addFile(path.resolve(__dirname, "Keeper.test.ts"));
 		mocha.run(failures => {
 			process.exitCode = failures ? 1 : 0;
 			this.teardown().then(() => {
@@ -99,14 +91,19 @@ export class RebalancerIntegrationTest {
 
 		try {
 			return {
-				LPToken: (await deployLPToken(hre, deployOptions)).address,
-				IOUToken: (await deployIOUToken(hre, deployOptions)).address,
-				USDC: (await deployMockERC20(hre, deployOptions)).address,
 				ParentPool: (
-					await deployParentPool(hre, { ...deployOptions, contract: "ParentPoolWrapper" })
+					await deployParentPool(hre, {
+						...deployOptions,
+						args: [],
+						contract: "KeeperParentPoolWrapper",
+					})
 				).address,
 				ChildPool: (
-					await deployChildPool(hre, { ...deployOptions, contract: "ChildPoolWrapper" })
+					await deployChildPool(hre, {
+						...deployOptions,
+						args: [],
+						contract: "KeeperChildPoolWrapper",
+					})
 				).address,
 			};
 		} finally {
@@ -114,7 +111,7 @@ export class RebalancerIntegrationTest {
 		}
 	}
 
-	private async configureRebalancer(deployments: Deployment): Promise<any> {
+	private async configureKeeper(deployments: Deployment): Promise<any> {
 		return {
 			// for DeploymentManager
 			localhostDeployments: {
@@ -124,14 +121,6 @@ export class RebalancerIntegrationTest {
 				parentPool: {
 					network: "localhost1",
 					address: deployments.ParentPool,
-				},
-				usdcTokens: {
-					localhost1: deployments.USDC,
-					localhost2: deployments.USDC,
-				},
-				iouTokens: {
-					localhost1: deployments.IOUToken,
-					localhost2: deployments.IOUToken,
 				},
 			},
 			// for LancaNetworkManager
@@ -211,5 +200,5 @@ export class RebalancerIntegrationTest {
 	}
 }
 
-const test = new RebalancerIntegrationTest();
+const test = new KeeperIntegrationTest();
 test.run();

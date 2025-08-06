@@ -1,3 +1,4 @@
+import { NetworkType } from "@concero/contract-utils/dist/types";
 import { WriteContractParameters } from "viem";
 import type { WaitForTransactionReceiptParameters } from "viem/actions/public/waitForTransactionReceipt";
 
@@ -40,7 +41,11 @@ const envPrefixes: EnvPrefixes = {
 	pause: "CONCERO_PAUSE",
 };
 
-const parentPoolChainSelector = 421614;
+const parentPoolChainSelectors: Record<NetworkType, number> = {
+	localhost: 1,
+	testnet: 421614,
+	mainnet: 42161,
+};
 
 export {
 	viemReceiptConfig,
@@ -48,5 +53,5 @@ export {
 	ProxyEnum,
 	envPrefixes,
 	getViemReceiptConfig,
-	parentPoolChainSelector,
+	parentPoolChainSelectors,
 };
