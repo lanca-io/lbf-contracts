@@ -34,6 +34,7 @@ export class KeeperIntegrationTest {
 		// Parse CLI flags
 		const args = process.argv.slice(2);
 		const skipKeeper = args.includes("--skip-keeper");
+		const skipMocha = args.includes("--skip-mocha");
 
 		await Promise.all([this.runChain(), compileContractsAsync({ quiet: true })]);
 
@@ -51,6 +52,7 @@ export class KeeperIntegrationTest {
 			console.log("Skipping initializeManagers due to --skip-keeper flag");
 		}
 
+		if (!skipMocha) {
 		// Running Mocha
 		(global as any).deployments = deployments;
 		const mocha = new Mocha({
@@ -65,6 +67,14 @@ export class KeeperIntegrationTest {
 				process.exit(process.exitCode);
 			});
 		});
+		} else {
+			console.log("Skipping Mocha tests due to --skip-mocha flag");
+			await new Promise<void>(resolve => {
+				this.node?.on("exit", () => {
+					resolve();
+				});
+			});
+		}
 	}
 
 	private async runChain(): Promise<void> {
