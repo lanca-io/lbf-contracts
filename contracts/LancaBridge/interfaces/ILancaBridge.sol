@@ -2,6 +2,11 @@
 pragma solidity ^0.8.28;
 
 interface ILancaBridge {
+    enum BridgeType {
+        CONTRACT_TRANSFER,
+        EOA_TRANSFER
+    }
+
     event TokenSent(
         bytes32 indexed messageId,
         uint24 indexed dstChainSelector,
@@ -26,7 +31,6 @@ interface ILancaBridge {
     error InvalidDestinationPool();
 
     function bridge(
-        address token,
         address tokenReceiver,
         uint256 tokenAmount,
         uint24 dstChainSelector,

@@ -49,20 +49,21 @@ abstract contract LancaBridgeBase is LancaTest {
                     address(lpToken),
                     conceroRouter,
                     PARENT_POOL_CHAIN_SELECTOR,
-                    address(iouToken)
+                    address(iouToken),
+                    MIN_TARGET_BALANCE
                 )
             )
         );
 
-        addDstPools();
-        fundTestAddresses();
-        approveUSDCForAll();
+        _addDstPools();
+        _fundTestAddresses();
+        _approveUSDCForAll();
 
         // For correct getYesterdayFlow calculation
         vm.warp(block.timestamp + 1 days * 365);
     }
 
-    function addDstPools() internal {
+    function _addDstPools() internal {
         vm.startPrank(deployer);
         uint24[] memory dstChainSelectorsForChildPool = new uint24[](1);
         address[] memory dstPoolsForChildPool = new address[](1);
@@ -80,7 +81,7 @@ abstract contract LancaBridgeBase is LancaTest {
         vm.stopPrank();
     }
 
-    function fundTestAddresses() internal {
+    function _fundTestAddresses() internal {
         vm.deal(user, 100 ether);
         vm.deal(liquidityProvider, 100 ether);
         vm.deal(operator, 100 ether);
@@ -93,7 +94,7 @@ abstract contract LancaBridgeBase is LancaTest {
         vm.stopPrank();
     }
 
-    function approveUSDCForAll() internal {
+    function _approveUSDCForAll() internal {
         vm.prank(user);
         IERC20(usdc).approve(address(childPool), type(uint256).max);
 
@@ -111,5 +112,17 @@ abstract contract LancaBridgeBase is LancaTest {
 
         vm.prank(operator);
         IERC20(usdc).approve(address(parentPool), type(uint256).max);
+    }
+
+    function _getMessageId(
+        uint24 dstChainSelector,
+        bool shouldFinaliseSrc,
+        address feeToken,
+        bytes memory message
+    ) internal view returns (bytes32) {
+        return
+            keccak256(
+                abi.encode(block.number, dstChainSelector, shouldFinaliseSrc, feeToken, message)
+            );
     }
 }

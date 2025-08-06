@@ -10,7 +10,6 @@ import {
 
 import {ReentrancyGuard} from "./ReentrancyGuard.sol";
 import {ILancaBridge} from "./interfaces/ILancaBridge.sol";
-import {CommonConstants} from "../common/CommonConstants.sol";
 import {LancaClient} from "../LancaClient/LancaClient.sol";
 import {PoolBase, IERC20} from "../PoolBase/PoolBase.sol";
 import {ICommonErrors} from "../common/interfaces/ICommonErrors.sol";
@@ -22,16 +21,9 @@ abstract contract LancaBridge is ILancaBridge, PoolBase, ReentrancyGuard {
     using s for s.PoolBase;
     using rs for rs.Rebalancer;
 
-    enum BridgeType {
-        CONTRACT_TRANSFER,
-        EOA_TRANSFER
-    }
-
     uint256 internal constant BRIDGE_GAS_OVERHEAD = 100_000;
 
     function bridge(
-        // TODO: remove token from this function cuz pool per token
-        address token,
         address tokenReceiver,
         uint256 tokenAmount,
         uint24 dstChainSelector,
@@ -46,10 +38,9 @@ abstract contract LancaBridge is ILancaBridge, PoolBase, ReentrancyGuard {
         uint256 tokenAmountToBridge = _chargeTotalLancaFee(tokenAmount);
 
         _postInflow(tokenAmountToBridge);
-        _deposit(token, msg.sender, tokenAmount);
+        _deposit(msg.sender, tokenAmount);
 
         messageId = _sendMessage(
-            token,
             tokenReceiver,
             tokenAmountToBridge,
             dstChainSelector,
@@ -62,7 +53,7 @@ abstract contract LancaBridge is ILancaBridge, PoolBase, ReentrancyGuard {
         emit TokenSent(
             messageId,
             dstChainSelector,
-            token,
+            i_liquidityToken,
             msg.sender,
             tokenReceiver,
             tokenAmountToBridge,
@@ -73,7 +64,6 @@ abstract contract LancaBridge is ILancaBridge, PoolBase, ReentrancyGuard {
     /*   INTERNAL FUNCTIONS   */
 
     function _sendMessage(
-        address token,
         address tokenReceiver,
         uint256 tokenAmount,
         uint24 dstChainSelector,
@@ -84,9 +74,15 @@ abstract contract LancaBridge is ILancaBridge, PoolBase, ReentrancyGuard {
     ) internal returns (bytes32 messageId) {
         bytes memory bridgeData;
         if (isTokenReceiverContract) {
-            bridgeData = abi.encode(token, msg.sender, tokenReceiver, tokenAmount, dstCallData);
+            bridgeData = abi.encode(
+                i_liquidityToken,
+                msg.sender,
+                tokenReceiver,
+                tokenAmount,
+                dstCallData
+            );
         } else {
-            bridgeData = abi.encode(token, msg.sender, tokenReceiver, tokenAmount);
+            bridgeData = abi.encode(i_liquidityToken, msg.sender, tokenReceiver, tokenAmount);
         }
 
         bytes memory messageData = abi.encode(
@@ -190,10 +186,8 @@ abstract contract LancaBridge is ILancaBridge, PoolBase, ReentrancyGuard {
         return tokenAmount - totalLancaFee;
     }
 
-    function _deposit(address token, address tokenSender, uint256 tokenAmount) internal {
-        require(token == i_liquidityToken, OnlyAllowedTokens());
-
-        IERC20(token).safeTransferFrom(tokenSender, address(this), tokenAmount);
+    function _deposit(address tokenSender, uint256 tokenAmount) internal {
+        IERC20(i_liquidityToken).safeTransferFrom(tokenSender, address(this), tokenAmount);
     }
 
     function _bridgeReceive(address token, address tokenReceiver, uint256 tokenAmount) internal {
