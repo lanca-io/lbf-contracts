@@ -53,20 +53,20 @@ export class KeeperIntegrationTest {
 		}
 
 		if (!skipMocha) {
-		// Running Mocha
-		(global as any).deployments = deployments;
-		const mocha = new Mocha({
-			timeout: TEST_CONSTANTS.DEFAULT_TIMEOUT,
-			ui: "bdd",
-			reporter: "spec",
-		});
-		mocha.addFile(path.resolve(__dirname, "Keeper.test.ts"));
-		mocha.run(failures => {
-			process.exitCode = failures ? 1 : 0;
-			this.teardown().then(() => {
-				process.exit(process.exitCode);
+			// Running Mocha
+			(global as any).deployments = deployments;
+			const mocha = new Mocha({
+				timeout: TEST_CONSTANTS.DEFAULT_TIMEOUT,
+				ui: "bdd",
+				reporter: "spec",
 			});
-		});
+			mocha.addFile(path.resolve(__dirname, "Keeper.test.ts"));
+			mocha.run(failures => {
+				process.exitCode = failures ? 1 : 0;
+				this.teardown().then(() => {
+					process.exit(process.exitCode);
+				});
+			});
 		} else {
 			console.log("Skipping Mocha tests due to --skip-mocha flag");
 			await new Promise<void>(resolve => {
@@ -140,7 +140,7 @@ export class KeeperIntegrationTest {
 					name: "localhost1",
 					displayName: "Localhost Chain 1",
 					rpcUrls: [TEST_CONSTANTS.LOCALHOST_URL],
-					chainSelector: "2",
+					chainSelector: "1",
 					isTestnet: true,
 					viemChain: {
 						...localhostViemChain,
