@@ -126,6 +126,8 @@ abstract contract LancaBridge is ILancaBridge, PoolBase, ReentrancyGuard {
                 tokenAmount,
                 dstCallData
             );
+        } else {
+            revert InvalidMessage();
         }
 
         emit BridgeDelivered(

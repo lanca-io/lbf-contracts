@@ -25,6 +25,7 @@ interface ILancaBridge {
     error OnlyAllowedTokens();
     error InvalidDestinationPool();
 	error InvalidDstGasLimitOrCallData();
+	error InvalidMessage();
 
     function bridge(
         address tokenReceiver,
