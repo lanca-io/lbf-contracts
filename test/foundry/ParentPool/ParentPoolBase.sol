@@ -170,7 +170,9 @@ abstract contract ParentPoolBase is LancaTest {
                     iouTotalReceived: 0,
                     iouTotalSent: 0,
                     iouTotalSupply: 0,
-                    dailyFlow: IPoolBase.LiqTokenDailyFlow({inflow: 0, outflow: 0})
+                    dailyFlow: IPoolBase.LiqTokenDailyFlow({inflow: 0, outflow: 0}),
+                    totalLiqTokenSent: 0,
+                    totalLiqTokenReceived: 0
                 })
             );
         }

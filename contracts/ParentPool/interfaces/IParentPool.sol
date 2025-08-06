@@ -22,10 +22,13 @@ interface IParentPool {
 
     struct SnapshotSubmission {
         uint256 balance;
+        // TODO: flat this structure
         IPoolBase.LiqTokenDailyFlow dailyFlow;
         uint256 iouTotalSent;
         uint256 iouTotalReceived;
         uint256 iouTotalSupply;
+        uint256 totalLiqTokenSent;
+        uint256 totalLiqTokenReceived;
         uint32 timestamp;
     }
 

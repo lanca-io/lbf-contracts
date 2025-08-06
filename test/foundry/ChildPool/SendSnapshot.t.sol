@@ -71,7 +71,10 @@ contract SendSnapshot is ChildPoolBase {
             iouTotalSent: totalIouSent,
             iouTotalReceived: totalIouReceived,
             iouTotalSupply: IOUToken(iouToken).totalSupply(),
-            timestamp: uint32(block.timestamp)
+            timestamp: uint32(block.timestamp),
+            // todo: fill it
+            totalLiqTokenReceived: 0,
+            totalLiqTokenSent: 0
         });
 
         bytes32 messageId = keccak256(

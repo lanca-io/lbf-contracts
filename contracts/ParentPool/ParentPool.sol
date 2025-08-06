@@ -577,12 +577,15 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer {
     function _getTotalLbfBalance() internal view returns (bool, uint256) {
         s.ParentPool storage s_parentPool = s.parentPool();
         rs.Rebalancer storage s_rebalancer = rs.rebalancer();
+        pbs.PoolBase storage s_poolBase = pbs.poolBase();
 
         uint24[] memory supportedChainSelectors = s_parentPool.supportedChainSelectors;
         uint256 totalPoolsBalance = getActiveBalance();
         uint256 totalIouSent = s_rebalancer.totalIouSent;
         uint256 totalIouReceived = s_rebalancer.totalIouReceived;
         uint256 iouTotalSupply = i_iouToken.totalSupply();
+        uint256 totalLiqTokenSent = s_poolBase.totalLiqTokenSent;
+        uint256 totalLiqTokenReceived = s_poolBase.totalLiqTokenReceived;
 
         for (uint256 i; i < supportedChainSelectors.length; ++i) {
             uint32 snapshotTimestamp = s_parentPool
@@ -603,10 +606,17 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer {
             iouTotalSupply += s_parentPool
                 .childPoolsSubmissions[supportedChainSelectors[i]]
                 .iouTotalSupply;
+            totalLiqTokenSent += s_parentPool
+                .childPoolsSubmissions[supportedChainSelectors[i]]
+                .totalLiqTokenSent;
+            totalLiqTokenReceived += s_parentPool
+                .childPoolsSubmissions[supportedChainSelectors[i]]
+                .totalLiqTokenReceived;
         }
 
         uint256 iouOnTheWay = totalIouSent - totalIouReceived;
+        uint256 liqTokenOnTheWay = totalLiqTokenSent - totalLiqTokenReceived;
 
-        return (true, totalPoolsBalance - (iouTotalSupply + iouOnTheWay));
+        return (true, totalPoolsBalance - liqTokenOnTheWay - (iouTotalSupply + iouOnTheWay));
     }
 }
