@@ -1,6 +1,7 @@
 import { getNetworkEnvKey } from "@concero/contract-utils";
 import { DeployOptions, Deployment } from "hardhat-deploy/types";
 import { HardhatRuntimeEnvironment } from "hardhat/types";
+import { parseUnits } from "viem";
 
 import { conceroNetworks } from "../constants";
 import { getEnvVar, log, updateEnvVariable } from "../utils";
@@ -24,6 +25,7 @@ const deployParentPool: DeploymentFunction = async function (
 	const lpTokenAddress = getEnvVar(`LPT_${getNetworkEnvKey(name)}`);
 	const iouTokenAddress = getEnvVar(`IOU_${getNetworkEnvKey(name)}`);
 
+	const minTargetBalance = parseUnits("1000", 6); // 1,000 USDC
 	const defaultArgs = [
 		getEnvVar(`USDC_${getNetworkEnvKey(name)}`) || "",
 		6, // USDC decimals
@@ -31,6 +33,7 @@ const deployParentPool: DeploymentFunction = async function (
 		getEnvVar(`CONCERO_ROUTER_${getNetworkEnvKey(name)}`) || "",
 		chain.chainSelector,
 		iouTokenAddress,
+		minTargetBalance,
 	];
 
 	const args = deployOptions?.args || defaultArgs;

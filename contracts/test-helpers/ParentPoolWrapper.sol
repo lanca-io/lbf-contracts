@@ -31,6 +31,11 @@ contract ParentPoolWrapper is ParentPool {
         )
     {}
 
+    // Expose internal functions for testing
+    function setTargetBalance(uint256 newTargetBalance) external {
+        s.poolBase().targetBalance = newTargetBalance;
+    }
+
     function exposed_setTargetBalance(uint256 newTargetBalance) external {
         s.poolBase().targetBalance = newTargetBalance;
     }
