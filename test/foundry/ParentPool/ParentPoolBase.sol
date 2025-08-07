@@ -216,6 +216,62 @@ abstract contract ParentPoolBase is LancaTest {
         vm.stopPrank();
     }
 
+    function _setupParentPoolWithWhitePaperExample() internal {
+        /*
+               LBF state before target balances adjustments
+
+               Pool  Balance  targetBalance  Outflow(24h)  Inflow(24h)
+               A     120k     100k           80k           60k
+               B     85k      100k           150k          140k
+               C     95k      100k           200k          180k
+               D     110k     100k           40k           50k
+               E     90k      100k           90k           70k
+        */
+        uint256[3][4] memory childPoolsSetupData = [
+            [
+                85_000 * LIQ_TOKEN_SCALE_FACTOR,
+                140_000 * LIQ_TOKEN_SCALE_FACTOR,
+                150_000 * LIQ_TOKEN_SCALE_FACTOR
+            ],
+            [
+                95_000 * LIQ_TOKEN_SCALE_FACTOR,
+                180_000 * LIQ_TOKEN_SCALE_FACTOR,
+                200_000 * LIQ_TOKEN_SCALE_FACTOR
+            ],
+            [
+                110_000 * LIQ_TOKEN_SCALE_FACTOR,
+                50_000 * LIQ_TOKEN_SCALE_FACTOR,
+                40_000 * LIQ_TOKEN_SCALE_FACTOR
+            ],
+            [
+                90_000 * LIQ_TOKEN_SCALE_FACTOR,
+                70_000 * LIQ_TOKEN_SCALE_FACTOR,
+                90_000 * LIQ_TOKEN_SCALE_FACTOR
+            ]
+        ];
+        uint256 defaultTargetBalance = 100_000 * LIQ_TOKEN_SCALE_FACTOR;
+
+        for (uint256 i; i < _getChildPoolsChainSelectors().length; ++i) {
+            s_parentPool.exposed_setChildPoolSnapshot(
+                _getChildPoolsChainSelectors()[i],
+                _getChildPoolSnapshot(
+                    childPoolsSetupData[i][0],
+                    childPoolsSetupData[i][1],
+                    childPoolsSetupData[i][2]
+                )
+            );
+            s_parentPool.exposed_setChildPoolTargetBalance(
+                _getChildPoolsChainSelectors()[i],
+                defaultTargetBalance
+            );
+        }
+        s_parentPool.exposed_setTargetBalance(defaultTargetBalance);
+        s_parentPool.exposed_setYesterdayFlow(
+            60_000 * LIQ_TOKEN_SCALE_FACTOR,
+            80_000 * LIQ_TOKEN_SCALE_FACTOR
+        );
+    }
+
     /* MINT FUNCTIONS */
 
     function _mintUsdc(address receiver, uint256 amount) internal {
