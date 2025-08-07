@@ -139,19 +139,11 @@ abstract contract Rebalancer is IRebalancer, Base {
             gasLimit: gasLimitForExecution
         });
 
-        // TODO: call it using interface
-        (bool success, bytes memory returnData) = i_conceroRouter.staticcall(
-            abi.encodeWithSignature(
-                "getMessageFee(uint24,bool,address,(address,uint256))",
-                destinationChainSelector,
-                false, // shouldFinaliseSrc
-                address(0), // feeToken (native)
-                destinationChainData
-            )
+        return IConceroRouter(i_conceroRouter).getMessageFee(
+            destinationChainSelector,
+            false, // shouldFinaliseSrc
+            address(0), // feeToken (native)
+            destinationChainData
         );
-
-        require(success, GetMessageFeeFailed());
-
-        return abi.decode(returnData, (uint256));
     }
 }
