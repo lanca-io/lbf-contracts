@@ -7,17 +7,14 @@ import {ConceroClient} from "@concero/v2-contracts/contracts/ConceroClient/Conce
 import {ConceroOwnable} from "../common/ConceroOwnable.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IOUToken} from "../Rebalancer/IOUToken.sol";
-import {IPoolBase} from "./interfaces/IPoolBase.sol";
+import {IBase} from "./interfaces/IBase.sol";
 import {CommonConstants} from "../common/CommonConstants.sol";
 import {Storage as rs} from "../Rebalancer/libraries/Storage.sol";
 import {Storage as s} from "./libraries/Storage.sol";
 
-abstract contract PoolBase is IPoolBase, ConceroClient, ConceroOwnable {
-    using s for s.PoolBase;
+abstract contract Base is IBase, ConceroClient, ConceroOwnable {
+    using s for s.Base;
     using s for rs.Rebalancer;
-
-    error InvalidMessageType();
-    error PoolAlreadyExists(uint24 chainSelector);
 
     uint32 private constant SECONDS_IN_DAY = 86400;
 
@@ -27,9 +24,10 @@ abstract contract PoolBase is IPoolBase, ConceroClient, ConceroOwnable {
     uint24 internal i_chainSelector;
 
     modifier onlyLancaKeeper() {
+        s.Base storage s_base = s.base();
         require(
-            msg.sender == s.poolBase().lancaKeeper,
-            ICommonErrors.UnauthorizedCaller(msg.sender, s.poolBase().lancaKeeper)
+            msg.sender == s_base.lancaKeeper,
+            ICommonErrors.UnauthorizedCaller(msg.sender, s_base.lancaKeeper)
         );
 
         _;
@@ -52,23 +50,27 @@ abstract contract PoolBase is IPoolBase, ConceroClient, ConceroOwnable {
         uint24[] calldata dstChainSelectors,
         address[] calldata dstPools
     ) external onlyOwner {
+        require(dstChainSelectors.length > 0, ICommonErrors.EmptyArray());
         require(dstChainSelectors.length == dstPools.length, ICommonErrors.LengthMismatch());
 
-        s.PoolBase storage poolBaseStorage = s.poolBase();
+        s.Base storage s_base = s.base();
 
         for (uint256 i = 0; i < dstChainSelectors.length; i++) {
             require(
-                poolBaseStorage.dstPools[dstChainSelectors[i]] == address(0),
+                s_base.dstPools[dstChainSelectors[i]] == address(0),
                 PoolAlreadyExists(dstChainSelectors[i])
             );
-            poolBaseStorage.dstPools[dstChainSelectors[i]] = dstPools[i];
+            s_base.dstPools[dstChainSelectors[i]] = dstPools[i];
         }
     }
 
     function removeDstPools(uint24[] calldata dstChainSelectors) external onlyOwner {
-        s.PoolBase storage poolBaseStorage = s.poolBase();
+        require(dstChainSelectors.length > 0, ICommonErrors.EmptyArray());
+
+        s.Base storage s_base = s.base();
+
         for (uint256 i = 0; i < dstChainSelectors.length; i++) {
-            poolBaseStorage.dstPools[dstChainSelectors[i]] = address(0);
+            s_base.dstPools[dstChainSelectors[i]] = address(0);
         }
     }
 
@@ -76,7 +78,7 @@ abstract contract PoolBase is IPoolBase, ConceroClient, ConceroOwnable {
         return
             IERC20(i_liquidityToken).balanceOf(address(this)) -
             rs.rebalancer().totalRebalancingFee -
-            s.poolBase().totalLancaFeeInLiqToken;
+            s.base().totalLancaFeeInLiqToken;
     }
 
     function getSurplus() public view returns (uint256) {
@@ -102,11 +104,11 @@ abstract contract PoolBase is IPoolBase, ConceroClient, ConceroOwnable {
         require(chainSelector != i_chainSelector, ICommonErrors.InvalidChainSelector());
         require(dstPool != address(0), ICommonErrors.AddressShouldNotBeZero());
 
-        s.poolBase().dstPools[chainSelector] = dstPool;
+        s.base().dstPools[chainSelector] = dstPool;
     }
 
     function setLancaKeeper(address lancaKeeper) external onlyOwner {
-        s.poolBase().lancaKeeper = lancaKeeper;
+        s.base().lancaKeeper = lancaKeeper;
     }
 
     function _conceroReceive(
@@ -115,14 +117,13 @@ abstract contract PoolBase is IPoolBase, ConceroClient, ConceroOwnable {
         bytes calldata sender,
         bytes calldata message
     ) internal override {
+        s.Base storage s_base = s.base();
+
         address remoteSender = abi.decode(sender, (address));
 
         require(
-            s.poolBase().dstPools[sourceChainSelector] == remoteSender,
-            ICommonErrors.UnauthorizedSender(
-                remoteSender,
-                s.poolBase().dstPools[sourceChainSelector]
-            )
+            s_base.dstPools[sourceChainSelector] == remoteSender,
+            ICommonErrors.UnauthorizedSender(remoteSender, s_base.dstPools[sourceChainSelector])
         );
 
         (ConceroMessageType messageType, bytes memory messageData) = abi.decode(
@@ -131,20 +132,20 @@ abstract contract PoolBase is IPoolBase, ConceroClient, ConceroOwnable {
         );
 
         if (messageType == ConceroMessageType.BRIDGE_IOU) {
-            _handleConceroReceiveBridgeIou(messageId, sourceChainSelector, message);
+            _handleConceroReceiveBridgeIou(messageId, sourceChainSelector, messageData);
         } else if (messageType == ConceroMessageType.SEND_SNAPSHOT) {
             _handleConceroReceiveSnapshot(messageId, sourceChainSelector, messageData);
         } else if (messageType == ConceroMessageType.BRIDGE) {
             _handleConceroReceiveBridgeLiquidity(messageId, sourceChainSelector, messageData);
         } else {
-            revert InvalidMessageType();
+            revert InvalidConceroMessageType();
         }
     }
 
     function _handleConceroReceiveBridgeIou(
         bytes32 messageId,
         uint24 sourceChainSelector,
-        bytes calldata messageData
+        bytes memory messageData
     ) internal virtual;
 
     function _handleConceroReceiveSnapshot(
@@ -160,11 +161,11 @@ abstract contract PoolBase is IPoolBase, ConceroClient, ConceroOwnable {
     ) internal virtual;
 
     function getTargetBalance() public view returns (uint256) {
-        return s.poolBase().targetBalance;
+        return s.base().targetBalance;
     }
 
     function getYesterdayFlow() public view returns (LiqTokenDailyFlow memory) {
-        return s.poolBase().flowByDay[getYesterdayStartTimestamp()];
+        return s.base().flowByDay[getYesterdayStartTimestamp()];
     }
 
     function getTodayStartTimestamp() public view returns (uint32) {
@@ -189,10 +190,10 @@ abstract contract PoolBase is IPoolBase, ConceroClient, ConceroOwnable {
     }
 
     function _postInflow(uint256 inflowLiqTokenAmount) internal virtual {
-        s.poolBase().flowByDay[getTodayStartTimestamp()].inflow += inflowLiqTokenAmount;
+        s.base().flowByDay[getTodayStartTimestamp()].inflow += inflowLiqTokenAmount;
     }
 
     function _postOutflow(uint256 outflowLiqTokenAmount) internal {
-        s.poolBase().flowByDay[getTodayStartTimestamp()].outflow += outflowLiqTokenAmount;
+        s.base().flowByDay[getTodayStartTimestamp()].outflow += outflowLiqTokenAmount;
     }
 }

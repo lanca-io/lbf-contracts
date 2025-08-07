@@ -6,7 +6,7 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 import {MockConceroRouter} from "contracts/MockConceroRouter/MockConceroRouter.sol";
 import {ILancaBridge} from "contracts/LancaBridge/interfaces/ILancaBridge.sol";
-import {IPoolBase} from "contracts/PoolBase/interfaces/IPoolBase.sol";
+import {IBase} from "contracts/Base/interfaces/IBase.sol";
 
 import {LancaBridgeBase} from "./LancaBridgeBase.sol";
 
@@ -29,7 +29,7 @@ contract SendToken is LancaBridgeBase {
         uint256 userTokenBalanceBefore = usdc.balanceOf(user);
         uint256 parentPoolBalanceBefore = usdc.balanceOf(address(parentPool));
 
-        IPoolBase.LiqTokenDailyFlow memory flowBefore = IPoolBase.LiqTokenDailyFlow({
+        IBase.LiqTokenDailyFlow memory flowBefore = IBase.LiqTokenDailyFlow({
             inflow: parentPool.getYesterdayFlow().inflow,
             outflow: parentPool.getYesterdayFlow().outflow
         });
@@ -45,6 +45,7 @@ contract SendToken is LancaBridgeBase {
             user,
             bridgeAmount - totalLancaFee,
             0,
+            0,
             ""
         );
 
@@ -52,7 +53,7 @@ contract SendToken is LancaBridgeBase {
             CHILD_POOL_CHAIN_SELECTOR,
             false,
             address(0),
-            abi.encode(IPoolBase.ConceroMessageType.BRIDGE, messageData)
+            abi.encode(IBase.ConceroMessageType.BRIDGE, messageData)
         );
 
         vm.expectEmit(true, true, true, true);
@@ -109,7 +110,7 @@ contract SendToken is LancaBridgeBase {
         uint256 userTokenBalanceBefore = usdc.balanceOf(user);
         uint256 childPoolBalanceBefore = usdc.balanceOf(address(childPool));
 
-        IPoolBase.LiqTokenDailyFlow memory flowBefore = IPoolBase.LiqTokenDailyFlow({
+        IBase.LiqTokenDailyFlow memory flowBefore = IBase.LiqTokenDailyFlow({
             inflow: childPool.getYesterdayFlow().inflow,
             outflow: childPool.getYesterdayFlow().outflow
         });
@@ -125,6 +126,7 @@ contract SendToken is LancaBridgeBase {
             user,
             bridgeAmount - totalLancaFee,
             0,
+            0,
             ""
         );
 
@@ -132,7 +134,7 @@ contract SendToken is LancaBridgeBase {
             PARENT_POOL_CHAIN_SELECTOR,
             false,
             address(0),
-            abi.encode(IPoolBase.ConceroMessageType.BRIDGE, messageData)
+            abi.encode(IBase.ConceroMessageType.BRIDGE, messageData)
         );
 
         vm.expectEmit(true, true, true, true);

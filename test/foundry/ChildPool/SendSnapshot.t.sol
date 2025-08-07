@@ -5,7 +5,7 @@ pragma solidity 0.8.28;
 import {ChildPool} from "contracts/ChildPool/ChildPool.sol";
 import {IOUToken} from "contracts/Rebalancer/IOUToken.sol";
 import {IParentPool} from "contracts/ParentPool/interfaces/IParentPool.sol";
-import {IPoolBase} from "contracts/PoolBase/interfaces/IPoolBase.sol";
+import {IBase} from "contracts/Base/interfaces/IBase.sol";
 import {ChildPoolWrapper} from "contracts/test-helpers/ChildPoolWrapper.sol";
 
 import {ChildPoolBase} from "./ChildPoolBase.sol";
@@ -65,7 +65,7 @@ contract SendSnapshot is ChildPoolBase {
         ChildPoolWrapper(address(childPool)).setTotalIouReceived(totalIouReceived);
 
         // Create snapshot
-        IParentPool.SnapshotSubmission memory snapshot = IParentPool.SnapshotSubmission({
+        IParentPool.ChildPoolSnapshot memory snapshot = IParentPool.ChildPoolSnapshot({
             balance: childPool.getActiveBalance(),
             dailyFlow: childPool.getYesterdayFlow(),
             iouTotalSent: totalIouSent,
@@ -80,7 +80,7 @@ contract SendSnapshot is ChildPoolBase {
                 PARENT_POOL_CHAIN_SELECTOR,
                 false,
                 address(0),
-                abi.encode(IPoolBase.ConceroMessageType.SEND_SNAPSHOT, abi.encode(snapshot))
+                abi.encode(IBase.ConceroMessageType.SEND_SNAPSHOT, abi.encode(snapshot))
             )
         );
 

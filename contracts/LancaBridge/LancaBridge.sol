@@ -11,16 +11,18 @@ import {
 
 import {ReentrancyGuard} from "./ReentrancyGuard.sol";
 import {ILancaBridge} from "./interfaces/ILancaBridge.sol";
-import {PoolBase, IERC20} from "../PoolBase/PoolBase.sol";
+import {Base, IERC20} from "../Base/Base.sol";
 import {ICommonErrors} from "../common/interfaces/ICommonErrors.sol";
 import {ILancaClient} from "../LancaClient/interfaces/ILancaClient.sol";
-import {Storage as s} from "../PoolBase/libraries/Storage.sol";
+import {Storage as s} from "../Base/libraries/Storage.sol";
 import {Storage as rs} from "../Rebalancer/libraries/Storage.sol";
+import {Storage as bs} from "./libraries/Storage.sol";
 
-abstract contract LancaBridge is ILancaBridge, PoolBase, ReentrancyGuard {
+abstract contract LancaBridge is ILancaBridge, Base, ReentrancyGuard {
     using SafeERC20 for IERC20;
-    using s for s.PoolBase;
+    using s for s.Base;
     using rs for rs.Rebalancer;
+    using bs for bs.Bridge;
 
     uint256 internal constant BRIDGE_GAS_OVERHEAD = 100_000;
 
@@ -31,8 +33,10 @@ abstract contract LancaBridge is ILancaBridge, PoolBase, ReentrancyGuard {
         uint256 dstGasLimit,
         bytes calldata dstCallData
     ) external payable nonReentrant returns (bytes32 messageId) {
-        address dstPool = s.poolBase().dstPools[dstChainSelector];
-        require(dstPool != address(0), InvalidDestinationPool());
+        bs.Bridge storage s_bridge = bs.bridge();
+
+        address dstPool = s.base().dstPools[dstChainSelector];
+        require(dstPool != address(0), InvalidDstPool());
 
         uint256 tokenAmountToBridge = _chargeTotalLancaFee(tokenAmount);
 
@@ -44,9 +48,12 @@ abstract contract LancaBridge is ILancaBridge, PoolBase, ReentrancyGuard {
             tokenAmountToBridge,
             dstChainSelector,
             dstGasLimit,
+            s_bridge.sentNonces[dstChainSelector]++,
             dstCallData,
             dstPool
         );
+
+        s_bridge.totalSent += tokenAmount;
 
         emit TokenSent(
             messageId,
@@ -66,6 +73,7 @@ abstract contract LancaBridge is ILancaBridge, PoolBase, ReentrancyGuard {
         uint256 tokenAmount,
         uint24 dstChainSelector,
         uint256 dstGasLimit,
+        uint256 nonce,
         bytes calldata dstCallData,
         address dstPool
     ) internal returns (bytes32 messageId) {
@@ -81,6 +89,7 @@ abstract contract LancaBridge is ILancaBridge, PoolBase, ReentrancyGuard {
             tokenReceiver,
             tokenAmount,
             dstGasLimit,
+            nonce,
             dstCallData
         );
 
@@ -101,14 +110,28 @@ abstract contract LancaBridge is ILancaBridge, PoolBase, ReentrancyGuard {
         uint24 sourceChainSelector,
         bytes memory messageData
     ) internal override nonReentrant {
+        bs.Bridge storage s_bridge = bs.bridge();
+
         (
             address token,
             address tokenSender,
             address tokenReceiver,
             uint256 tokenAmount,
             uint256 dstGasLimit,
+            uint256 nonce,
             bytes memory dstCallData
         ) = _decodeMessage(messageData);
+
+        uint256 existingAmount = s_bridge.receivedBridges[sourceChainSelector][nonce];
+
+        if (existingAmount == 0) {
+            s_bridge.totalReceived += tokenAmount;
+        } else {
+            s_bridge.totalReceived = s_bridge.totalReceived - existingAmount + tokenAmount;
+            emit SrcBridgeReorged(existingAmount, tokenAmount, sourceChainSelector);
+        }
+
+        s_bridge.receivedBridges[sourceChainSelector][nonce] = tokenAmount;
 
         // todo: Think about adding retry and increase _postOutflow() when balance is insufficient
         require(getActiveBalance() >= tokenAmount, ICommonErrors.InvalidAmount());
@@ -127,7 +150,7 @@ abstract contract LancaBridge is ILancaBridge, PoolBase, ReentrancyGuard {
                 dstCallData
             );
         } else {
-            revert InvalidMessage();
+            revert InvalidConceroMessage();
         }
 
         emit BridgeDelivered(
@@ -162,13 +185,12 @@ abstract contract LancaBridge is ILancaBridge, PoolBase, ReentrancyGuard {
             address tokenReceiver,
             uint256 tokenAmount,
             uint256 dstGasLimit,
+            uint256 nonce,
             bytes memory dstCallData
         )
     {
-        (token, tokenSender, tokenReceiver, tokenAmount, dstGasLimit, dstCallData) = abi.decode(
-            messageData,
-            (address, address, address, uint256, uint256, bytes)
-        );
+        (token, tokenSender, tokenReceiver, tokenAmount, dstGasLimit, nonce, dstCallData) = abi
+            .decode(messageData, (address, address, address, uint256, uint256, uint256, bytes));
     }
 
     function _chargeTotalLancaFee(uint256 tokenAmount) internal returns (uint256) {
@@ -179,7 +201,7 @@ abstract contract LancaBridge is ILancaBridge, PoolBase, ReentrancyGuard {
         uint256 totalLancaFee = lpFee + bridgeFee + rebalancerFee;
         require(totalLancaFee > 0, ICommonErrors.InvalidFeeAmount());
 
-        s.poolBase().totalLancaFeeInLiqToken += bridgeFee;
+        s.base().totalLancaFeeInLiqToken += bridgeFee;
         rs.rebalancer().totalRebalancingFee += rebalancerFee;
 
         return tokenAmount - totalLancaFee;
@@ -190,7 +212,7 @@ abstract contract LancaBridge is ILancaBridge, PoolBase, ReentrancyGuard {
     }
 
     function _bridgeReceive(address token, address tokenReceiver, uint256 tokenAmount) internal {
-        require(token == i_liquidityToken, OnlyAllowedTokens());
+        require(token == i_liquidityToken, InvalidToken());
 
         IERC20(token).safeTransfer(tokenReceiver, tokenAmount);
     }

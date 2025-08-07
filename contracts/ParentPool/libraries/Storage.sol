@@ -1,6 +1,6 @@
 pragma solidity ^0.8.28;
 
-import {IPoolBase} from "../../PoolBase/interfaces/IPoolBase.sol";
+import {IBase} from "../../Base/interfaces/IBase.sol";
 import {IParentPool} from "../interfaces/IParentPool.sol";
 
 library Namespaces {
@@ -18,14 +18,14 @@ library Storage {
     }
 
     struct ParentPool {
-        mapping(bytes32 id => IParentPool.Deposit deposits) depositsQueue;
-        mapping(bytes32 id => IParentPool.Withdrawal withdrawals) withdrawalsQueue;
+        mapping(bytes32 id => IParentPool.Deposit deposits) depositQueue;
+        mapping(bytes32 id => IParentPool.Withdrawal withdrawals) withdrawalQueue;
         uint256 totalDepositAmountInQueue;
-        bytes32[] depositsQueueIds;
-        bytes32[] withdrawalsQueueIds;
+        bytes32[] depositQueueIds;
+        bytes32[] withdrawalQueueIds;
         uint256 depositNonce;
         uint256 withdrawalNonce;
-        mapping(uint24 dstChainSelector => IParentPool.SnapshotSubmission snapshotSubmition) childPoolsSubmissions;
+        mapping(uint24 dstChainSelector => IParentPool.ChildPoolSnapshot snapshot) childPoolSnapshots;
         mapping(uint24 dstChainSelector => uint256 targetBalance) childPoolTargetBalances;
         bytes32[] pendingWithdrawalIds;
         uint24[] supportedChainSelectors;

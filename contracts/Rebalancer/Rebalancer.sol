@@ -5,7 +5,7 @@ import {IRebalancer} from "./interfaces/IRebalancer.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IOUToken} from "./IOUToken.sol";
-import {PoolBase} from "../PoolBase/PoolBase.sol";
+import {Base} from "../Base/Base.sol";
 import {ConceroClient} from "@concero/v2-contracts/contracts/ConceroClient/ConceroClient.sol";
 import {ConceroTypes} from "@concero/v2-contracts/contracts/ConceroClient/ConceroTypes.sol";
 import {IConceroRouter} from "@concero/v2-contracts/contracts/interfaces/IConceroRouter.sol";
@@ -17,7 +17,7 @@ import {Storage as s} from "./libraries/Storage.sol";
  * @title Rebalancer
  * @notice Abstract contract for rebalancing pool liquidity
  */
-abstract contract Rebalancer is IRebalancer, PoolBase {
+abstract contract Rebalancer is IRebalancer, Base {
     using s for s.Rebalancer;
     using SafeERC20 for IERC20;
 
@@ -113,7 +113,7 @@ abstract contract Rebalancer is IRebalancer, PoolBase {
     function _handleConceroReceiveBridgeIou(
         bytes32 messageId,
         uint24 sourceChainSelector,
-        bytes calldata messageData
+        bytes memory messageData
     ) internal override {
         (uint256 iouTokenAmount, address receiver) = abi.decode(messageData, (uint256, address));
 

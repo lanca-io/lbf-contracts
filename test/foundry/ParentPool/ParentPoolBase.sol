@@ -14,7 +14,7 @@ import {LancaTest} from "../LancaTest.sol";
 import {ParentPool} from "../../../contracts/ParentPool/ParentPool.sol";
 import {IParentPool} from "../../../contracts/ParentPool/interfaces/IParentPool.sol";
 import {Vm} from "forge-std/src/Vm.sol";
-import {IPoolBase} from "../../../contracts/PoolBase/interfaces/IPoolBase.sol";
+import {IBase} from "../../../contracts/Base/interfaces/IBase.sol";
 
 abstract contract ParentPoolBase is LancaTest {
     uint16 internal constant DEFAULT_TARGET_QUEUE_LENGTH = 5;
@@ -164,13 +164,13 @@ abstract contract ParentPoolBase is LancaTest {
         for (uint256 i; i < childPoolChainSelectors.length; ++i) {
             s_parentPool.exposed_setChildPoolSnapshot(
                 childPoolChainSelectors[i],
-                IParentPool.SnapshotSubmission({
+                IParentPool.ChildPoolSnapshot({
                     timestamp: NOW_TIMESTAMP,
                     balance: 0,
                     iouTotalReceived: 0,
                     iouTotalSent: 0,
                     iouTotalSupply: 0,
-                    dailyFlow: IPoolBase.LiqTokenDailyFlow({inflow: 0, outflow: 0})
+                    dailyFlow: IBase.LiqTokenDailyFlow({inflow: 0, outflow: 0})
                 })
             );
         }

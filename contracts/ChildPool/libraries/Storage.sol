@@ -3,7 +3,7 @@ pragma solidity ^0.8.28;
 
 library Namespaces {
     bytes32 internal constant CHILD_POOL =
-        keccak256(abi.encode(uint256(keccak256(abi.encodePacked("childPool"))) - 1)) &
+        keccak256(abi.encode(uint256(keccak256(abi.encodePacked("lanca.childPool.storage"))) - 1)) &
             ~bytes32(uint256(0xff));
 }
 

@@ -2,7 +2,7 @@
 /* solhint-disable func-name-mixedcase */
 pragma solidity 0.8.28;
 
-import {IPoolBase} from "contracts/PoolBase/interfaces/IPoolBase.sol";
+import {IBase} from "contracts/Base/interfaces/IBase.sol";
 import {IParentPool} from "contracts/ParentPool/interfaces/IParentPool.sol";
 
 import {ParentPoolBase} from "../ParentPool/ParentPoolBase.sol";
@@ -20,12 +20,12 @@ contract ReceiveSnapshot is ParentPoolBase {
         uint256 iouTotalReceived = 500e6;
         uint256 iouTotalSupply = 600e6;
 
-        IPoolBase.LiqTokenDailyFlow memory dailyFlow = IPoolBase.LiqTokenDailyFlow({
+        IBase.LiqTokenDailyFlow memory dailyFlow = IBase.LiqTokenDailyFlow({
             inflow: inflow,
             outflow: outflow
         });
 
-        IParentPool.SnapshotSubmission memory snapshot = IParentPool.SnapshotSubmission({
+        IParentPool.ChildPoolSnapshot memory snapshot = IParentPool.ChildPoolSnapshot({
             balance: activeBalance,
             dailyFlow: dailyFlow,
             iouTotalSent: iouTotalSent,
@@ -40,7 +40,7 @@ contract ReceiveSnapshot is ParentPoolBase {
                 childPoolChainSelector_1,
                 false,
                 address(0),
-                abi.encode(IPoolBase.ConceroMessageType.SEND_SNAPSHOT, snapshot)
+                abi.encode(IBase.ConceroMessageType.SEND_SNAPSHOT, snapshot)
             )
         );
 
@@ -52,10 +52,10 @@ contract ReceiveSnapshot is ParentPoolBase {
             messageId,
             childPoolChainSelector_1,
             abi.encode(s_childPool_1),
-            abi.encode(IPoolBase.ConceroMessageType.SEND_SNAPSHOT, abi.encode(snapshot))
+            abi.encode(IBase.ConceroMessageType.SEND_SNAPSHOT, abi.encode(snapshot))
         );
 
-        IParentPool.SnapshotSubmission memory receivedSnapshot = s_parentPool
+        IParentPool.ChildPoolSnapshot memory receivedSnapshot = s_parentPool
             .exposed_getChildPoolSnapshot(childPoolChainSelector_1);
 
         assertEq(receivedSnapshot.balance, activeBalance);

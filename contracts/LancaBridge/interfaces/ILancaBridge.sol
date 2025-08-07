@@ -2,7 +2,6 @@
 pragma solidity ^0.8.28;
 
 interface ILancaBridge {
-
     event TokenSent(
         bytes32 indexed messageId,
         uint24 indexed dstChainSelector,
@@ -22,10 +21,16 @@ interface ILancaBridge {
         uint256 tokenAmount
     );
 
-    error OnlyAllowedTokens();
-    error InvalidDestinationPool();
-	error InvalidDstGasLimitOrCallData();
-	error InvalidMessage();
+    event SrcBridgeReorged(
+        uint256 oldAmount,
+        uint256 newAmount,
+        uint24 indexed sourceChainSelector
+    );
+
+    error InvalidToken();
+    error InvalidDstPool();
+    error InvalidDstGasLimitOrCallData();
+    error InvalidConceroMessage();
 
     function bridge(
         address tokenReceiver,

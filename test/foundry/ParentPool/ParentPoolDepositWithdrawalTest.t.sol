@@ -70,13 +70,13 @@ contract ParentPoolDepositWithdrawalTest is ParentPoolBase {
         //
         //        s_parentPool.exposed_setChildPoolSnapshot(
         //            childPoolChainSelector_1,
-        //            IParentPool.SnapshotSubmission({
+        //            IParentPool.ChildPoolSnapshot({
         //                timestamp: NOW_TIMESTAMP,
         //                balance: 85_000e6,
         //                iouTotalReceived: 0,
         //                iouTotalSent: 0,
         //                iouTotalSupply: 0,
-        //                dailyFlow: IPoolBase.LiqTokenDailyFlow({inflow: 140_000e6, outflow: 150_000e6})
+        //                dailyFlow: IBase.sol.LiqTokenDailyFlow({inflow: 140_000e6, outflow: 150_000e6})
         //            })
         //        );
         //        s_parentPool.exposed_getChildPoolTargetBalance(
@@ -86,13 +86,13 @@ contract ParentPoolDepositWithdrawalTest is ParentPoolBase {
         //
         //        s_parentPool.exposed_setChildPoolSnapshot(
         //            childPoolChainSelector_2,
-        //            IParentPool.SnapshotSubmission({
+        //            IParentPool.ChildPoolSnapshot({
         //                timestamp: NOW_TIMESTAMP,
         //                balance: 85_000e6,
         //                iouTotalReceived: 0,
         //                iouTotalSent: 0,
         //                iouTotalSupply: 0,
-        //                dailyFlow: IPoolBase.LiqTokenDailyFlow({inflow: 140_000e6, outflow: 150_000e6})
+        //                dailyFlow: IBase.sol.LiqTokenDailyFlow({inflow: 140_000e6, outflow: 150_000e6})
         //            })
         //        );
         //        s_parentPool.exposed_getChildPoolTargetBalance(

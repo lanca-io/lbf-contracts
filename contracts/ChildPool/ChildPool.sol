@@ -9,16 +9,16 @@ import {
 import {Rebalancer} from "../Rebalancer/Rebalancer.sol";
 import {LancaBridge} from "../LancaBridge/LancaBridge.sol";
 import {Storage as s} from "./libraries/Storage.sol";
-import {PoolBase} from "../PoolBase/PoolBase.sol";
+import {Base} from "../Base/Base.sol";
 import {ICommonErrors} from "../common/interfaces/ICommonErrors.sol";
 import {IParentPool} from "../ParentPool/interfaces/IParentPool.sol";
 import {Storage as rs} from "../Rebalancer/libraries/Storage.sol";
-import {Storage as pbs} from "../PoolBase/libraries/Storage.sol";
+import {Storage as pbs} from "../Base/libraries/Storage.sol";
 
 contract ChildPool is Rebalancer, LancaBridge {
     using s for s.ChildPool;
-    using s for rs.Rebalancer;
-    using pbs for pbs.PoolBase;
+    using rs for rs.Rebalancer;
+    using pbs for pbs.Base;
 
     uint32 internal constant SEND_SNAPSHOT_MESSAGE_GAS_LIMIT = 100_000;
     uint24 internal immutable i_parentPoolChainSelector;
@@ -31,14 +31,14 @@ contract ChildPool is Rebalancer, LancaBridge {
         uint24 chainSelector,
         uint24 parentPoolChainSelector
     )
-        PoolBase(liquidityToken, conceroRouter, iouToken, liquidityTokenDecimals, chainSelector)
+        Base(liquidityToken, conceroRouter, iouToken, liquidityTokenDecimals, chainSelector)
         Rebalancer()
     {
         i_parentPoolChainSelector = parentPoolChainSelector;
     }
 
     function sendSnapshotToParentPool() external payable onlyLancaKeeper {
-        IParentPool.SnapshotSubmission memory snapshot = IParentPool.SnapshotSubmission({
+        IParentPool.ChildPoolSnapshot memory snapshot = IParentPool.ChildPoolSnapshot({
             balance: getActiveBalance(),
             dailyFlow: getYesterdayFlow(),
             iouTotalSent: rs.rebalancer().totalIouSent,
@@ -47,7 +47,7 @@ contract ChildPool is Rebalancer, LancaBridge {
             timestamp: uint32(block.timestamp)
         });
 
-        address parentPool = pbs.poolBase().dstPools[i_parentPoolChainSelector];
+        address parentPool = pbs.base().dstPools[i_parentPoolChainSelector];
         require(
             parentPool != address(0),
             ICommonErrors.InvalidDstChainSelector(i_parentPoolChainSelector)

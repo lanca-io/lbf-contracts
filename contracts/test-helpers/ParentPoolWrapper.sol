@@ -4,11 +4,11 @@ pragma solidity ^0.8.28;
 import {ParentPool} from "../ParentPool/ParentPool.sol";
 import {LPToken} from "../ParentPool/LPToken.sol";
 import {IParentPool} from "../ParentPool/interfaces/IParentPool.sol";
-import {Storage as s} from "../PoolBase/libraries/Storage.sol";
+import {Storage as s} from "../Base/libraries/Storage.sol";
 import {Storage as pps} from "../ParentPool/libraries/Storage.sol";
 
 contract ParentPoolWrapper is ParentPool {
-    using s for s.PoolBase;
+    using s for s.Base;
     using s for pps.ParentPool;
 
     constructor(
@@ -33,10 +33,10 @@ contract ParentPoolWrapper is ParentPool {
 
     // Expose internal functions for testing
     function setTargetBalance(uint256 newTargetBalance) external {
-        s.poolBase().targetBalance = newTargetBalance;
+        s.base().targetBalance = newTargetBalance;
     }
 
     function exposed_setTargetBalance(uint256 newTargetBalance) external {
-        s.poolBase().targetBalance = newTargetBalance;
+        s.base().targetBalance = newTargetBalance;
     }
 }

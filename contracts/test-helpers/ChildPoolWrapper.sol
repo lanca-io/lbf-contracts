@@ -2,11 +2,11 @@
 pragma solidity ^0.8.28;
 
 import {ChildPool} from "../ChildPool/ChildPool.sol";
-import {Storage as s} from "../PoolBase/libraries/Storage.sol";
+import {Storage as s} from "../Base/libraries/Storage.sol";
 import {Storage as rs} from "../Rebalancer/libraries/Storage.sol";
 
 contract ChildPoolWrapper is ChildPool {
-    using s for s.PoolBase;
+    using s for s.Base;
     using s for rs.Rebalancer;
 
     constructor(
@@ -28,17 +28,17 @@ contract ChildPoolWrapper is ChildPool {
     {}
 
     function exposed_setDstPool(uint24 chainSelector, address dstPool) public {
-        s.poolBase().dstPools[chainSelector] = dstPool;
+        s.base().dstPools[chainSelector] = dstPool;
     }
 
     // Expose internal functions for testing
     function setTargetBalance(uint256 newTargetBalance) external {
-        s.poolBase().targetBalance = newTargetBalance;
+        s.base().targetBalance = newTargetBalance;
     }
 
     function setDailyFlow(uint256 inflow, uint256 outflow) external {
-        s.poolBase().flowByDay[getYesterdayStartTimestamp()].inflow = inflow;
-        s.poolBase().flowByDay[getYesterdayStartTimestamp()].outflow = outflow;
+        s.base().flowByDay[getYesterdayStartTimestamp()].inflow = inflow;
+        s.base().flowByDay[getYesterdayStartTimestamp()].outflow = outflow;
     }
 
     function setTotalIouSent(uint256 totalIouSent) external {

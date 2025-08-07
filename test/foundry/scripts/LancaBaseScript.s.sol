@@ -26,7 +26,7 @@ abstract contract LancaBaseScript is Script {
     uint256 internal constant MIN_TARGET_BALANCE = 10_000e6;
 
     uint256 public constant GAS_LIMIT = 100_000;
-	bytes32 public constant DEFAULT_MESSAGE_ID = bytes32(uint256(1));
+    bytes32 public constant DEFAULT_MESSAGE_ID = bytes32(uint256(1));
 
     constructor() {
         deployer = vm.envAddress("DEPLOYER_ADDRESS");

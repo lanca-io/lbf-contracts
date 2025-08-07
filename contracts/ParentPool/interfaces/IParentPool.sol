@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.28;
 
-import {IPoolBase} from "../../PoolBase/interfaces/IPoolBase.sol";
+import {IBase} from "../../Base/interfaces/IBase.sol";
 
 interface IParentPool {
     struct Deposit {
@@ -20,9 +20,9 @@ interface IParentPool {
         address lp;
     }
 
-    struct SnapshotSubmission {
+    struct ChildPoolSnapshot {
         uint256 balance;
-        IPoolBase.LiqTokenDailyFlow dailyFlow;
+        IBase.LiqTokenDailyFlow dailyFlow;
         uint256 iouTotalSent;
         uint256 iouTotalReceived;
         uint256 iouTotalSupply;
@@ -32,12 +32,14 @@ interface IParentPool {
     error DepositQueueIsFull();
     error WithdrawalQueueIsFull();
     error QueuesAreNotFull();
+    error ChildPoolSnapshotsAreNotReady();
+    error InvalidLiqTokenDecimals();
 
     event DepositQueued(bytes32 indexed depositId, address indexed lp, uint256 amount);
-    event WithdrawQueued(bytes32 indexed withdrawId, address indexed lp, uint256 liqTokenAmount);
+    event WithdrawalQueued(bytes32 indexed withdrawId, address indexed lp, uint256 liqTokenAmount);
     event SnapshotReceived(
         bytes32 indexed messageId,
         uint24 indexed sourceChainSelector,
-        SnapshotSubmission snapshot
+        ChildPoolSnapshot snapshot
     );
 }

@@ -20,7 +20,7 @@
         "lint:ts": "eslint --config .eslint.config.mjs",
         "lint:sol": "solhint --config .solhint.json ./contracts/*.sol ./contracts/**/*.sol",
         "format:ts": "prettier --config .prettierrc.json --write \"**/*.{ts,json}\"",
-        "format:sol": "prettier --config .prettierrc.json --write ./contracts/**/*.sol ./test/**/*.sol",
+        "format:sol": "prettier --config .prettierrc.json --write \"**/*.sol\"",
         "clean:hardhat": "rm -rf ./artifacts ./cache ./coverage ./typechain-types ./deployments",
         "clean:forge": "forge clean",
         "clean": "npm run clean:hardhat && npm run clean:forge",

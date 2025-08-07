@@ -3,7 +3,8 @@ pragma solidity 0.8.28;
 
 import {ParentPool} from "../../../contracts/ParentPool/ParentPool.sol";
 import {Storage as s} from "../../../contracts/ParentPool/libraries/Storage.sol";
-import {Storage as pbs} from "../../../contracts/PoolBase/libraries/Storage.sol";
+import {Storage as pbs} from "../../../contracts/Base/libraries/Storage.sol";
+import {Storage as bs} from "../../../contracts/LancaBridge/libraries/Storage.sol";
 
 contract ParentPoolHarness is ParentPool {
     using s for s.ParentPool;
@@ -34,22 +35,41 @@ contract ParentPoolHarness is ParentPool {
 
     function exposed_getChildPoolSnapshot(
         uint24 chainSelector
-    ) public view returns (SnapshotSubmission memory) {
-        return s.parentPool().childPoolsSubmissions[chainSelector];
+    ) public view returns (ChildPoolSnapshot memory) {
+        return s.parentPool().childPoolSnapshots[chainSelector];
     }
 
     function exposed_setChildPoolSnapshot(
         uint24 chainSelector,
-        SnapshotSubmission memory snapshot
+        ChildPoolSnapshot memory snapshot
     ) public {
-        s.parentPool().childPoolsSubmissions[chainSelector] = snapshot;
+        s.parentPool().childPoolSnapshots[chainSelector] = snapshot;
     }
 
     function exposed_setTargetBalance(uint256 targetBalance) public {
-        pbs.poolBase().targetBalance = targetBalance;
+        pbs.base().targetBalance = targetBalance;
     }
 
     function exposed_setChildPoolTargetBalance(uint24 chainSelector, uint256 targetBalance) public {
         s.parentPool().childPoolTargetBalances[chainSelector] = targetBalance;
+    }
+
+    function getSentNonce(uint24 dstChainSelector) external view returns (uint256) {
+        return bs.bridge().sentNonces[dstChainSelector];
+    }
+
+    function getTotalSent() external view returns (uint256) {
+        return bs.bridge().totalSent;
+    }
+
+    function getTotalReceived() external view returns (uint256) {
+        return bs.bridge().totalReceived;
+    }
+
+    function getReceivedBridgeAmount(
+        uint24 srcChainSelector,
+        uint256 nonce
+    ) external view returns (uint256) {
+        return bs.bridge().receivedBridges[srcChainSelector][nonce];
     }
 }

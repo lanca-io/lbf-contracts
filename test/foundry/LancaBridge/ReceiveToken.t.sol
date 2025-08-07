@@ -4,7 +4,7 @@ pragma solidity 0.8.28;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-import {IPoolBase} from "contracts/PoolBase/interfaces/IPoolBase.sol";
+import {IBase} from "contracts/Base/interfaces/IBase.sol";
 import {ILancaBridge} from "contracts/LancaBridge/interfaces/ILancaBridge.sol";
 
 import {LancaBridgeBase} from "./LancaBridgeBase.sol";
@@ -22,14 +22,14 @@ contract ReceiveToken is LancaBridgeBase {
         address dstUser = makeAddr("dstUser");
 
         bytes memory message = abi.encode(
-            IPoolBase.ConceroMessageType.BRIDGE,
-            abi.encode(usdc, user, dstUser, bridgeAmount, 0, "")
+            IBase.ConceroMessageType.BRIDGE,
+            abi.encode(usdc, user, dstUser, bridgeAmount, 0, 0, "")
         );
 
         uint256 parentPoolBalanceBefore = IERC20(usdc).balanceOf(address(parentPool));
         uint256 dstUserBalanceBefore = IERC20(usdc).balanceOf(dstUser);
         uint256 activeBalanceBefore = parentPool.getActiveBalance();
-        IPoolBase.LiqTokenDailyFlow memory flowBefore = IPoolBase.LiqTokenDailyFlow({
+        IBase.LiqTokenDailyFlow memory flowBefore = IBase.LiqTokenDailyFlow({
             inflow: parentPool.getYesterdayFlow().inflow,
             outflow: parentPool.getYesterdayFlow().outflow
         });
@@ -69,14 +69,14 @@ contract ReceiveToken is LancaBridgeBase {
         address dstUser = makeAddr("dstUser");
 
         bytes memory message = abi.encode(
-            IPoolBase.ConceroMessageType.BRIDGE,
-            abi.encode(usdc, user, dstUser, bridgeAmount, 0, "")
+            IBase.ConceroMessageType.BRIDGE,
+            abi.encode(usdc, user, dstUser, bridgeAmount, 0, 0, "")
         );
 
         uint256 childPoolBalanceBefore = IERC20(usdc).balanceOf(address(childPool));
         uint256 dstUserBalanceBefore = IERC20(usdc).balanceOf(dstUser);
         uint256 activeBalanceBefore = childPool.getActiveBalance();
-        IPoolBase.LiqTokenDailyFlow memory flowBefore = IPoolBase.LiqTokenDailyFlow({
+        IBase.LiqTokenDailyFlow memory flowBefore = IBase.LiqTokenDailyFlow({
             inflow: childPool.getYesterdayFlow().inflow,
             outflow: childPool.getYesterdayFlow().outflow
         });

@@ -8,10 +8,10 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {ILancaKeeper} from "./interfaces/ILancaKeeper.sol";
 import {IParentPool} from "./interfaces/IParentPool.sol";
 import {LPToken} from "./LPToken.sol";
-import {PoolBase} from "../PoolBase/PoolBase.sol";
+import {Base} from "../Base/Base.sol";
 import {Rebalancer} from "../Rebalancer/Rebalancer.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import {Storage as pbs} from "../PoolBase/libraries/Storage.sol";
+import {Storage as pbs} from "../Base/libraries/Storage.sol";
 import {Storage as rs} from "../Rebalancer/libraries/Storage.sol";
 import {Storage as s} from "./libraries/Storage.sol";
 import {LancaBridge} from "../LancaBridge/LancaBridge.sol";
@@ -19,11 +19,8 @@ import {LancaBridge} from "../LancaBridge/LancaBridge.sol";
 contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
     using s for s.ParentPool;
     using rs for rs.Rebalancer;
-    using pbs for pbs.PoolBase;
+    using pbs for pbs.Base;
     using SafeERC20 for IERC20;
-
-    error ChildPoolSnapshotsAreNotReady();
-    error InvalidLiqTokenDecimals();
 
     uint32 internal constant UPDATE_TARGET_BALANCE_MESSAGE_GAS_LIMIT = 100_000;
 
@@ -40,7 +37,7 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
         address iouToken,
         uint256 minTargetBalance
     )
-        PoolBase(liquidityToken, conceroRouter, iouToken, liquidityTokenDecimals, chainSelector)
+        Base(liquidityToken, conceroRouter, iouToken, liquidityTokenDecimals, chainSelector)
         Rebalancer()
     {
         i_lpToken = LPToken(lpToken);
@@ -58,7 +55,7 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
 
         s.ParentPool storage s_parentPool = s.parentPool();
         require(
-            s_parentPool.depositsQueueIds.length < s_parentPool.targetDepositQueueLength,
+            s_parentPool.depositQueueIds.length < s_parentPool.targetDepositQueueLength,
             DepositQueueIsFull()
         );
 
@@ -72,8 +69,8 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
             abi.encodePacked(msg.sender, block.number, ++s_parentPool.depositNonce)
         );
 
-        s_parentPool.depositsQueue[depositId] = deposit;
-        s_parentPool.depositsQueueIds.push(depositId);
+        s_parentPool.depositQueue[depositId] = deposit;
+        s_parentPool.depositQueueIds.push(depositId);
         s_parentPool.totalDepositAmountInQueue += liquidityTokenAmount;
 
         emit DepositQueued(depositId, deposit.lp, liquidityTokenAmount);
@@ -85,7 +82,7 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
         s.ParentPool storage s_parentPool = s.parentPool();
 
         require(
-            s_parentPool.withdrawalsQueueIds.length < s_parentPool.targetWithdrawalQueueLength,
+            s_parentPool.withdrawalQueueIds.length < s_parentPool.targetWithdrawalQueueLength,
             WithdrawalQueueIsFull()
         );
 
@@ -99,10 +96,10 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
             abi.encodePacked(msg.sender, block.number, ++s_parentPool.withdrawalNonce)
         );
 
-        s_parentPool.withdrawalsQueue[withdrawId] = withdraw;
-        s_parentPool.withdrawalsQueueIds.push(withdrawId);
+        s_parentPool.withdrawalQueue[withdrawId] = withdraw;
+        s_parentPool.withdrawalQueueIds.push(withdrawId);
 
-        emit WithdrawQueued(withdrawId, withdraw.lp, lpTokenAmount);
+        emit WithdrawalQueued(withdrawId, withdraw.lp, lpTokenAmount);
     }
 
     function _handleConceroReceiveSnapshot(
@@ -110,12 +107,12 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
         uint24 sourceChainSelector,
         bytes memory messageData
     ) internal override {
-        (IParentPool.SnapshotSubmission memory snapshot) = abi.decode(
+        (IParentPool.ChildPoolSnapshot memory snapshot) = abi.decode(
             messageData,
-            (IParentPool.SnapshotSubmission)
+            (IParentPool.ChildPoolSnapshot)
         );
 
-        s.parentPool().childPoolsSubmissions[sourceChainSelector] = snapshot;
+        s.parentPool().childPoolSnapshots[sourceChainSelector] = snapshot;
 
         emit IParentPool.SnapshotReceived(messageId, sourceChainSelector, snapshot);
     }
@@ -132,8 +129,8 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
     function areQueuesFull() public view returns (bool) {
         s.ParentPool storage s_parentPool = s.parentPool();
         return
-            s_parentPool.withdrawalsQueueIds.length == s_parentPool.targetWithdrawalQueueLength &&
-            s_parentPool.depositsQueueIds.length == s_parentPool.targetDepositQueueLength;
+            s_parentPool.withdrawalQueueIds.length == s_parentPool.targetWithdrawalQueueLength &&
+            s_parentPool.depositQueueIds.length == s_parentPool.targetDepositQueueLength;
     }
 
     function isReadyToProcessPendingWithdrawals() public view returns (bool) {
@@ -271,16 +268,16 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
     function _processDepositsQueue(uint256 totalPoolsBalance) internal returns (uint256) {
         s.ParentPool storage s_parentPool = s.parentPool();
 
-        bytes32[] memory depositsQueueIds = s_parentPool.depositsQueueIds;
+        bytes32[] memory depositQueueIds = s_parentPool.depositQueueIds;
         uint256 totalDepositedLiqTokenAmount;
         uint256 amountToDepositWithFee;
         uint256 depositFee;
         uint256 totalDepositFee;
 
-        for (uint256 i; i < depositsQueueIds.length; ++i) {
-            Deposit memory deposit = s_parentPool.depositsQueue[depositsQueueIds[i]];
+        for (uint256 i; i < depositQueueIds.length; ++i) {
+            Deposit memory deposit = s_parentPool.depositQueue[depositQueueIds[i]];
 
-            delete s_parentPool.depositsQueue[depositsQueueIds[i]];
+            delete s_parentPool.depositQueue[depositQueueIds[i]];
 
             depositFee = getRebalancerFee(deposit.liquidityTokenAmountToDeposit);
             amountToDepositWithFee = deposit.liquidityTokenAmountToDeposit - depositFee;
@@ -297,7 +294,7 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
             totalDepositedLiqTokenAmount += amountToDepositWithFee;
         }
 
-        delete s_parentPool.depositsQueueIds;
+        delete s_parentPool.depositQueueIds;
         rs.rebalancer().totalRebalancingFee += totalDepositFee;
 
         return totalDepositedLiqTokenAmount;
@@ -306,15 +303,15 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
     function _processWithdrawalsQueue(uint256 totalPoolsBalance) internal returns (uint256) {
         s.ParentPool storage s_parentPool = s.parentPool();
 
-        bytes32[] memory withdrawalsQueueIds = s_parentPool.withdrawalsQueueIds;
+        bytes32[] memory withdrawalQueueIds = s_parentPool.withdrawalQueueIds;
         uint256 totalLiqTokenAmountToWithdraw;
         uint256 liqTokenAmountToWithdraw;
         Withdrawal memory withdrawal;
 
-        for (uint256 i; i < withdrawalsQueueIds.length; ++i) {
-            withdrawal = s_parentPool.withdrawalsQueue[withdrawalsQueueIds[i]];
+        for (uint256 i; i < withdrawalQueueIds.length; ++i) {
+            withdrawal = s_parentPool.withdrawalQueue[withdrawalQueueIds[i]];
 
-            delete s_parentPool.withdrawalsQueue[withdrawalsQueueIds[i]];
+            delete s_parentPool.withdrawalQueue[withdrawalQueueIds[i]];
 
             liqTokenAmountToWithdraw = _calculateWithdrawableAmount(
                 totalPoolsBalance - totalLiqTokenAmountToWithdraw,
@@ -323,15 +320,15 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
 
             totalLiqTokenAmountToWithdraw += liqTokenAmountToWithdraw;
 
-            s_parentPool.pendingWithdrawals[withdrawalsQueueIds[i]] = PendingWithdrawal({
+            s_parentPool.pendingWithdrawals[withdrawalQueueIds[i]] = PendingWithdrawal({
                 liqTokenAmountToWithdraw: liqTokenAmountToWithdraw,
                 lpTokenAmountToWithdraw: withdrawal.lpTokenAmountToWithdraw,
                 lp: withdrawal.lp
             });
-            s_parentPool.pendingWithdrawalIds.push(withdrawalsQueueIds[i]);
+            s_parentPool.pendingWithdrawalIds.push(withdrawalQueueIds[i]);
         }
 
-        delete s_parentPool.withdrawalsQueueIds;
+        delete s_parentPool.withdrawalQueueIds;
 
         return totalLiqTokenAmountToWithdraw;
     }
@@ -356,9 +353,9 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
                         that is enough to prevent it from passing
                         _isChildPoolSnapshotTimestampInRange(snapshotTimestamp)
                         and being used a second time */
-                delete s_parentPool.childPoolsSubmissions[chainSelectors[i]].timestamp;
+                delete s_parentPool.childPoolSnapshots[chainSelectors[i]].timestamp;
             } else {
-                pbs.poolBase().targetBalance += targetBalances[i];
+                pbs.base().targetBalance += targetBalances[i];
             }
         }
     }
@@ -383,7 +380,7 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
                         that is enough to prevent it from passing
                         _isChildPoolSnapshotTimestampInRange(snapshotTimestamp)
                         and being used a second time */
-                delete s_parentPool.childPoolsSubmissions[chainSelectors[i]].timestamp;
+                delete s_parentPool.childPoolSnapshots[chainSelectors[i]].timestamp;
             } else {
                 uint256 remaining = totalRequested - coveredBySurplus;
 
@@ -391,7 +388,7 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
                 s_parentPool.remainingWithdrawalAmount = remaining;
                 s_parentPool.minParentPoolTargetBalance = targetBalances[i];
 
-                pbs.poolBase().targetBalance += remaining;
+                pbs.base().targetBalance += remaining;
             }
         }
     }
@@ -432,7 +429,7 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
 
         for (uint256 i; i < childPoolChainSelectors.length; ++i) {
             chainSelectors[i] = childPoolChainSelectors[i];
-            dailyFlow = s_parentPool.childPoolsSubmissions[childPoolChainSelectors[i]].dailyFlow;
+            dailyFlow = s_parentPool.childPoolSnapshots[childPoolChainSelectors[i]].dailyFlow;
 
             tagetBalance = s_parentPool.childPoolTargetBalances[childPoolChainSelectors[i]];
             targetBalancesSum += tagetBalance;
@@ -527,7 +524,7 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
         if (s_parentPool.childPoolTargetBalances[dstChainSelector] == newTargetBalance) return;
         s_parentPool.childPoolTargetBalances[dstChainSelector] = newTargetBalance;
 
-        address childPool = pbs.poolBase().dstPools[dstChainSelector];
+        address childPool = pbs.base().dstPools[dstChainSelector];
         require(childPool != address(0), ICommonErrors.InvalidDstChainSelector(dstChainSelector));
 
         ConceroTypes.EvmDstChainData memory dstChainData = ConceroTypes.EvmDstChainData({
@@ -568,11 +565,11 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
         if (remainingWithdrawalAmount < inflowLiqTokenAmount) {
             delete s_parentPool.remainingWithdrawalAmount;
             s_parentPool.totalWithdrawalAmountLocked += remainingWithdrawalAmount;
-            pbs.poolBase().targetBalance -= remainingWithdrawalAmount;
+            pbs.base().targetBalance -= remainingWithdrawalAmount;
         } else {
             s_parentPool.remainingWithdrawalAmount -= inflowLiqTokenAmount;
             s_parentPool.totalWithdrawalAmountLocked += inflowLiqTokenAmount;
-            pbs.poolBase().targetBalance -= inflowLiqTokenAmount;
+            pbs.base().targetBalance -= inflowLiqTokenAmount;
         }
     }
 
@@ -593,22 +590,22 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
 
         for (uint256 i; i < supportedChainSelectors.length; ++i) {
             uint32 snapshotTimestamp = s_parentPool
-                .childPoolsSubmissions[supportedChainSelectors[i]]
+                .childPoolSnapshots[supportedChainSelectors[i]]
                 .timestamp;
 
             if (!_isChildPoolSnapshotTimestampInRange(snapshotTimestamp)) return (false, 0);
 
             totalPoolsBalance += s_parentPool
-                .childPoolsSubmissions[supportedChainSelectors[i]]
+                .childPoolSnapshots[supportedChainSelectors[i]]
                 .balance;
             totalIouSent += s_parentPool
-                .childPoolsSubmissions[supportedChainSelectors[i]]
+                .childPoolSnapshots[supportedChainSelectors[i]]
                 .iouTotalSent;
             totalIouReceived += s_parentPool
-                .childPoolsSubmissions[supportedChainSelectors[i]]
+                .childPoolSnapshots[supportedChainSelectors[i]]
                 .iouTotalReceived;
             iouTotalSupply += s_parentPool
-                .childPoolsSubmissions[supportedChainSelectors[i]]
+                .childPoolSnapshots[supportedChainSelectors[i]]
                 .iouTotalSupply;
         }
 
