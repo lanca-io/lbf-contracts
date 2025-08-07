@@ -24,13 +24,11 @@ abstract contract ParentPoolBase is LancaTest {
     address internal s_childPool_2;
     address internal s_childPool_3;
     address internal s_childPool_4;
-    address internal s_childPool_5;
 
     uint24 internal constant childPoolChainSelector_1 = 1;
     uint24 internal constant childPoolChainSelector_2 = 2;
     uint24 internal constant childPoolChainSelector_3 = 3;
     uint24 internal constant childPoolChainSelector_4 = 4;
-    uint24 internal constant childPoolChainSelector_5 = 5;
 
     ParentPoolHarness public s_parentPool;
     LPToken public lpToken;
@@ -40,7 +38,6 @@ abstract contract ParentPoolBase is LancaTest {
         s_childPool_2 = makeAddr("childPool_2");
         s_childPool_3 = makeAddr("childPool_3");
         s_childPool_4 = makeAddr("childPool_4");
-        s_childPool_5 = makeAddr("childPool_5");
 
         DeployMockERC20 deployMockERC20 = new DeployMockERC20();
         usdc = IERC20(deployMockERC20.deployERC20("USD Coin", "USDC", 6));
@@ -72,6 +69,7 @@ abstract contract ParentPoolBase is LancaTest {
         _setQueuesLength();
         _setSupportedChildPools();
         _setLancaKeeper();
+        _setTargetBalanceCalculationVars();
     }
 
     /* HELPER FUNCTIONS */
@@ -149,7 +147,6 @@ abstract contract ParentPoolBase is LancaTest {
         s_parentPool.setDstPool(childPoolChainSelector_2, s_childPool_2);
         s_parentPool.setDstPool(childPoolChainSelector_3, s_childPool_3);
         s_parentPool.setDstPool(childPoolChainSelector_4, s_childPool_4);
-        s_parentPool.setDstPool(childPoolChainSelector_5, s_childPool_5);
         vm.stopPrank();
     }
 
@@ -164,29 +161,57 @@ abstract contract ParentPoolBase is LancaTest {
         for (uint256 i; i < childPoolChainSelectors.length; ++i) {
             s_parentPool.exposed_setChildPoolSnapshot(
                 childPoolChainSelectors[i],
-                IParentPool.SnapshotSubmission({
-                    timestamp: NOW_TIMESTAMP,
-                    balance: 0,
-                    iouTotalReceived: 0,
-                    iouTotalSent: 0,
-                    iouTotalSupply: 0,
-                    dailyFlow: IPoolBase.LiqTokenDailyFlow({inflow: 0, outflow: 0}),
-                    totalLiqTokenSent: 0,
-                    totalLiqTokenReceived: 0
-                })
+                _getChildPoolSnapshot()
             );
         }
     }
 
+    function _getChildPoolSnapshot(
+        uint256 balance,
+        uint256 dailyInflow,
+        uint256 dailyOutflow
+    ) internal pure returns (IParentPool.SnapshotSubmission memory) {
+        IParentPool.SnapshotSubmission memory snapshot = _getChildPoolSnapshot();
+        snapshot.balance = balance;
+        snapshot.dailyFlow.inflow = dailyInflow;
+        snapshot.dailyFlow.outflow = dailyOutflow;
+
+        return snapshot;
+    }
+
+    function _getChildPoolSnapshot() internal pure returns (IParentPool.SnapshotSubmission memory) {
+        return
+            IParentPool.SnapshotSubmission({
+                timestamp: NOW_TIMESTAMP,
+                balance: 0,
+                iouTotalReceived: 0,
+                iouTotalSent: 0,
+                iouTotalSupply: 0,
+                dailyFlow: IPoolBase.LiqTokenDailyFlow({inflow: 0, outflow: 0}),
+                totalLiqTokenSent: 0,
+                totalLiqTokenReceived: 0
+            });
+    }
+
     function _getChildPoolsChainSelectors() internal returns (uint24[] memory) {
-        uint24[] memory childPoolChainSelectors = new uint24[](5);
+        uint24[] memory childPoolChainSelectors = new uint24[](4);
         childPoolChainSelectors[0] = childPoolChainSelector_1;
         childPoolChainSelectors[1] = childPoolChainSelector_2;
         childPoolChainSelectors[2] = childPoolChainSelector_3;
         childPoolChainSelectors[3] = childPoolChainSelector_4;
-        childPoolChainSelectors[4] = childPoolChainSelector_5;
 
         return childPoolChainSelectors;
+    }
+
+    function _setTargetBalanceCalculationVars() internal {
+        vm.startPrank(deployer);
+        s_parentPool.setTargetWithdrawalQueueLength(0);
+        s_parentPool.setLurScoreSensitivity(uint64(5 * LIQ_TOKEN_SCALE_FACTOR));
+        s_parentPool.setScoresWeights(
+            uint64((7 * LIQ_TOKEN_SCALE_FACTOR) / 10),
+            uint64((3 * LIQ_TOKEN_SCALE_FACTOR) / 10)
+        );
+        vm.stopPrank();
     }
 
     /* MINT FUNCTIONS */

@@ -28,6 +28,8 @@ contract ParentPoolHarness is ParentPool {
         )
     {}
 
+    /* GETTERS */
+
     function exposed_getChildPoolTargetBalance(uint24 chainSelector) public view returns (uint256) {
         return s.parentPool().childPoolTargetBalances[chainSelector];
     }
@@ -37,6 +39,8 @@ contract ParentPoolHarness is ParentPool {
     ) public view returns (SnapshotSubmission memory) {
         return s.parentPool().childPoolsSubmissions[chainSelector];
     }
+
+    /* SETTERS */
 
     function exposed_setChildPoolSnapshot(
         uint24 chainSelector,
@@ -51,5 +55,10 @@ contract ParentPoolHarness is ParentPool {
 
     function exposed_setChildPoolTargetBalance(uint24 chainSelector, uint256 targetBalance) public {
         s.parentPool().childPoolTargetBalances[chainSelector] = targetBalance;
+    }
+
+    function exposed_setYesterdayFlow(uint256 inflow, uint256 outflow) public {
+        pbs.poolBase().flowByDay[getYesterdayStartTimestamp()].inflow = inflow;
+        pbs.poolBase().flowByDay[getYesterdayStartTimestamp()].outflow = outflow;
     }
 }

@@ -2,8 +2,10 @@
 pragma solidity 0.8.28;
 
 import {ParentPoolBase} from "./ParentPoolBase.sol";
+import {IPoolBase} from "../../../contracts/PoolBase/interfaces/IPoolBase.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IParentPool} from "../../../contracts/ParentPool/interfaces/IParentPool.sol";
+
 import "forge-std/src/console.sol";
 
 contract ParentPoolDepositWithdrawalTest is ParentPoolBase {
@@ -11,11 +13,11 @@ contract ParentPoolDepositWithdrawalTest is ParentPoolBase {
 
     function setUp() public override {
         super.setUp();
+        vm.warp(NOW_TIMESTAMP);
     }
 
     function test_initialDepositAndUpdateTargetBalances(uint256 amountToDepositPerUser) public {
         vm.assume(amountToDepositPerUser > 0 && amountToDepositPerUser < MAX_DEPOSIT_AMOUNT);
-        vm.warp(NOW_TIMESTAMP);
 
         _mintUsdc(user, amountToDepositPerUser * s_parentPool.getTargetDepositQueueLength());
 
@@ -63,41 +65,80 @@ contract ParentPoolDepositWithdrawalTest is ParentPoolBase {
                D     110k     100k           40k           50k
                E     90k      100k           90k           70k
         */
-        //        uint256 defaultTargetBalance = 100_000e6;
-        //
-        //        _mintUsdc(s_parentPool, 110_000e6);
-        //        s_parentPool.exposed_setTargetBalance(defaultTargetBalance);
-        //
-        //        s_parentPool.exposed_setChildPoolSnapshot(
-        //            childPoolChainSelector_1,
-        //            IParentPool.SnapshotSubmission({
-        //                timestamp: NOW_TIMESTAMP,
-        //                balance: 85_000e6,
-        //                iouTotalReceived: 0,
-        //                iouTotalSent: 0,
-        //                iouTotalSupply: 0,
-        //                dailyFlow: IPoolBase.LiqTokenDailyFlow({inflow: 140_000e6, outflow: 150_000e6})
-        //            })
-        //        );
-        //        s_parentPool.exposed_getChildPoolTargetBalance(
-        //            childPoolChainSelector_1,
-        //            defaultTargetBalance
-        //        );
-        //
-        //        s_parentPool.exposed_setChildPoolSnapshot(
-        //            childPoolChainSelector_2,
-        //            IParentPool.SnapshotSubmission({
-        //                timestamp: NOW_TIMESTAMP,
-        //                balance: 85_000e6,
-        //                iouTotalReceived: 0,
-        //                iouTotalSent: 0,
-        //                iouTotalSupply: 0,
-        //                dailyFlow: IPoolBase.LiqTokenDailyFlow({inflow: 140_000e6, outflow: 150_000e6})
-        //            })
-        //        );
-        //        s_parentPool.exposed_getChildPoolTargetBalance(
-        //            childPoolChainSelector_2,
-        //            defaultTargetBalance
-        //        );
+
+        uint256 defaultTargetBalance = 100_000 * LIQ_TOKEN_SCALE_FACTOR;
+
+        _mintUsdc(address(s_parentPool), 110_000 * LIQ_TOKEN_SCALE_FACTOR);
+        s_parentPool.exposed_setTargetBalance(defaultTargetBalance);
+        s_parentPool.exposed_setYesterdayFlow(
+            60_000 * LIQ_TOKEN_SCALE_FACTOR,
+            80_000 * LIQ_TOKEN_SCALE_FACTOR
+        );
+
+        uint256[3][4] memory childPoolsSetupData = [
+            [
+                85_000 * LIQ_TOKEN_SCALE_FACTOR,
+                140_000 * LIQ_TOKEN_SCALE_FACTOR,
+                150_000 * LIQ_TOKEN_SCALE_FACTOR
+            ],
+            [
+                95_000 * LIQ_TOKEN_SCALE_FACTOR,
+                180_000 * LIQ_TOKEN_SCALE_FACTOR,
+                200_000 * LIQ_TOKEN_SCALE_FACTOR
+            ],
+            [
+                110_000 * LIQ_TOKEN_SCALE_FACTOR,
+                50_000 * LIQ_TOKEN_SCALE_FACTOR,
+                40_000 * LIQ_TOKEN_SCALE_FACTOR
+            ],
+            [
+                90_000 * LIQ_TOKEN_SCALE_FACTOR,
+                70_000 * LIQ_TOKEN_SCALE_FACTOR,
+                90_000 * LIQ_TOKEN_SCALE_FACTOR
+            ]
+        ];
+
+        for (uint256 i; i < _getChildPoolsChainSelectors().length; ++i) {
+            s_parentPool.exposed_setChildPoolSnapshot(
+                _getChildPoolsChainSelectors()[i],
+                _getChildPoolSnapshot(
+                    childPoolsSetupData[i][0],
+                    childPoolsSetupData[i][1],
+                    childPoolsSetupData[i][2]
+                )
+            );
+            s_parentPool.exposed_setChildPoolTargetBalance(
+                _getChildPoolsChainSelectors()[i],
+                defaultTargetBalance
+            );
+        }
+
+        uint256 remainingAmount = 10_000 * LIQ_TOKEN_SCALE_FACTOR;
+        uint256 amountToDepositPerUser = remainingAmount /
+            s_parentPool.getTargetDepositQueueLength();
+        _fillDepositWithdrawalQueue(
+            amountToDepositPerUser + s_parentPool.getRebalancerFee(amountToDepositPerUser),
+            0
+        );
+
+        vm.prank(s_lancaKeeper);
+        s_parentPool.triggerDepositWithdrawProcess();
+
+        uint256[4] memory childPoolsExpectedTargetBalances = [
+            (103806730177 * LIQ_TOKEN_SCALE_FACTOR) / 1000000,
+            (109881337396 * LIQ_TOKEN_SCALE_FACTOR) / 1000000,
+            (89273197519 * LIQ_TOKEN_SCALE_FACTOR) / 1000000,
+            (99187718579 * LIQ_TOKEN_SCALE_FACTOR) / 1000000
+        ];
+
+        for (uint256 i; i < _getChildPoolsChainSelectors().length; ++i) {
+            assertEq(
+                s_parentPool.exposed_getChildPoolTargetBalance(_getChildPoolsChainSelectors()[i]),
+                childPoolsExpectedTargetBalances[i]
+            );
+        }
+
+        uint256 expectedParentPoolTargetBalance = (197851016227 * LIQ_TOKEN_SCALE_FACTOR) / 1000000;
+        assertEq(s_parentPool.getTargetBalance(), expectedParentPoolTargetBalance);
     }
 }

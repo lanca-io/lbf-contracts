@@ -15,6 +15,8 @@ import {Storage as pbs} from "../PoolBase/libraries/Storage.sol";
 import {Storage as rs} from "../Rebalancer/libraries/Storage.sol";
 import {Storage as s} from "./libraries/Storage.sol";
 
+import "forge-std/src/console.sol";
+
 contract ParentPool is IParentPool, ILancaKeeper, Rebalancer {
     using s for s.ParentPool;
     using rs for rs.Rebalancer;
@@ -23,11 +25,13 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer {
 
     error ChildPoolSnapshotsAreNotReady();
     error InvalidLiqTokenDecimals();
+    error InvalidScoreWeights();
+    error InvalidLurScoreSensitivity();
 
     uint32 internal constant UPDATE_TARGET_BALANCE_MESSAGE_GAS_LIMIT = 100_000;
 
     LPToken internal immutable i_lpToken;
-    uint8 private immutable i_lpTokenDecimals;
+    uint256 internal immutable i_liquidityTokenScaleFactor;
     uint256 internal immutable i_minTargetBalance;
 
     constructor(
@@ -43,11 +47,10 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer {
         Rebalancer()
     {
         i_lpToken = LPToken(lpToken);
-        i_lpTokenDecimals = i_lpToken.decimals();
-        // todo: move it to only one var
-        require(i_lpTokenDecimals == liquidityTokenDecimals, InvalidLiqTokenDecimals());
+        require(i_lpToken.decimals() == liquidityTokenDecimals, InvalidLiqTokenDecimals());
 
         i_minTargetBalance = minTargetBalance;
+        i_liquidityTokenScaleFactor = 10 ** liquidityTokenDecimals;
     }
 
     receive() external payable {}
@@ -259,6 +262,24 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer {
         s_parentPool.supportedChainSelectors.push(chainSelector);
     }
 
+    function setLurScoreSensitivity(uint64 lurScoreSensitivity) external onlyOwner {
+        require(
+            (lurScoreSensitivity > i_liquidityTokenScaleFactor) &&
+                (lurScoreSensitivity < (10 * i_liquidityTokenScaleFactor)),
+            InvalidLurScoreSensitivity()
+        );
+        s.parentPool().lurScoreSensitivity = lurScoreSensitivity;
+    }
+
+    function setScoresWeights(uint64 lurScoreWeight, uint64 ndrScoreWeight) external onlyOwner {
+        require(
+            lurScoreWeight + ndrScoreWeight == i_liquidityTokenScaleFactor,
+            InvalidScoreWeights()
+        );
+        s.parentPool().lurScoreWeight = lurScoreWeight;
+        s.parentPool().ndrScoreWeight = ndrScoreWeight;
+    }
+
     /*   INTERNAL FUNCTIONS   */
 
     function _processDepositsQueue(uint256 totalPoolsBalance) internal returns (uint256) {
@@ -432,7 +453,8 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer {
 
             weights[i] = tagetBalance < i_minTargetBalance
                 ? (i_minTargetBalance)
-                : tagetBalance * _calculateLiquidityHealthScore(dailyFlow, tagetBalance);
+                : (tagetBalance * _calculateLiquidityHealthScore(dailyFlow, tagetBalance)) /
+                    i_liquidityTokenScaleFactor;
             totalWeight += weights[i];
         }
 
@@ -456,43 +478,49 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer {
         uint256 inflow,
         uint256 outflow,
         uint256 tagetBalance
-    ) internal view returns (uint8) {
-        if (tagetBalance == 0) return 1;
-        uint256 lur = (inflow + outflow) / tagetBalance;
-        return uint8(1 - (lur / (s.parentPool().lhsCalculationFactors.lurScoreSensitivity + lur)));
+    ) internal view returns (uint256) {
+        if (tagetBalance == 0) return i_liquidityTokenScaleFactor;
+
+        uint256 lur = ((inflow + outflow) * i_liquidityTokenScaleFactor) / tagetBalance;
+
+        return
+            i_liquidityTokenScaleFactor -
+            ((lur * i_liquidityTokenScaleFactor) / (s.parentPool().lurScoreSensitivity + lur));
     }
 
     function _calculateNetDrainRateScore(
         uint256 inflow,
         uint256 outflow,
         uint256 tagetBalance
-    ) internal pure returns (uint8) {
-        if (inflow >= outflow || tagetBalance == 0) return 1;
+    ) internal view returns (uint256) {
+        if (inflow >= outflow || tagetBalance == 0) return i_liquidityTokenScaleFactor;
 
-        uint256 ndr = (outflow - inflow) / tagetBalance;
-        return uint8(1 - ndr);
+        uint256 ndr = ((outflow - inflow) * i_liquidityTokenScaleFactor) / tagetBalance;
+        return i_liquidityTokenScaleFactor - ndr;
     }
 
     function _calculateLiquidityHealthScore(
         LiqTokenDailyFlow memory dailyFlow,
         uint256 tagetBalance
-    ) internal view returns (uint8) {
-        uint8 lurScore = _calculateLiquidityUtilisationRatioScore(
+    ) internal view returns (uint256) {
+        uint256 lurScore = _calculateLiquidityUtilisationRatioScore(
             dailyFlow.inflow,
             dailyFlow.outflow,
             tagetBalance
         );
-        uint8 ndrScore = _calculateNetDrainRateScore(
+
+        uint256 ndrScore = _calculateNetDrainRateScore(
             dailyFlow.inflow,
             dailyFlow.outflow,
             tagetBalance
         );
+
         s.ParentPool storage s_parentPool = s.parentPool();
 
-        uint8 lhs = (s_parentPool.lhsCalculationFactors.lurScoreWeight * lurScore) +
-            (s_parentPool.lhsCalculationFactors.ndrScoreWeight * ndrScore);
+        uint256 lhs = ((s_parentPool.lurScoreWeight * lurScore) +
+            (s_parentPool.ndrScoreWeight * ndrScore)) / i_liquidityTokenScaleFactor;
 
-        return 1 + (1 - lhs);
+        return i_liquidityTokenScaleFactor + (i_liquidityTokenScaleFactor - lhs);
     }
 
     function _calculateTargetBalance(
@@ -508,7 +536,9 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer {
         return
             targetBalance < i_minTargetBalance
                 ? (i_minTargetBalance)
-                : targetBalance * _calculateLiquidityHealthScore(getYesterdayFlow(), targetBalance);
+                : (targetBalance *
+                    _calculateLiquidityHealthScore(getYesterdayFlow(), targetBalance)) /
+                    i_liquidityTokenScaleFactor;
     }
 
     function _updateChildPoolTargetBalance(
@@ -617,6 +647,6 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer {
         uint256 iouOnTheWay = totalIouSent - totalIouReceived;
         uint256 liqTokenOnTheWay = totalLiqTokenSent - totalLiqTokenReceived;
 
-        return (true, totalPoolsBalance - liqTokenOnTheWay - (iouTotalSupply + iouOnTheWay));
+        return (true, totalPoolsBalance - (liqTokenOnTheWay + iouTotalSupply + iouOnTheWay));
     }
 }
