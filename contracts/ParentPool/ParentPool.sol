@@ -15,8 +15,6 @@ import {Storage as pbs} from "../PoolBase/libraries/Storage.sol";
 import {Storage as rs} from "../Rebalancer/libraries/Storage.sol";
 import {Storage as s} from "./libraries/Storage.sol";
 
-import "forge-std/src/console.sol";
-
 contract ParentPool is IParentPool, ILancaKeeper, Rebalancer {
     using s for s.ParentPool;
     using rs for rs.Rebalancer;
@@ -185,6 +183,7 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer {
 
         uint256 deposited = _processDepositsQueue(totalPoolsBalance);
         uint256 withdrawals = _processWithdrawalsQueue(totalPoolsBalance);
+
         uint256 newTotalBalance = totalPoolsBalance + deposited;
         uint256 totalRequestedWithdrawals = s_parentPool.remainingWithdrawalAmount + withdrawals;
 
@@ -378,10 +377,10 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer {
     }
 
     function _processOutflow(uint256 totalLbfBalance, uint256 totalRequested) internal {
+        s.ParentPool storage s_parentPool = s.parentPool();
         uint256 surplus = getSurplus();
         uint256 coveredBySurplus = surplus >= totalRequested ? totalRequested : surplus;
-
-        s.ParentPool storage s_parentPool = s.parentPool();
+        s_parentPool.totalWithdrawalAmountLocked += coveredBySurplus;
 
         (
             uint24[] memory chainSelectors,
@@ -401,11 +400,10 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer {
             } else {
                 uint256 remaining = totalRequested - coveredBySurplus;
 
-                s_parentPool.totalWithdrawalAmountLocked += coveredBySurplus;
                 s_parentPool.remainingWithdrawalAmount = remaining;
                 s_parentPool.minParentPoolTargetBalance = targetBalances[i];
 
-                pbs.poolBase().targetBalance += remaining;
+                pbs.poolBase().targetBalance = targetBalances[i] + remaining;
             }
         }
     }

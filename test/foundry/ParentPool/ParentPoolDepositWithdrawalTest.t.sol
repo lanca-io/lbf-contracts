@@ -54,7 +54,7 @@ contract ParentPoolDepositWithdrawalTest is ParentPoolBase {
         }
     }
 
-    function test_recalculateTargetBalances() public {
+    function test_recalculateTargetBalancesWithInflow() public {
         /*
                LBF state before target balances adjustments
 
@@ -65,6 +65,8 @@ contract ParentPoolDepositWithdrawalTest is ParentPoolBase {
                D     110k     100k           40k           50k
                E     90k      100k           90k           70k
         */
+        vm.prank(deployer);
+        s_parentPool.setTargetWithdrawalQueueLength(0);
 
         uint256 defaultTargetBalance = 100_000 * LIQ_TOKEN_SCALE_FACTOR;
 
@@ -142,5 +144,86 @@ contract ParentPoolDepositWithdrawalTest is ParentPoolBase {
         assertEq(s_parentPool.getTargetBalance(), expectedParentPoolTargetBalance);
     }
 
-    function test_processPendingWithdrawals() public {}
+    function test_recalculateTargetBalancesWithOutflow() public {
+        vm.prank(deployer);
+        s_parentPool.setTargetDepositQueueLength(0);
+
+        uint256 lpUserBalance = 500_000 * LIQ_TOKEN_SCALE_FACTOR;
+        _mintLpToken(user, lpUserBalance);
+
+        vm.prank(user);
+        lpToken.approve(address(s_parentPool), type(uint256).max);
+
+        uint256 defaultTargetBalance = 100_000 * LIQ_TOKEN_SCALE_FACTOR;
+
+        _mintUsdc(address(s_parentPool), 130_000 * LIQ_TOKEN_SCALE_FACTOR);
+        s_parentPool.exposed_setTargetBalance(defaultTargetBalance);
+        s_parentPool.exposed_setYesterdayFlow(
+            60_000 * LIQ_TOKEN_SCALE_FACTOR,
+            80_000 * LIQ_TOKEN_SCALE_FACTOR
+        );
+
+        uint256[3][4] memory childPoolsSetupData = [
+            [
+                85_000 * LIQ_TOKEN_SCALE_FACTOR,
+                140_000 * LIQ_TOKEN_SCALE_FACTOR,
+                150_000 * LIQ_TOKEN_SCALE_FACTOR
+            ],
+            [
+                95_000 * LIQ_TOKEN_SCALE_FACTOR,
+                180_000 * LIQ_TOKEN_SCALE_FACTOR,
+                200_000 * LIQ_TOKEN_SCALE_FACTOR
+            ],
+            [
+                110_000 * LIQ_TOKEN_SCALE_FACTOR,
+                50_000 * LIQ_TOKEN_SCALE_FACTOR,
+                40_000 * LIQ_TOKEN_SCALE_FACTOR
+            ],
+            [
+                90_000 * LIQ_TOKEN_SCALE_FACTOR,
+                70_000 * LIQ_TOKEN_SCALE_FACTOR,
+                90_000 * LIQ_TOKEN_SCALE_FACTOR
+            ]
+        ];
+
+        for (uint256 i; i < _getChildPoolsChainSelectors().length; ++i) {
+            s_parentPool.exposed_setChildPoolSnapshot(
+                _getChildPoolsChainSelectors()[i],
+                _getChildPoolSnapshot(
+                    childPoolsSetupData[i][0],
+                    childPoolsSetupData[i][1],
+                    childPoolsSetupData[i][2]
+                )
+            );
+            s_parentPool.exposed_setChildPoolTargetBalance(
+                _getChildPoolsChainSelectors()[i],
+                defaultTargetBalance
+            );
+        }
+
+        uint256 remainingAmount = 10_000 * LIQ_TOKEN_SCALE_FACTOR;
+        uint256 amountToWithdrawPerUser = remainingAmount /
+            s_parentPool.getTargetWithdrawalQueueLength();
+        _fillDepositWithdrawalQueue(0, amountToWithdrawPerUser);
+
+        vm.prank(s_lancaKeeper);
+        s_parentPool.triggerDepositWithdrawProcess();
+
+        uint256[4] memory childPoolsExpectedTargetBalances = [
+            (103782081134 * LIQ_TOKEN_SCALE_FACTOR) / 1000000,
+            (109855245930 * LIQ_TOKEN_SCALE_FACTOR) / 1000000,
+            (89251999482 * LIQ_TOKEN_SCALE_FACTOR) / 1000000,
+            (99164166327 * LIQ_TOKEN_SCALE_FACTOR) / 1000000
+        ];
+
+        for (uint256 i; i < _getChildPoolsChainSelectors().length; ++i) {
+            assertEq(
+                s_parentPool.exposed_getChildPoolTargetBalance(_getChildPoolsChainSelectors()[i]),
+                childPoolsExpectedTargetBalances[i]
+            );
+        }
+
+        uint256 expectedParentPoolTargetBalance = (97827781377 * LIQ_TOKEN_SCALE_FACTOR) / 1000000;
+        assertEq(s_parentPool.getTargetBalance(), expectedParentPoolTargetBalance);
+    }
 }

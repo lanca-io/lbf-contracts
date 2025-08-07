@@ -16,6 +16,8 @@ import {IParentPool} from "../../../contracts/ParentPool/interfaces/IParentPool.
 import {Vm} from "forge-std/src/Vm.sol";
 import {IPoolBase} from "../../../contracts/PoolBase/interfaces/IPoolBase.sol";
 
+import "forge-std/src/console.sol";
+
 abstract contract ParentPoolBase is LancaTest {
     uint16 internal constant DEFAULT_TARGET_QUEUE_LENGTH = 5;
     uint32 internal constant NOW_TIMESTAMP = 1754300013;
@@ -119,6 +121,7 @@ abstract contract ParentPoolBase is LancaTest {
         vm.startPrank(deployer);
         s_parentPool.setTargetDepositQueueLength(DEFAULT_TARGET_QUEUE_LENGTH);
         s_parentPool.setTargetWithdrawalQueueLength(DEFAULT_TARGET_QUEUE_LENGTH);
+
         vm.stopPrank();
     }
 
@@ -205,7 +208,6 @@ abstract contract ParentPoolBase is LancaTest {
 
     function _setTargetBalanceCalculationVars() internal {
         vm.startPrank(deployer);
-        s_parentPool.setTargetWithdrawalQueueLength(0);
         s_parentPool.setLurScoreSensitivity(uint64(5 * LIQ_TOKEN_SCALE_FACTOR));
         s_parentPool.setScoresWeights(
             uint64((7 * LIQ_TOKEN_SCALE_FACTOR) / 10),
@@ -219,5 +221,10 @@ abstract contract ParentPoolBase is LancaTest {
     function _mintUsdc(address receiver, uint256 amount) internal {
         vm.prank(deployer);
         MockERC20(address(usdc)).mint(receiver, amount);
+    }
+
+    function _mintLpToken(address receiver, uint256 amount) internal {
+        vm.prank(address(s_parentPool));
+        lpToken.mint(receiver, amount);
     }
 }
