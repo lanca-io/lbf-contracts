@@ -372,7 +372,7 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer {
                         and being used a second time */
                 delete s_parentPool.childPoolsSubmissions[chainSelectors[i]].timestamp;
             } else {
-                pbs.poolBase().targetBalance += targetBalances[i];
+                pbs.poolBase().targetBalance = targetBalances[i];
             }
         }
     }
@@ -451,14 +451,11 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer {
             tagetBalance = s_parentPool.childPoolTargetBalances[childPoolChainSelectors[i]];
             targetBalancesSum += tagetBalance;
 
-            weights[i] = tagetBalance < i_minTargetBalance
-                ? (i_minTargetBalance)
-                : (tagetBalance * _calculateLiquidityHealthScore(dailyFlow, tagetBalance)) /
-                    i_liquidityTokenScaleFactor;
+            weights[i] = _calculatePoolWeight(tagetBalance, dailyFlow);
             totalWeight += weights[i];
         }
 
-        weights[weights.length - 1] = _calculateParentPoolTargetBalanceWeight();
+        weights[weights.length - 1] = _calculatePoolWeight(getTargetBalance(), getYesterdayFlow());
         totalWeight += weights[weights.length - 1];
 
         uint256[] memory newTargetBalances = new uint256[](chainSelectors.length);
@@ -531,13 +528,15 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer {
         return (weight * totalLbfBalance) / totalWeight;
     }
 
-    function _calculateParentPoolTargetBalanceWeight() internal view returns (uint256) {
-        uint256 targetBalance = getTargetBalance();
+    function _calculatePoolWeight(
+        uint256 prevTargetBalance,
+        LiqTokenDailyFlow memory dailyFlow
+    ) internal view returns (uint256) {
         return
-            targetBalance < i_minTargetBalance
+            prevTargetBalance < i_minTargetBalance
                 ? (i_minTargetBalance)
-                : (targetBalance *
-                    _calculateLiquidityHealthScore(getYesterdayFlow(), targetBalance)) /
+                : (prevTargetBalance *
+                    _calculateLiquidityHealthScore(dailyFlow, prevTargetBalance)) /
                     i_liquidityTokenScaleFactor;
     }
 

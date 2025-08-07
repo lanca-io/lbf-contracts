@@ -138,7 +138,9 @@ contract ParentPoolDepositWithdrawalTest is ParentPoolBase {
             );
         }
 
-        uint256 expectedParentPoolTargetBalance = (197851016227 * LIQ_TOKEN_SCALE_FACTOR) / 1000000;
+        uint256 expectedParentPoolTargetBalance = (97851016227 * LIQ_TOKEN_SCALE_FACTOR) / 1000000;
         assertEq(s_parentPool.getTargetBalance(), expectedParentPoolTargetBalance);
     }
+
+    function test_processPendingWithdrawals() public {}
 }
