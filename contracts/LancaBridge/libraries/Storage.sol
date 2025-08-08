@@ -2,23 +2,12 @@
 pragma solidity ^0.8.28;
 
 library Namespaces {
-    bytes32 internal constant NON_REENTRANT =
-        keccak256(
-            abi.encode(
-                uint256(keccak256(abi.encodePacked("lanca.bridge.nonreentrant.storage"))) - 1
-            )
-        ) & ~bytes32(uint256(0xff));
-
     bytes32 internal constant BRIDGE_NAMESPACE =
         keccak256(abi.encode(uint256(keccak256(abi.encodePacked("lanca.bridge.storage"))) - 1)) &
             ~bytes32(uint256(0xff));
 }
 
 library Storage {
-    struct NonReentrant {
-        uint256 status;
-    }
-
     struct Bridge {
         uint256 totalSent;
         uint256 totalReceived;
@@ -28,13 +17,6 @@ library Storage {
 
     function bridge() internal pure returns (Bridge storage s) {
         bytes32 slot = Namespaces.BRIDGE_NAMESPACE;
-        assembly {
-            s.slot := slot
-        }
-    }
-
-    function nonReentrant() internal pure returns (NonReentrant storage s) {
-        bytes32 slot = Namespaces.NON_REENTRANT;
         assembly {
             s.slot := slot
         }
