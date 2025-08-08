@@ -16,6 +16,8 @@ library Storage {
         address lancaKeeper;
         mapping(uint32 timestamp => IBase.LiqTokenDailyFlow flow) flowByDay;
         mapping(uint24 chainSelector => address dstPool) dstPools;
+        uint256 totalLiqTokenSent;
+        uint256 totalLiqTokenReceived;
     }
 
     /* SLOT-BASED STORAGE ACCESS */

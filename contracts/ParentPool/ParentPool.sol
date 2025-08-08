@@ -22,10 +22,15 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
     using pbs for pbs.Base;
     using SafeERC20 for IERC20;
 
+    error ChildPoolSnapshotsAreNotReady();
+    error InvalidLiqTokenDecimals();
+    error InvalidScoreWeights();
+    error InvalidLurScoreSensitivity();
+
     uint32 internal constant UPDATE_TARGET_BALANCE_MESSAGE_GAS_LIMIT = 100_000;
 
     LPToken internal immutable i_lpToken;
-    uint8 private immutable i_lpTokenDecimals;
+    uint256 internal immutable i_liquidityTokenScaleFactor;
     uint256 internal immutable i_minTargetBalance;
 
     constructor(
@@ -41,11 +46,10 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
         Rebalancer()
     {
         i_lpToken = LPToken(lpToken);
-        i_lpTokenDecimals = i_lpToken.decimals();
-        // todo: move it to only one var
-        require(i_lpTokenDecimals == liquidityTokenDecimals, InvalidLiqTokenDecimals());
+        require(i_lpToken.decimals() == liquidityTokenDecimals, InvalidLiqTokenDecimals());
 
         i_minTargetBalance = minTargetBalance;
+        i_liquidityTokenScaleFactor = 10 ** liquidityTokenDecimals;
     }
 
     receive() external payable {}
@@ -176,6 +180,10 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
         return s.parentPool().targetWithdrawalQueueLength;
     }
 
+    function getPendingWithdrawalIds() public view returns (bytes32[] memory) {
+        return s.parentPool().pendingWithdrawalIds;
+    }
+
     function triggerDepositWithdrawProcess() external onlyLancaKeeper {
         require(areQueuesFull(), QueuesAreNotFull());
 
@@ -222,12 +230,12 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
                 (conceroFee + rebalanceFee);
 
             IERC20(i_liquidityToken).safeTransfer(pendingWithdrawal.lp, amountToWithdrawWithFee);
-            totalLiquidityTokenAmountToWithdraw += amountToWithdrawWithFee;
+            totalLiquidityTokenAmountToWithdraw += pendingWithdrawal.liqTokenAmountToWithdraw;
             totalLancaFee += conceroFee;
             totalRebalanceFee += rebalanceFee;
         }
 
-        /* @dev do not clear this array in a loop because
+        /* @dev do not clear this array before a loop because
                 clearing it will affect getWithdrawalFee() */
         delete s_parentPool.pendingWithdrawalIds;
 
@@ -261,6 +269,24 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
         }
 
         s_parentPool.supportedChainSelectors.push(chainSelector);
+    }
+
+    function setLurScoreSensitivity(uint64 lurScoreSensitivity) external onlyOwner {
+        require(
+            (lurScoreSensitivity > i_liquidityTokenScaleFactor) &&
+                (lurScoreSensitivity < (10 * i_liquidityTokenScaleFactor)),
+            InvalidLurScoreSensitivity()
+        );
+        s.parentPool().lurScoreSensitivity = lurScoreSensitivity;
+    }
+
+    function setScoresWeights(uint64 lurScoreWeight, uint64 ndrScoreWeight) external onlyOwner {
+        require(
+            lurScoreWeight + ndrScoreWeight == i_liquidityTokenScaleFactor,
+            InvalidScoreWeights()
+        );
+        s.parentPool().lurScoreWeight = lurScoreWeight;
+        s.parentPool().ndrScoreWeight = ndrScoreWeight;
     }
 
     /*   INTERNAL FUNCTIONS   */
@@ -348,23 +374,22 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
             // @dev check if it is child pool chain selector
             if (chainSelectors[i] != i_chainSelector) {
                 _updateChildPoolTargetBalance(chainSelectors[i], targetBalances[i]);
-
                 /* @dev we only delete the timestamp because
                         that is enough to prevent it from passing
                         _isChildPoolSnapshotTimestampInRange(snapshotTimestamp)
                         and being used a second time */
                 delete s_parentPool.childPoolSnapshots[chainSelectors[i]].timestamp;
             } else {
-                pbs.base().targetBalance += targetBalances[i];
+                pbs.base().targetBalance = targetBalances[i];
             }
         }
     }
 
     function _processOutflow(uint256 totalLbfBalance, uint256 totalRequested) internal {
+        s.ParentPool storage s_parentPool = s.parentPool();
         uint256 surplus = getSurplus();
         uint256 coveredBySurplus = surplus >= totalRequested ? totalRequested : surplus;
-
-        s.ParentPool storage s_parentPool = s.parentPool();
+        s_parentPool.totalWithdrawalAmountLocked += coveredBySurplus;
 
         (
             uint24[] memory chainSelectors,
@@ -388,7 +413,7 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
                 s_parentPool.remainingWithdrawalAmount = remaining;
                 s_parentPool.minParentPoolTargetBalance = targetBalances[i];
 
-                pbs.base().targetBalance += remaining;
+                pbs.base().targetBalance = targetBalances[i] + remaining;
             }
         }
     }
@@ -434,13 +459,11 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
             tagetBalance = s_parentPool.childPoolTargetBalances[childPoolChainSelectors[i]];
             targetBalancesSum += tagetBalance;
 
-            weights[i] = tagetBalance < i_minTargetBalance
-                ? (i_minTargetBalance)
-                : tagetBalance * _calculateLiquidityHealthScore(dailyFlow, tagetBalance);
+            weights[i] = _calculatePoolWeight(tagetBalance, dailyFlow);
             totalWeight += weights[i];
         }
 
-        weights[weights.length - 1] = _calculateParentPoolTargetBalanceWeight();
+        weights[weights.length - 1] = _calculatePoolWeight(getTargetBalance(), getYesterdayFlow());
         totalWeight += weights[weights.length - 1];
 
         uint256[] memory newTargetBalances = new uint256[](chainSelectors.length);
@@ -460,43 +483,49 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
         uint256 inflow,
         uint256 outflow,
         uint256 tagetBalance
-    ) internal view returns (uint8) {
-        if (tagetBalance == 0) return 1;
-        uint256 lur = (inflow + outflow) / tagetBalance;
-        return uint8(1 - (lur / (s.parentPool().lhsCalculationFactors.lurScoreSensitivity + lur)));
+    ) internal view returns (uint256) {
+        if (tagetBalance == 0) return i_liquidityTokenScaleFactor;
+
+        uint256 lur = ((inflow + outflow) * i_liquidityTokenScaleFactor) / tagetBalance;
+
+        return
+            i_liquidityTokenScaleFactor -
+            ((lur * i_liquidityTokenScaleFactor) / (s.parentPool().lurScoreSensitivity + lur));
     }
 
     function _calculateNetDrainRateScore(
         uint256 inflow,
         uint256 outflow,
         uint256 tagetBalance
-    ) internal pure returns (uint8) {
-        if (inflow >= outflow || tagetBalance == 0) return 1;
+    ) internal view returns (uint256) {
+        if (inflow >= outflow || tagetBalance == 0) return i_liquidityTokenScaleFactor;
 
-        uint256 ndr = (outflow - inflow) / tagetBalance;
-        return uint8(1 - ndr);
+        uint256 ndr = ((outflow - inflow) * i_liquidityTokenScaleFactor) / tagetBalance;
+        return i_liquidityTokenScaleFactor - ndr;
     }
 
     function _calculateLiquidityHealthScore(
         LiqTokenDailyFlow memory dailyFlow,
         uint256 tagetBalance
-    ) internal view returns (uint8) {
-        uint8 lurScore = _calculateLiquidityUtilisationRatioScore(
+    ) internal view returns (uint256) {
+        uint256 lurScore = _calculateLiquidityUtilisationRatioScore(
             dailyFlow.inflow,
             dailyFlow.outflow,
             tagetBalance
         );
-        uint8 ndrScore = _calculateNetDrainRateScore(
+
+        uint256 ndrScore = _calculateNetDrainRateScore(
             dailyFlow.inflow,
             dailyFlow.outflow,
             tagetBalance
         );
+
         s.ParentPool storage s_parentPool = s.parentPool();
 
-        uint8 lhs = (s_parentPool.lhsCalculationFactors.lurScoreWeight * lurScore) +
-            (s_parentPool.lhsCalculationFactors.ndrScoreWeight * ndrScore);
+        uint256 lhs = ((s_parentPool.lurScoreWeight * lurScore) +
+            (s_parentPool.ndrScoreWeight * ndrScore)) / i_liquidityTokenScaleFactor;
 
-        return 1 + (1 - lhs);
+        return i_liquidityTokenScaleFactor + (i_liquidityTokenScaleFactor - lhs);
     }
 
     function _calculateTargetBalance(
@@ -507,12 +536,16 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
         return (weight * totalLbfBalance) / totalWeight;
     }
 
-    function _calculateParentPoolTargetBalanceWeight() internal view returns (uint256) {
-        uint256 targetBalance = getTargetBalance();
+    function _calculatePoolWeight(
+        uint256 prevTargetBalance,
+        LiqTokenDailyFlow memory dailyFlow
+    ) internal view returns (uint256) {
         return
-            targetBalance < i_minTargetBalance
+            prevTargetBalance < i_minTargetBalance
                 ? (i_minTargetBalance)
-                : targetBalance * _calculateLiquidityHealthScore(getYesterdayFlow(), targetBalance);
+                : (prevTargetBalance *
+                    _calculateLiquidityHealthScore(dailyFlow, prevTargetBalance)) /
+                    i_liquidityTokenScaleFactor;
     }
 
     function _updateChildPoolTargetBalance(
@@ -581,12 +614,15 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
     function _getTotalLbfBalance() internal view returns (bool, uint256) {
         s.ParentPool storage s_parentPool = s.parentPool();
         rs.Rebalancer storage s_rebalancer = rs.rebalancer();
+        pbs.PoolBase storage s_poolBase = pbs.poolBase();
 
         uint24[] memory supportedChainSelectors = s_parentPool.supportedChainSelectors;
         uint256 totalPoolsBalance = getActiveBalance();
         uint256 totalIouSent = s_rebalancer.totalIouSent;
         uint256 totalIouReceived = s_rebalancer.totalIouReceived;
         uint256 iouTotalSupply = i_iouToken.totalSupply();
+        uint256 totalLiqTokenSent = s_poolBase.totalLiqTokenSent;
+        uint256 totalLiqTokenReceived = s_poolBase.totalLiqTokenReceived;
 
         for (uint256 i; i < supportedChainSelectors.length; ++i) {
             uint32 snapshotTimestamp = s_parentPool
@@ -607,10 +643,17 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
             iouTotalSupply += s_parentPool
                 .childPoolSnapshots[supportedChainSelectors[i]]
                 .iouTotalSupply;
+            totalLiqTokenSent += s_parentPool
+                .childPoolSnapshots[supportedChainSelectors[i]]
+                .totalLiqTokenSent;
+            totalLiqTokenReceived += s_parentPool
+                .childPoolSnapshots[supportedChainSelectors[i]]
+                .totalLiqTokenReceived;
         }
 
         uint256 iouOnTheWay = totalIouSent - totalIouReceived;
+        uint256 liqTokenOnTheWay = totalLiqTokenSent - totalLiqTokenReceived;
 
-        return (true, totalPoolsBalance - (iouTotalSupply + iouOnTheWay));
+        return (true, totalPoolsBalance - (liqTokenOnTheWay + iouTotalSupply + iouOnTheWay));
     }
 }
