@@ -41,6 +41,25 @@ contract ParentPoolHarness is ParentPool {
         return s.parentPool().childPoolSnapshots[chainSelector];
     }
 
+    function exposed_getSentNonce(uint24 dstChainSelector) external view returns (uint256) {
+        return bs.bridge().sentNonces[dstChainSelector];
+    }
+
+    function exposed_getTotalSent() external view returns (uint256) {
+        return bs.bridge().totalSent;
+    }
+
+    function exposed_getTotalReceived() external view returns (uint256) {
+        return bs.bridge().totalReceived;
+    }
+
+    function exposed_getReceivedBridgeAmount(
+        uint24 srcChainSelector,
+        uint256 nonce
+    ) external view returns (uint256) {
+        return bs.bridge().receivedBridges[srcChainSelector][nonce];
+    }
+
     /* SETTERS */
 
     function exposed_setChildPoolSnapshot(
@@ -56,25 +75,6 @@ contract ParentPoolHarness is ParentPool {
 
     function exposed_setChildPoolTargetBalance(uint24 chainSelector, uint256 targetBalance) public {
         s.parentPool().childPoolTargetBalances[chainSelector] = targetBalance;
-    }
-
-    function getSentNonce(uint24 dstChainSelector) external view returns (uint256) {
-        return bs.bridge().sentNonces[dstChainSelector];
-    }
-
-    function getTotalSent() external view returns (uint256) {
-        return bs.bridge().totalSent;
-    }
-
-    function getTotalReceived() external view returns (uint256) {
-        return bs.bridge().totalReceived;
-    }
-
-    function getReceivedBridgeAmount(
-        uint24 srcChainSelector,
-        uint256 nonce
-    ) external view returns (uint256) {
-        return bs.bridge().receivedBridges[srcChainSelector][nonce];
     }
 
     function exposed_setYesterdayFlow(uint256 inflow, uint256 outflow) public {
