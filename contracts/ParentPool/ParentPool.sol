@@ -231,7 +231,7 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer {
             totalRebalanceFee += rebalanceFee;
         }
 
-        /* @dev do not clear this array in a loop because
+        /* @dev do not clear this array before a loop because
                 clearing it will affect getWithdrawalFee() */
         delete s_parentPool.pendingWithdrawalIds;
 
