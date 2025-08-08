@@ -15,6 +15,8 @@ import {Storage as pbs} from "../PoolBase/libraries/Storage.sol";
 import {Storage as rs} from "../Rebalancer/libraries/Storage.sol";
 import {Storage as s} from "./libraries/Storage.sol";
 
+import "forge-std/src/console.sol";
+
 contract ParentPool is IParentPool, ILancaKeeper, Rebalancer {
     using s for s.ParentPool;
     using rs for rs.Rebalancer;
@@ -173,6 +175,10 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer {
         return s.parentPool().targetWithdrawalQueueLength;
     }
 
+    function getPendingWithdrawalIds() public view returns (bytes32[] memory) {
+        return s.parentPool().pendingWithdrawalIds;
+    }
+
     function triggerDepositWithdrawProcess() external onlyLancaKeeper {
         require(areQueuesFull(), QueuesAreNotFull());
 
@@ -220,7 +226,7 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer {
                 (conceroFee + rebalanceFee);
 
             IERC20(i_liquidityToken).safeTransfer(pendingWithdrawal.lp, amountToWithdrawWithFee);
-            totalLiquidityTokenAmountToWithdraw += amountToWithdrawWithFee;
+            totalLiquidityTokenAmountToWithdraw += pendingWithdrawal.liqTokenAmountToWithdraw;
             totalLancaFee += conceroFee;
             totalRebalanceFee += rebalanceFee;
         }

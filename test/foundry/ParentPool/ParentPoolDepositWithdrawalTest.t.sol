@@ -95,6 +95,10 @@ contract ParentPoolDepositWithdrawalTest is ParentPoolBase {
         vm.prank(deployer);
         s_parentPool.setTargetDepositQueueLength(0);
 
+        uint256 userLiqTokenBalanceBefore = usdc.balanceOf(user);
+
+        assertEq(s_parentPool.isReadyToProcessPendingWithdrawals(), false);
+
         uint256 lpUserBalance = 500_000 * LIQ_TOKEN_SCALE_FACTOR;
         _mintLpToken(user, lpUserBalance);
 
@@ -118,6 +122,7 @@ contract ParentPoolDepositWithdrawalTest is ParentPoolBase {
             (89251999482 * LIQ_TOKEN_SCALE_FACTOR) / 1000000,
             (99164166327 * LIQ_TOKEN_SCALE_FACTOR) / 1000000
         ];
+        uint256 expectedParentPoolTargetBalance = (97827781377 * LIQ_TOKEN_SCALE_FACTOR) / 1000000;
 
         for (uint256 i; i < _getChildPoolsChainSelectors().length; ++i) {
             assertEq(
@@ -126,7 +131,41 @@ contract ParentPoolDepositWithdrawalTest is ParentPoolBase {
             );
         }
 
-        uint256 expectedParentPoolTargetBalance = (97827781377 * LIQ_TOKEN_SCALE_FACTOR) / 1000000;
         assertEq(s_parentPool.getTargetBalance(), expectedParentPoolTargetBalance);
+        assertEq(s_parentPool.isReadyToProcessPendingWithdrawals(), true);
+
+        vm.prank(s_lancaKeeper);
+        s_parentPool.processPendingWithdrawals();
+
+        uint256 userLiqTokenBalanceAfter = usdc.balanceOf(user);
+
+        assertEq(userLiqTokenBalanceAfter - userLiqTokenBalanceBefore, 10117713876);
+        assertEq(s_parentPool.isReadyToProcessPendingWithdrawals(), false);
+        assertEq(s_parentPool.getPendingWithdrawalIds().length, 0);
+    }
+
+    function test_calculateLpTokenAmountInEmptyPool() public {
+        vm.startPrank(deployer);
+        s_parentPool.setTargetDepositQueueLength(1);
+        s_parentPool.setTargetWithdrawalQueueLength(0);
+        vm.stopPrank();
+
+        _fillChildPoolSnapshots();
+
+        uint256 lpTokenBalanceBefore = lpToken.balanceOf(user);
+        uint256 amountToDeposit = 100 * LIQ_TOKEN_SCALE_FACTOR;
+
+        vm.prank(user);
+        s_parentPool.enterDepositQueue(amountToDeposit);
+
+        vm.prank(s_lancaKeeper);
+        s_parentPool.triggerDepositWithdrawProcess();
+
+        uint256 lpTokenBalanceAfter = lpToken.balanceOf(user);
+
+        assertEq(
+            lpTokenBalanceAfter - lpTokenBalanceBefore,
+            amountToDeposit - s_parentPool.getRebalancerFee(amountToDeposit)
+        );
     }
 }
