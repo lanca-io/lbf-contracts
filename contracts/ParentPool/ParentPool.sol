@@ -389,7 +389,6 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
         s.ParentPool storage s_parentPool = s.parentPool();
         uint256 surplus = getSurplus();
         uint256 coveredBySurplus = surplus >= totalRequested ? totalRequested : surplus;
-        s_parentPool.totalWithdrawalAmountLocked += coveredBySurplus;
 
         (
             uint24[] memory chainSelectors,
@@ -614,7 +613,7 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
     function _getTotalLbfBalance() internal view returns (bool, uint256) {
         s.ParentPool storage s_parentPool = s.parentPool();
         rs.Rebalancer storage s_rebalancer = rs.rebalancer();
-        pbs.PoolBase storage s_poolBase = pbs.poolBase();
+        pbs.Base storage s_poolBase = pbs.base();
 
         uint24[] memory supportedChainSelectors = s_parentPool.supportedChainSelectors;
         uint256 totalPoolsBalance = getActiveBalance();

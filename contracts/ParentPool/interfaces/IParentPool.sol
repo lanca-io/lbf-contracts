@@ -35,8 +35,6 @@ interface IParentPool {
     error DepositQueueIsFull();
     error WithdrawalQueueIsFull();
     error QueuesAreNotFull();
-    error ChildPoolSnapshotsAreNotReady();
-    error InvalidLiqTokenDecimals();
 
     event DepositQueued(bytes32 indexed depositId, address indexed lp, uint256 amount);
     event WithdrawalQueued(bytes32 indexed withdrawId, address indexed lp, uint256 liqTokenAmount);

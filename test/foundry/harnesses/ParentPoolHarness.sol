@@ -78,7 +78,7 @@ contract ParentPoolHarness is ParentPool {
     }
 
     function exposed_setYesterdayFlow(uint256 inflow, uint256 outflow) public {
-        pbs.poolBase().flowByDay[getYesterdayStartTimestamp()].inflow = inflow;
-        pbs.poolBase().flowByDay[getYesterdayStartTimestamp()].outflow = outflow;
+        pbs.base().flowByDay[getYesterdayStartTimestamp()].inflow = inflow;
+        pbs.base().flowByDay[getYesterdayStartTimestamp()].outflow = outflow;
     }
 }

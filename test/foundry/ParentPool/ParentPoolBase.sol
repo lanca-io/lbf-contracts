@@ -172,8 +172,8 @@ abstract contract ParentPoolBase is LancaTest {
         uint256 balance,
         uint256 dailyInflow,
         uint256 dailyOutflow
-    ) internal pure returns (IParentPool.SnapshotSubmission memory) {
-        IParentPool.SnapshotSubmission memory snapshot = _getChildPoolSnapshot();
+    ) internal pure returns (IParentPool.ChildPoolSnapshot memory) {
+        IParentPool.ChildPoolSnapshot memory snapshot = _getChildPoolSnapshot();
         snapshot.balance = balance;
         snapshot.dailyFlow.inflow = dailyInflow;
         snapshot.dailyFlow.outflow = dailyOutflow;
@@ -181,7 +181,7 @@ abstract contract ParentPoolBase is LancaTest {
         return snapshot;
     }
 
-    function _getChildPoolSnapshot() internal pure returns (IParentPool.SnapshotSubmission memory) {
+    function _getChildPoolSnapshot() internal pure returns (IParentPool.ChildPoolSnapshot memory) {
         return
             IParentPool.ChildPoolSnapshot({
                 timestamp: NOW_TIMESTAMP,

@@ -2,7 +2,7 @@
 pragma solidity 0.8.28;
 
 import {ParentPoolBase} from "./ParentPoolBase.sol";
-import {IPoolBase} from "../../../contracts/PoolBase/interfaces/IPoolBase.sol";
+import {IBase} from "../../../contracts/Base/interfaces/IBase.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IParentPool} from "../../../contracts/ParentPool/interfaces/IParentPool.sol";
 
