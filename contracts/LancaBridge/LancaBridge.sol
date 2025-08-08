@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.28;
 
+import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
@@ -9,7 +10,6 @@ import {
     IConceroRouter
 } from "@concero/v2-contracts/contracts/interfaces/IConceroRouter.sol";
 
-import {ReentrancyGuard} from "./ReentrancyGuard.sol";
 import {ILancaBridge} from "./interfaces/ILancaBridge.sol";
 import {Base, IERC20} from "../Base/Base.sol";
 import {ICommonErrors} from "../common/interfaces/ICommonErrors.sol";
