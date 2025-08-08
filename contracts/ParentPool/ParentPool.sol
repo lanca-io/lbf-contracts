@@ -370,7 +370,6 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer {
             // @dev check if it is child pool chain selector
             if (chainSelectors[i] != i_chainSelector) {
                 _updateChildPoolTargetBalance(chainSelectors[i], targetBalances[i]);
-
                 /* @dev we only delete the timestamp because
                         that is enough to prevent it from passing
                         _isChildPoolSnapshotTimestampInRange(snapshotTimestamp)

@@ -102,9 +102,11 @@ abstract contract ParentPoolBase is LancaTest {
     }
 
     function _enterDepositQueue(address depositor, uint256 amount) internal returns (bytes32) {
-        vm.prank(depositor);
+        vm.startPrank(depositor);
+        usdc.approve(address(s_parentPool), amount);
         vm.recordLogs();
         s_parentPool.enterDepositQueue(amount);
+        vm.stopPrank();
         Vm.Log[] memory entries = vm.getRecordedLogs();
         return entries[entries.length - 1].topics[1];
     }

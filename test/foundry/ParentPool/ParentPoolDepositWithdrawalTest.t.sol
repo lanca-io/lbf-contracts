@@ -168,4 +168,41 @@ contract ParentPoolDepositWithdrawalTest is ParentPoolBase {
             amountToDeposit - s_parentPool.getRebalancerFee(amountToDeposit)
         );
     }
+
+    function test_calculateLpTokenAmountDepositQueueInEmptyPool() public {
+        vm.startPrank(deployer);
+        s_parentPool.setTargetDepositQueueLength(3);
+        s_parentPool.setTargetWithdrawalQueueLength(0);
+        vm.stopPrank();
+
+        _fillChildPoolSnapshots();
+
+        uint256 amountToWithdraw = 100 * LIQ_TOKEN_SCALE_FACTOR;
+
+        address[3] memory users = [makeAddr("user1"), makeAddr("user2"), makeAddr("user3")];
+        uint256[3] memory balancesBefore = [uint256(0), uint256(0), uint256(0)];
+
+        for (uint256 i; i < users.length; ++i) {
+            _mintUsdc(users[i], amountToWithdraw);
+            balancesBefore[i] = usdc.balanceOf(users[i]);
+            _enterDepositQueue(users[i], amountToWithdraw);
+        }
+
+        vm.prank(s_lancaKeeper);
+        s_parentPool.triggerDepositWithdrawProcess();
+
+        uint256[3] memory balancesAfter = [uint256(0), uint256(0), uint256(0)];
+
+        for (uint256 i; i < users.length; ++i) {
+            assertEq(balancesBefore[i] - usdc.balanceOf(users[i]), amountToWithdraw);
+            assertEq(
+                lpToken.balanceOf(users[i]),
+                amountToWithdraw - s_parentPool.getRebalancerFee(amountToWithdraw)
+            );
+        }
+        assertEq(
+            lpToken.totalSupply(),
+            (amountToWithdraw - s_parentPool.getRebalancerFee(amountToWithdraw)) * users.length
+        );
+    }
 }
