@@ -55,7 +55,7 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
     receive() external payable {}
 
     function enterDepositQueue(uint256 liquidityTokenAmount) external {
-        require(liquidityTokenAmount > 0, ICommonErrors.InvalidAmount());
+        require(liquidityTokenAmount > 0, ICommonErrors.AmountIsZero());
 
         s.ParentPool storage s_parentPool = s.parentPool();
         require(
@@ -81,7 +81,7 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
     }
 
     function enterWithdrawQueue(uint256 lpTokenAmount) external {
-        require(lpTokenAmount > 0, ICommonErrors.InvalidAmount());
+        require(lpTokenAmount > 0, ICommonErrors.AmountIsZero());
 
         s.ParentPool storage s_parentPool = s.parentPool();
 

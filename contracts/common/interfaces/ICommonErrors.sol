@@ -9,7 +9,7 @@ interface ICommonErrors {
     error InvalidDstChainSelector(uint24 dstChainSelector);
     error InvalidChainSelector();
     error AddressShouldNotBeZero();
-    error AmountIsToLow();
+    error AmountIsZero();
     error LengthMismatch();
     error EmptyArray();
 }
