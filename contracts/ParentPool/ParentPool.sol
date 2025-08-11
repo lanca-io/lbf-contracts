@@ -285,8 +285,11 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
             lurScoreWeight + ndrScoreWeight == i_liquidityTokenScaleFactor,
             InvalidScoreWeights()
         );
-        s.parentPool().lurScoreWeight = lurScoreWeight;
-        s.parentPool().ndrScoreWeight = ndrScoreWeight;
+
+        s.ParentPool storage s_parentPool = s.parentPool();
+
+        s_parentPool.lurScoreWeight = lurScoreWeight;
+        s_parentPool.ndrScoreWeight = ndrScoreWeight;
     }
 
     /*   INTERNAL FUNCTIONS   */
