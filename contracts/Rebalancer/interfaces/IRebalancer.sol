@@ -2,13 +2,13 @@
 pragma solidity ^0.8.28;
 
 interface IRebalancer {
-    event DeficitFilled(uint256 amount, uint256 iouAmount);
-    event SurplusTaken(uint256 amount, uint256 iouAmount);
+    event DeficitFilled(address indexed rebalancer, uint256 liqTokenAmount);
+    event SurplusTaken(address indexed rebalancer, uint256 liqTokenAmount, uint256 iouTokenAmount);
     event IOUBridged(
-        address indexed sender,
-        uint24 indexed dstChainSelector,
-        uint256 amount,
-        bytes32 messageId
+        bytes32 indexed messageId,
+        address sender,
+        uint24 dstChainSelector,
+        uint256 amount
     );
     event IOUReceived(
         bytes32 indexed messageId,
@@ -23,13 +23,13 @@ interface IRebalancer {
     error ConceroSendFailed();
     error UnauthorizedSender();
     error GetMessageFeeFailed();
+    error InsufficientRebalancingFee(uint256 totalRebalancingFee, uint256 rebalancerFee);
 
     /**
      * @notice Fills the deficit by providing liquidity token to the pool
      * @param amount Amount of liquidity token to provide
-     * @return iouAmount Amount of IOU tokens received
      */
-    function fillDeficit(uint256 amount) external returns (uint256 iouAmount);
+    function fillDeficit(uint256 amount) external;
 
     /**
      * @notice Takes surplus from the pool by providing IOU tokens
@@ -62,7 +62,7 @@ interface IRebalancer {
      * @param gasLimit Gas limit for the cross-chain message
      * @return fee The fee amount in native token
      */
-    function getMessageFee(
+    function getBridgeIouNativeFee(
         uint24 dstChainSelector,
         address dstPool,
         uint256 gasLimit

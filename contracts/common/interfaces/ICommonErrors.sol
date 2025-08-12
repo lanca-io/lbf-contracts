@@ -12,4 +12,5 @@ interface ICommonErrors {
     error AmountIsZero();
     error LengthMismatch();
     error EmptyArray();
+    error AddressIsZero();
 }

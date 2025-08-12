@@ -23,58 +23,51 @@ abstract contract Rebalancer is IRebalancer, Base {
 
     uint256 private constant DEFAULT_GAS_LIMIT = 300_000;
 
-    function fillDeficit(uint256 liquidityAmountToFill) external returns (uint256 iouTokensToMint) {
-        require(liquidityAmountToFill > 0, ICommonErrors.InvalidAmount());
+    function fillDeficit(uint256 liquidityAmountToFill) external {
+        require(liquidityAmountToFill > 0, ICommonErrors.AmountIsZero());
 
         uint256 deficit = getDeficit();
         require(deficit > 0, NoDeficitToFill());
 
-        // Cap the amount to the actual deficit to prevent over-filling
-        uint256 deficitFillable = liquidityAmountToFill;
-        if (deficitFillable > deficit) {
-            deficitFillable = deficit;
-        }
-
         // Safe transfer liquidity tokens from caller to the pool
-        IERC20(i_liquidityToken).safeTransferFrom(msg.sender, address(this), deficitFillable);
+        IERC20(i_liquidityToken).safeTransferFrom(msg.sender, address(this), liquidityAmountToFill);
 
-        // Calculate IOU tokens to mint with premium
-        iouTokensToMint =
-            (deficitFillable *
-                (CommonConstants.BPS_DENOMINATOR + CommonConstants.REBALANCER_PREMIUM_BPS)) /
-            CommonConstants.BPS_DENOMINATOR;
-        i_iouToken.mint(msg.sender, iouTokensToMint);
+        i_iouToken.mint(msg.sender, liquidityAmountToFill);
 
-        emit DeficitFilled(deficitFillable, iouTokensToMint);
-        return iouTokensToMint;
+        emit DeficitFilled(msg.sender, liquidityAmountToFill);
     }
 
-    function takeSurplus(
-        uint256 iouTokensToBurn
-    ) external returns (uint256 liquidityTokensToReceive) {
-        require(iouTokensToBurn > 0, ICommonErrors.InvalidAmount());
+    function takeSurplus(uint256 iouTokensToBurn) external returns (uint256) {
+        require(iouTokensToBurn > 0, ICommonErrors.AmountIsZero());
 
         uint256 currentSurplus = getSurplus();
         require(currentSurplus > 0, NoSurplusToTake());
 
-        liquidityTokensToReceive = iouTokensToBurn;
         i_iouToken.burnFrom(msg.sender, iouTokensToBurn);
+
+        uint256 rebalancerFee = getRebalancerFee(iouTokensToBurn);
+        s.Rebalancer storage s_rebalancer = s.rebalancer();
+
+        require(
+            s_rebalancer.totalRebalancingFee >= rebalancerFee,
+            InsufficientRebalancingFee(s_rebalancer.totalRebalancingFee, rebalancerFee)
+        );
+
+        s_rebalancer.totalRebalancingFee -= rebalancerFee;
+
+        uint256 liquidityTokensToReceive = iouTokensToBurn + rebalancerFee;
 
         IERC20(i_liquidityToken).safeTransfer(msg.sender, liquidityTokensToReceive);
 
-        emit SurplusTaken(liquidityTokensToReceive, iouTokensToBurn);
+        emit SurplusTaken(msg.sender, liquidityTokensToReceive, iouTokensToBurn);
         return liquidityTokensToReceive;
-    }
-
-    function getIOUToken() external view returns (address) {
-        return address(i_iouToken);
     }
 
     function bridgeIOU(
         uint256 iouTokenAmount,
         uint24 destinationChainSelector
     ) external payable returns (bytes32 messageId) {
-        require(iouTokenAmount > 0, ICommonErrors.InvalidAmount());
+        require(iouTokenAmount > 0, ICommonErrors.AmountIsZero());
 
         s.Rebalancer storage s_rebalancer = s.rebalancer();
 
@@ -106,9 +99,39 @@ abstract contract Rebalancer is IRebalancer, Base {
 
         s_rebalancer.totalIouSent += iouTokenAmount;
 
-        emit IOUBridged(msg.sender, destinationChainSelector, iouTokenAmount, messageId);
+        emit IOUBridged(messageId, msg.sender, destinationChainSelector, iouTokenAmount);
         return messageId;
     }
+
+    /* VIEW FUNCTIONS */
+
+    function getIOUToken() external view returns (address) {
+        return address(i_iouToken);
+    }
+
+    function getBridgeIouNativeFee(
+        uint24 destinationChainSelector,
+        address destinationPoolAddress,
+        uint256 gasLimitForExecution
+    ) external view returns (uint256) {
+        require(destinationPoolAddress != address(0), ICommonErrors.AddressIsZero());
+        require(gasLimitForExecution > 0, ICommonErrors.AmountIsZero());
+
+        ConceroTypes.EvmDstChainData memory destinationChainData = ConceroTypes.EvmDstChainData({
+            receiver: destinationPoolAddress,
+            gasLimit: gasLimitForExecution
+        });
+
+        return
+            IConceroRouter(i_conceroRouter).getMessageFee(
+                destinationChainSelector,
+                false,
+                address(0),
+                destinationChainData
+            );
+    }
+
+    /* INTERNAL FUNCTIONS */
 
     function _handleConceroReceiveBridgeIou(
         bytes32 messageId,
@@ -117,41 +140,10 @@ abstract contract Rebalancer is IRebalancer, Base {
     ) internal override {
         (uint256 iouTokenAmount, address receiver) = abi.decode(messageData, (uint256, address));
 
-        require(iouTokenAmount > 0, ICommonErrors.InvalidAmount());
-
         i_iouToken.mint(receiver, iouTokenAmount);
 
         s.rebalancer().totalIouReceived += iouTokenAmount;
 
         emit IOUReceived(messageId, sourceChainSelector, receiver, iouTokenAmount);
-    }
-
-    function getMessageFee(
-        uint24 destinationChainSelector,
-        address destinationPoolAddress,
-        uint256 gasLimitForExecution
-    ) external view returns (uint256 crossChainMessageFee) {
-        require(destinationPoolAddress != address(0), ICommonErrors.InvalidAmount());
-        require(gasLimitForExecution > 0, ICommonErrors.InvalidAmount());
-
-        ConceroTypes.EvmDstChainData memory destinationChainData = ConceroTypes.EvmDstChainData({
-            receiver: destinationPoolAddress,
-            gasLimit: gasLimitForExecution
-        });
-
-        // TODO: call it using interface
-        (bool success, bytes memory returnData) = i_conceroRouter.staticcall(
-            abi.encodeWithSignature(
-                "getMessageFee(uint24,bool,address,(address,uint256))",
-                destinationChainSelector,
-                false, // shouldFinaliseSrc
-                address(0), // feeToken (native)
-                destinationChainData
-            )
-        );
-
-        require(success, GetMessageFeeFailed());
-
-        return abi.decode(returnData, (uint256));
     }
 }
