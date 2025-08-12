@@ -33,6 +33,7 @@ contract ChildPool is Rebalancer, LancaBridge {
     )
         Base(liquidityToken, conceroRouter, iouToken, liquidityTokenDecimals, chainSelector)
         Rebalancer()
+        LancaBridge()
     {
         i_parentPoolChainSelector = parentPoolChainSelector;
     }
@@ -82,10 +83,11 @@ contract ChildPool is Rebalancer, LancaBridge {
         );
     }
 
-    // TODO: we have to find a way to avoid this
     function _handleConceroReceiveSnapshot(
         bytes32 messageId,
         uint24 sourceChainSelector,
         bytes memory messageData
-    ) internal override {}
+    ) internal override {
+        revert ICommonErrors.FunctionNotImplemented();
+    }
 }

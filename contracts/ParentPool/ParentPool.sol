@@ -44,6 +44,7 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
     )
         Base(liquidityToken, conceroRouter, iouToken, liquidityTokenDecimals, chainSelector)
         Rebalancer()
+        LancaBridge()
     {
         i_lpToken = LPToken(lpToken);
         require(i_lpToken.decimals() == liquidityTokenDecimals, InvalidLiqTokenDecimals());

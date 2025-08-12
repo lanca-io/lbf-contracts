@@ -109,7 +109,7 @@ abstract contract LancaBridge is ILancaBridge, Base, ReentrancyGuard {
         bytes32 messageId,
         uint24 sourceChainSelector,
         bytes memory messageData
-    ) internal override nonReentrant {
+    ) internal override(Base) nonReentrant {
         bs.Bridge storage s_bridge = bs.bridge();
 
         (

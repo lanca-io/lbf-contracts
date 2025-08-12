@@ -13,4 +13,5 @@ interface ICommonErrors {
     error LengthMismatch();
     error EmptyArray();
     error AddressIsZero();
+    error FunctionNotImplemented();
 }
