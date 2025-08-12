@@ -38,14 +38,13 @@ abstract contract LancaBridge is ILancaBridge, Base, ReentrancyGuard {
         address dstPool = s.base().dstPools[dstChainSelector];
         require(dstPool != address(0), InvalidDstPool());
 
-        uint256 tokenAmountToBridge = _chargeTotalLancaFee(tokenAmount);
+        IERC20(i_liquidityToken).safeTransferFrom(msg.sender, address(this), tokenAmount);
 
-        _postInflow(tokenAmountToBridge);
-        _deposit(msg.sender, tokenAmount);
+        uint256 amountAfterFee = _chargeTotalLancaFee(tokenAmount);
 
         messageId = _sendMessage(
             tokenReceiver,
-            tokenAmountToBridge,
+            amountAfterFee,
             dstChainSelector,
             dstGasLimit,
             s_bridge.sentNonces[dstChainSelector]++,
@@ -53,17 +52,10 @@ abstract contract LancaBridge is ILancaBridge, Base, ReentrancyGuard {
             dstPool
         );
 
-        s_bridge.totalSent += tokenAmount;
+        s_bridge.totalSent += amountAfterFee;
+        s.base().flowByDay[getTodayStartTimestamp()].inflow += amountAfterFee;
 
-        emit TokenSent(
-            messageId,
-            dstChainSelector,
-            i_liquidityToken,
-            msg.sender,
-            tokenReceiver,
-            tokenAmountToBridge,
-            dstPool
-        );
+        emit TokenSent(messageId, dstChainSelector, msg.sender, tokenReceiver, amountAfterFee);
     }
 
     /*   INTERNAL FUNCTIONS   */
@@ -84,7 +76,6 @@ abstract contract LancaBridge is ILancaBridge, Base, ReentrancyGuard {
         );
 
         bytes memory messageData = abi.encode(
-            i_liquidityToken,
             msg.sender,
             tokenReceiver,
             tokenAmount,
@@ -109,18 +100,20 @@ abstract contract LancaBridge is ILancaBridge, Base, ReentrancyGuard {
         bytes32 messageId,
         uint24 sourceChainSelector,
         bytes memory messageData
-    ) internal override(Base) nonReentrant {
+    ) internal override nonReentrant {
         bs.Bridge storage s_bridge = bs.bridge();
 
         (
-            address token,
             address tokenSender,
             address tokenReceiver,
             uint256 tokenAmount,
             uint256 dstGasLimit,
             uint256 nonce,
             bytes memory dstCallData
-        ) = _decodeMessage(messageData);
+        ) = abi.decode(messageData, (address, address, uint256, uint256, uint256, bytes));
+
+        // todo: Think about adding retry and increase _postOutflow() when balance is insufficient
+        require(getActiveBalance() >= tokenAmount, ICommonErrors.InvalidAmount());
 
         uint256 existingAmount = s_bridge.receivedBridges[sourceChainSelector][nonce];
 
@@ -128,35 +121,32 @@ abstract contract LancaBridge is ILancaBridge, Base, ReentrancyGuard {
             s_bridge.totalReceived += tokenAmount;
         } else {
             s_bridge.totalReceived = s_bridge.totalReceived - existingAmount + tokenAmount;
-            emit SrcBridgeReorged(existingAmount, tokenAmount, sourceChainSelector);
+            emit SrcBridgeReorged(sourceChainSelector, existingAmount);
         }
 
         s_bridge.receivedBridges[sourceChainSelector][nonce] = tokenAmount;
+        s.base().flowByDay[getTodayStartTimestamp()].outflow += tokenAmount;
 
-        // todo: Think about adding retry and increase _postOutflow() when balance is insufficient
-        require(getActiveBalance() >= tokenAmount, ICommonErrors.InvalidAmount());
+        bool shouldCallHook = !(dstGasLimit == 0 && dstCallData.length == 0);
 
-        _postOutflow(tokenAmount);
+        if (shouldCallHook && !_isValidContractReceiver(tokenReceiver)) {
+            revert InvalidConceroMessage();
+        }
 
-        if (dstGasLimit == 0 && dstCallData.length == 0) {
-            _bridgeReceive(token, tokenReceiver, tokenAmount);
-        } else if (_isValidContractReceiver(tokenReceiver)) {
-            _bridgeReceive(token, tokenReceiver, tokenAmount);
+        IERC20(i_liquidityToken).safeTransfer(tokenReceiver, tokenAmount);
 
+        if (shouldCallHook) {
             ILancaClient(tokenReceiver).lancaReceive{gas: dstGasLimit}(
-                token,
+                sourceChainSelector,
                 tokenSender,
                 tokenAmount,
                 dstCallData
             );
-        } else {
-            revert InvalidConceroMessage();
         }
 
         emit BridgeDelivered(
             messageId,
             sourceChainSelector,
-            token,
             tokenSender,
             tokenReceiver,
             tokenAmount
@@ -174,47 +164,17 @@ abstract contract LancaBridge is ILancaBridge, Base, ReentrancyGuard {
         return true;
     }
 
-    function _decodeMessage(
-        bytes memory messageData
-    )
-        internal
-        pure
-        returns (
-            address token,
-            address tokenSender,
-            address tokenReceiver,
-            uint256 tokenAmount,
-            uint256 dstGasLimit,
-            uint256 nonce,
-            bytes memory dstCallData
-        )
-    {
-        (token, tokenSender, tokenReceiver, tokenAmount, dstGasLimit, nonce, dstCallData) = abi
-            .decode(messageData, (address, address, address, uint256, uint256, uint256, bytes));
-    }
-
     function _chargeTotalLancaFee(uint256 tokenAmount) internal returns (uint256) {
-        uint256 lpFee = getLpFee(tokenAmount);
         uint256 bridgeFee = getBridgeFee(tokenAmount);
         uint256 rebalancerFee = getRebalancerFee(tokenAmount);
 
-        uint256 totalLancaFee = lpFee + bridgeFee + rebalancerFee;
+        uint256 totalLancaFee = getLpFee(tokenAmount) + bridgeFee + rebalancerFee;
         require(totalLancaFee > 0, ICommonErrors.InvalidFeeAmount());
 
         s.base().totalLancaFeeInLiqToken += bridgeFee;
         rs.rebalancer().totalRebalancingFee += rebalancerFee;
 
         return tokenAmount - totalLancaFee;
-    }
-
-    function _deposit(address tokenSender, uint256 tokenAmount) internal {
-        IERC20(i_liquidityToken).safeTransferFrom(tokenSender, address(this), tokenAmount);
-    }
-
-    function _bridgeReceive(address token, address tokenReceiver, uint256 tokenAmount) internal {
-        require(token == i_liquidityToken, InvalidToken());
-
-        IERC20(token).safeTransfer(tokenReceiver, tokenAmount);
     }
 
     /*   GETTERS   */

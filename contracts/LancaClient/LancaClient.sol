@@ -6,12 +6,12 @@ import {ERC165} from "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 import {ILancaClient} from "./interfaces/ILancaClient.sol";
 
 abstract contract LancaClient is ILancaClient, ERC165 {
-    error InvalidLancaPool(address pool);
+    error InvalidLancaPool();
 
     address internal immutable i_lancaPool;
 
     constructor(address lancaPool) {
-        require(lancaPool != address(0), InvalidLancaPool(lancaPool));
+        require(lancaPool != address(0), InvalidLancaPool());
         i_lancaPool = lancaPool;
     }
 
@@ -22,15 +22,20 @@ abstract contract LancaClient is ILancaClient, ERC165 {
             interfaceId == type(ILancaClient).interfaceId || super.supportsInterface(interfaceId);
     }
 
-    function lancaReceive(address token, address from, uint256 value, bytes memory data) external {
-        require(msg.sender == i_lancaPool, InvalidLancaPool(msg.sender));
-        _lancaReceive(token, from, value, data);
+    function lancaReceive(
+        uint24 srcChainSelector,
+        address from,
+        uint256 amount,
+        bytes memory data
+    ) external {
+        require(msg.sender == i_lancaPool, InvalidLancaPool());
+        _lancaReceive(srcChainSelector, from, amount, data);
     }
 
     function _lancaReceive(
-        address token,
+        uint24 srcChainSelector,
         address from,
-        uint256 value,
+        uint256 amount,
         bytes memory data
     ) internal virtual;
 }

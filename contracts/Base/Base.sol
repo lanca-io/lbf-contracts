@@ -119,11 +119,12 @@ abstract contract Base is IBase, ConceroClient, ConceroOwnable {
     ) internal override {
         s.Base storage s_base = s.base();
 
-        address remoteSender = abi.decode(sender, (address));
-
         require(
-            s_base.dstPools[sourceChainSelector] == remoteSender,
-            ICommonErrors.UnauthorizedSender(remoteSender, s_base.dstPools[sourceChainSelector])
+            s_base.dstPools[sourceChainSelector] == abi.decode(sender, (address)),
+            ICommonErrors.UnauthorizedSender(
+                abi.decode(sender, (address)),
+                s_base.dstPools[sourceChainSelector]
+            )
         );
 
         (ConceroMessageType messageType, bytes memory messageData) = abi.decode(
@@ -187,13 +188,5 @@ abstract contract Base is IBase, ConceroClient, ConceroOwnable {
 
     function getRebalancerFee(uint256 amount) public pure returns (uint256) {
         return (amount * CommonConstants.REBALANCER_PREMIUM_BPS) / CommonConstants.BPS_DENOMINATOR;
-    }
-
-    function _postInflow(uint256 inflowLiqTokenAmount) internal virtual {
-        s.base().flowByDay[getTodayStartTimestamp()].inflow += inflowLiqTokenAmount;
-    }
-
-    function _postOutflow(uint256 outflowLiqTokenAmount) internal {
-        s.base().flowByDay[getTodayStartTimestamp()].outflow += outflowLiqTokenAmount;
     }
 }

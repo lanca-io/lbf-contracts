@@ -23,7 +23,7 @@ contract ReceiveToken is LancaBridgeBase {
 
         bytes memory message = abi.encode(
             IBase.ConceroMessageType.BRIDGE,
-            abi.encode(usdc, user, dstUser, bridgeAmount, 0, 0, "")
+            abi.encode(user, dstUser, bridgeAmount, 0, 0, "")
         );
 
         uint256 parentPoolBalanceBefore = IERC20(usdc).balanceOf(address(parentPool));
@@ -38,7 +38,6 @@ contract ReceiveToken is LancaBridgeBase {
         emit ILancaBridge.BridgeDelivered(
             DEFAULT_MESSAGE_ID,
             CHILD_POOL_CHAIN_SELECTOR,
-            address(usdc),
             user,
             dstUser,
             bridgeAmount
@@ -70,7 +69,7 @@ contract ReceiveToken is LancaBridgeBase {
 
         bytes memory message = abi.encode(
             IBase.ConceroMessageType.BRIDGE,
-            abi.encode(usdc, user, dstUser, bridgeAmount, 0, 0, "")
+            abi.encode(user, dstUser, bridgeAmount, 0, 0, "")
         );
 
         uint256 childPoolBalanceBefore = IERC20(usdc).balanceOf(address(childPool));
@@ -85,7 +84,6 @@ contract ReceiveToken is LancaBridgeBase {
         emit ILancaBridge.BridgeDelivered(
             DEFAULT_MESSAGE_ID,
             PARENT_POOL_CHAIN_SELECTOR,
-            address(usdc),
             user,
             dstUser,
             bridgeAmount

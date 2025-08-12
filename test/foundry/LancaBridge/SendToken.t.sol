@@ -39,15 +39,7 @@ contract SendToken is LancaBridgeBase {
             parentPool.getBridgeFee(bridgeAmount) +
             parentPool.getRebalancerFee(bridgeAmount);
 
-        bytes memory messageData = abi.encode(
-            address(usdc),
-            user,
-            user,
-            bridgeAmount - totalLancaFee,
-            0,
-            0,
-            ""
-        );
+        bytes memory messageData = abi.encode(user, user, bridgeAmount - totalLancaFee, 0, 0, "");
 
         bytes32 messageId = _getMessageId(
             CHILD_POOL_CHAIN_SELECTOR,
@@ -60,11 +52,9 @@ contract SendToken is LancaBridgeBase {
         emit ILancaBridge.TokenSent(
             messageId,
             CHILD_POOL_CHAIN_SELECTOR,
-            address(usdc),
             user,
             user,
-            bridgeAmount - totalLancaFee,
-            address(childPool)
+            bridgeAmount - totalLancaFee
         );
 
         vm.prank(user);
@@ -120,15 +110,7 @@ contract SendToken is LancaBridgeBase {
             childPool.getBridgeFee(bridgeAmount) +
             childPool.getRebalancerFee(bridgeAmount);
 
-        bytes memory messageData = abi.encode(
-            address(usdc),
-            user,
-            user,
-            bridgeAmount - totalLancaFee,
-            0,
-            0,
-            ""
-        );
+        bytes memory messageData = abi.encode(user, user, bridgeAmount - totalLancaFee, 0, 0, "");
 
         bytes32 messageId = _getMessageId(
             PARENT_POOL_CHAIN_SELECTOR,
@@ -141,11 +123,9 @@ contract SendToken is LancaBridgeBase {
         emit ILancaBridge.TokenSent(
             messageId,
             PARENT_POOL_CHAIN_SELECTOR,
-            address(usdc),
             user,
             user,
-            bridgeAmount - totalLancaFee,
-            address(parentPool)
+            bridgeAmount - totalLancaFee
         );
 
         vm.prank(user);
