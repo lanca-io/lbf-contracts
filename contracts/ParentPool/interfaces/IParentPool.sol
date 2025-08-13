@@ -35,6 +35,7 @@ interface IParentPool {
     error DepositQueueIsFull();
     error WithdrawalQueueIsFull();
     error QueuesAreNotFull();
+    error LiquidityCapReached(uint256 liqCapAmount);
 
     event DepositQueued(bytes32 indexed depositId, address indexed lp, uint256 amount);
     event WithdrawalQueued(bytes32 indexed withdrawId, address indexed lp, uint256 liqTokenAmount);

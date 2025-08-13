@@ -28,6 +28,7 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
     error InvalidLurScoreSensitivity();
 
     uint32 internal constant UPDATE_TARGET_BALANCE_MESSAGE_GAS_LIMIT = 100_000;
+    uint8 internal constant MAX_QUEUE_LENGTH = 250;
 
     LPToken internal immutable i_lpToken;
     uint256 internal immutable i_liquidityTokenScaleFactor;
@@ -59,9 +60,10 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
         require(liquidityTokenAmount > 0, ICommonErrors.AmountIsZero());
 
         s.ParentPool storage s_parentPool = s.parentPool();
+        require(s_parentPool.depositQueueIds.length < MAX_QUEUE_LENGTH, DepositQueueIsFull());
         require(
-            s_parentPool.depositQueueIds.length < s_parentPool.targetDepositQueueLength,
-            DepositQueueIsFull()
+            s_parentPool.prevTotaPoolsBalance >= s_parentPool.liquidityCap,
+            LiquidityCapReached(s_parentPool.liquidityCap)
         );
 
         IERC20(i_liquidityToken).safeTransferFrom(msg.sender, address(this), liquidityTokenAmount);
@@ -86,10 +88,7 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
 
         s.ParentPool storage s_parentPool = s.parentPool();
 
-        require(
-            s_parentPool.withdrawalQueueIds.length < s_parentPool.targetWithdrawalQueueLength,
-            WithdrawalQueueIsFull()
-        );
+        require(s_parentPool.withdrawalQueueIds.length < MAX_QUEUE_LENGTH, WithdrawalQueueIsFull());
 
         IERC20(i_lpToken).safeTransferFrom(msg.sender, address(this), lpTokenAmount);
 
@@ -127,7 +126,7 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
     }
 
     function isReadyToTriggerDepositWithdrawProcess() external view returns (bool) {
-        (bool success, ) = _getTotalLbfBalance();
+        (bool success, ) = _getTotalPoolsBalance();
         return success && areQueuesFull();
     }
 
@@ -188,10 +187,12 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
     function triggerDepositWithdrawProcess() external onlyLancaKeeper {
         require(areQueuesFull(), QueuesAreNotFull());
 
-        (bool areChildPoolSnapshotsReady, uint256 totalPoolsBalance) = _getTotalLbfBalance();
+        (bool areChildPoolSnapshotsReady, uint256 totalPoolsBalance) = _getTotalPoolsBalance();
         require(areChildPoolSnapshotsReady, ChildPoolSnapshotsAreNotReady());
 
         s.ParentPool storage s_parentPool = s.parentPool();
+
+        s_parentPool.prevTotaPoolsBalance = totalPoolsBalance;
 
         uint256 deposited = _processDepositsQueue(totalPoolsBalance);
         uint256 withdrawals = _processWithdrawalsQueue(totalPoolsBalance);
@@ -414,7 +415,7 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
 
                 s_parentPool.totalWithdrawalAmountLocked += coveredBySurplus;
                 s_parentPool.remainingWithdrawalAmount = remaining;
-                s_parentPool.minParentPoolTargetBalance = targetBalances[i];
+                s_parentPool.targetBalanceFloor = targetBalances[i];
 
                 pbs.base().targetBalance = targetBalances[i] + remaining;
             }
@@ -589,17 +590,17 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
         );
     }
 
-    // TODO: mb it has to be virtual function in rebalancer
-    function _postInflowRebalance(uint256 inflowLiqTokenAmount) internal {
+    function _postInflowRebalance(uint256 inflowLiqTokenAmount) internal override {
         s.ParentPool storage s_parentPool = s.parentPool();
 
         uint256 remainingWithdrawalAmount = s_parentPool.remainingWithdrawalAmount;
 
-        if (remainingWithdrawalAmount == 0) return;
-        // TODO: add min target balance check
+        if (remainingWithdrawalAmount == 0 || s_parentPool.targetBalanceFloor <= getActiveBalance())
+            return;
 
         if (remainingWithdrawalAmount < inflowLiqTokenAmount) {
             delete s_parentPool.remainingWithdrawalAmount;
+            delete s_parentPool.targetBalanceFloor;
             s_parentPool.totalWithdrawalAmountLocked += remainingWithdrawalAmount;
             pbs.base().targetBalance -= remainingWithdrawalAmount;
         } else {
@@ -614,7 +615,7 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
         return (block.timestamp - timestamp) <= (30 minutes);
     }
 
-    function _getTotalLbfBalance() internal view returns (bool, uint256) {
+    function _getTotalPoolsBalance() internal view returns (bool, uint256) {
         s.ParentPool storage s_parentPool = s.parentPool();
         rs.Rebalancer storage s_rebalancer = rs.rebalancer();
         pbs.Base storage s_poolBase = pbs.base();

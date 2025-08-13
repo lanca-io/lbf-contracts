@@ -26,7 +26,9 @@ library Storage {
         uint256 totalWithdrawalAmountLocked;
         uint256 remainingWithdrawalAmount;
         uint256 totalLancaFeeInLiqToken;
-        uint256 minParentPoolTargetBalance;
+        uint256 targetBalanceFloor;
+        uint256 prevTotaPoolsBalance;
+        uint256 liquidityCap;
         uint16 targetWithdrawalQueueLength;
         uint16 targetDepositQueueLength;
         uint96 averageConceroMessageFee;

@@ -83,11 +83,7 @@ contract ChildPool is Rebalancer, LancaBridge {
         );
     }
 
-    function _handleConceroReceiveSnapshot(
-        bytes32 messageId,
-        uint24 sourceChainSelector,
-        bytes memory messageData
-    ) internal override {
+    function _handleConceroReceiveSnapshot(bytes32, uint24, bytes memory) internal pure override {
         revert ICommonErrors.FunctionNotImplemented();
     }
 }

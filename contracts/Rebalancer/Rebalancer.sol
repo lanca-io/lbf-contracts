@@ -34,6 +34,8 @@ abstract contract Rebalancer is IRebalancer, Base {
 
         i_iouToken.mint(msg.sender, liquidityAmountToFill);
 
+        _postInflowRebalance(liquidityAmountToFill);
+
         emit DeficitFilled(msg.sender, liquidityAmountToFill);
     }
 
@@ -146,4 +148,6 @@ abstract contract Rebalancer is IRebalancer, Base {
 
         emit IOUReceived(messageId, sourceChainSelector, receiver, iouTokenAmount);
     }
+
+    function _postInflowRebalance(uint256 liquidityAmountToFill) internal virtual {}
 }
