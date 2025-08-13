@@ -23,16 +23,18 @@ abstract contract LancaClient is ILancaClient, ERC165 {
     }
 
     function lancaReceive(
+        bytes32 id,
         uint24 srcChainSelector,
         address from,
         uint256 amount,
         bytes memory data
     ) external {
         require(msg.sender == i_lancaPool, InvalidLancaPool());
-        _lancaReceive(srcChainSelector, from, amount, data);
+        _lancaReceive(id, srcChainSelector, from, amount, data);
     }
 
     function _lancaReceive(
+        bytes32 id,
         uint24 srcChainSelector,
         address from,
         uint256 amount,

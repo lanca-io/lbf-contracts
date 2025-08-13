@@ -137,6 +137,7 @@ abstract contract LancaBridge is ILancaBridge, Base, ReentrancyGuard {
 
         if (shouldCallHook) {
             ILancaClient(tokenReceiver).lancaReceive{gas: dstGasLimit}(
+                messageId,
                 sourceChainSelector,
                 tokenSender,
                 tokenAmount,
