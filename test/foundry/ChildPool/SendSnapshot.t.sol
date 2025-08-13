@@ -36,11 +36,7 @@ contract SendSnapshot is ChildPoolBase {
     }
 
     function test_sendSnapshotToParentPool_Success() public {
-        uint256 messageFee = childPool.getBridgeIouNativeFee(
-            PARENT_POOL_CHAIN_SELECTOR,
-            parentPool,
-            GAS_LIMIT
-        );
+        uint256 messageFee = childPool.getBridgeIouNativeFee(PARENT_POOL_CHAIN_SELECTOR);
 
         // Allocate the balance
         deal(address(usdc), address(childPool), 1000e6);

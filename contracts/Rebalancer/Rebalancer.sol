@@ -110,17 +110,14 @@ abstract contract Rebalancer is IRebalancer, Base {
     }
 
     function getBridgeIouNativeFee(
-        uint24 destinationChainSelector,
-        uint256 gasLimitForExecution
+        uint24 destinationChainSelector
     ) external view returns (uint256) {
-        require(gasLimitForExecution > 0, ICommonErrors.AmountIsZero());
-
         return
             IConceroRouter(i_conceroRouter).getMessageFee(
                 destinationChainSelector,
                 false,
                 address(0),
-                ConceroTypes.EvmDstChainData({receiver: address(0), gasLimit: gasLimitForExecution})
+                ConceroTypes.EvmDstChainData({receiver: address(0), gasLimit: DEFAULT_GAS_LIMIT})
             );
     }
 
