@@ -41,9 +41,7 @@ abstract contract Rebalancer is IRebalancer, Base {
 
     function takeSurplus(uint256 iouTokensToBurn) external returns (uint256) {
         require(iouTokensToBurn > 0, ICommonErrors.AmountIsZero());
-
-        uint256 currentSurplus = getSurplus();
-        require(currentSurplus > 0, NoSurplusToTake());
+        require(getSurplus() > 0, NoSurplusToTake());
 
         i_iouToken.burnFrom(msg.sender, iouTokensToBurn);
 
@@ -146,7 +144,7 @@ abstract contract Rebalancer is IRebalancer, Base {
 
         s.rebalancer().totalIouReceived += iouTokenAmount;
 
-        emit IOUReceived(messageId, sourceChainSelector, receiver, iouTokenAmount);
+        emit IOUReceived(messageId, receiver, sourceChainSelector, iouTokenAmount);
     }
 
     function _postInflowRebalance(uint256 liquidityAmountToFill) internal virtual {}

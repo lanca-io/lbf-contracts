@@ -12,8 +12,8 @@ interface IRebalancer {
     );
     event IOUReceived(
         bytes32 indexed messageId,
-        uint24 srcChainSelector,
         address receiver,
+        uint24 srcChainSelector,
         uint256 amount
     );
 
