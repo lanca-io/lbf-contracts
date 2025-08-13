@@ -111,23 +111,16 @@ abstract contract Rebalancer is IRebalancer, Base {
 
     function getBridgeIouNativeFee(
         uint24 destinationChainSelector,
-        address destinationPoolAddress,
         uint256 gasLimitForExecution
     ) external view returns (uint256) {
-        require(destinationPoolAddress != address(0), ICommonErrors.AddressIsZero());
         require(gasLimitForExecution > 0, ICommonErrors.AmountIsZero());
-
-        ConceroTypes.EvmDstChainData memory destinationChainData = ConceroTypes.EvmDstChainData({
-            receiver: destinationPoolAddress,
-            gasLimit: gasLimitForExecution
-        });
 
         return
             IConceroRouter(i_conceroRouter).getMessageFee(
                 destinationChainSelector,
                 false,
                 address(0),
-                destinationChainData
+                ConceroTypes.EvmDstChainData({receiver: address(0), gasLimit: gasLimitForExecution})
             );
     }
 

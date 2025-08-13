@@ -58,13 +58,11 @@ interface IRebalancer {
     /**
      * @notice Gets the message fee for bridging to a destination chain
      * @param dstChainSelector Destination chain selector
-     * @param dstPool Destination pool address
      * @param gasLimit Gas limit for the cross-chain message
      * @return fee The fee amount in native token
      */
     function getBridgeIouNativeFee(
         uint24 dstChainSelector,
-        address dstPool,
         uint256 gasLimit
     ) external view returns (uint256 fee);
 }
