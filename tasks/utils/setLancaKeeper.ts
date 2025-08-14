@@ -4,7 +4,7 @@ import { conceroNetworks } from "../../constants";
 import { getFallbackClients, getViemAccount, log } from "../../utils";
 import { getEnvVar } from "../../utils";
 
-export async function setLancaKeeper(networkName: string, keeperAddress: string) {
+export async function setLancaKeeper(networkName: string) {
 	const chain = conceroNetworks[networkName as keyof typeof conceroNetworks];
 
 	const viemAccount = getViemAccount(chain.type, "deployer");
@@ -28,6 +28,8 @@ export async function setLancaKeeper(networkName: string, keeperAddress: string)
 	if (!poolProxyAddress) {
 		throw new Error(`Missing ${poolType} proxy address for ${networkName}`);
 	}
+
+	const keeperAddress = getEnvVar(`LANCA_KEEPER`);
 
 	if (!keeperAddress) {
 		throw new Error("Missing keeper address");

@@ -10,13 +10,13 @@ async function setLancaKeeperTask(taskArgs: any, hre: HardhatRuntimeEnvironment)
 
 	const networkName = hre.network.name;
 
-	await setLancaKeeper(networkName, taskArgs.keeper);
+	await setLancaKeeper(networkName);
 }
 
-task("set-lanca-keeper", "Set LancaKeeper address for ParentPool or ChildPool")
-	.addParam("keeper", "Address of the LancaKeeper")
-	.setAction(async (taskArgs, hre: HardhatRuntimeEnvironment) => {
+task("set-lanca-keeper", "Set LancaKeeper address for ParentPool or ChildPool").setAction(
+	async (taskArgs, hre: HardhatRuntimeEnvironment) => {
 		await setLancaKeeperTask(taskArgs, hre);
-	});
+	},
+);
 
 export { setLancaKeeperTask };

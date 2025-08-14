@@ -11,6 +11,7 @@ import { deployTransparentProxy } from "../../deploy/TransparentProxy";
 import { compileContracts } from "../../utils/compileContracts";
 import { grantMinterRoleForIOUToken } from "../utils/grantMinterRoleForIOUToken";
 import { grantMinterRoleForLPToken } from "../utils/grantMinterRoleForLPToken";
+import { setLancaKeeper } from "../utils/setLancaKeeper";
 import { setParentPoolVariables } from "../utils/setParentPoolVariables";
 import { upgradeProxyImplementation } from "../utils/upgradeProxyImplementation";
 
@@ -37,6 +38,7 @@ async function deployParentPoolTask(taskArgs: any, hre: HardhatRuntimeEnvironmen
 		await deployTransparentProxy(hre, ProxyEnum.parentPoolProxy);
 		await grantMinterRoleForLPToken(hre.network.name);
 		await grantMinterRoleForIOUToken(hre.network.name);
+		await setLancaKeeper(hre.network.name);
 	}
 
 	if (taskArgs.implementation) {
