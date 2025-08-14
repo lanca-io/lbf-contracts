@@ -9,6 +9,9 @@ import { deployParentPool } from "../../deploy/ParentPool";
 import { deployProxyAdmin } from "../../deploy/ProxyAdmin";
 import { deployTransparentProxy } from "../../deploy/TransparentProxy";
 import { compileContracts } from "../../utils/compileContracts";
+import { grantMinterRoleForIOUToken } from "../utils/grantMinterRoleForIOUToken";
+import { grantMinterRoleForLPToken } from "../utils/grantMinterRoleForLPToken";
+import { setParentPoolVariables } from "../utils/setParentPoolVariables";
 import { upgradeProxyImplementation } from "../utils/upgradeProxyImplementation";
 
 async function deployParentPoolTask(taskArgs: any, hre: HardhatRuntimeEnvironment) {
@@ -38,9 +41,11 @@ async function deployParentPoolTask(taskArgs: any, hre: HardhatRuntimeEnvironmen
 		await upgradeProxyImplementation(hre, ProxyEnum.parentPoolProxy, false);
 	}
 
-	// if (taskArgs.vars) {
-	// 	await setParentPoolVariables(hre.network.name);
-	// }
+	if (taskArgs.vars) {
+		await grantMinterRoleForLPToken(hre.network.name);
+		await grantMinterRoleForIOUToken(hre.network.name);
+		await setParentPoolVariables(hre.network.name);
+	}
 }
 
 task("deploy-parent-pool", "Deploy ParentPool")

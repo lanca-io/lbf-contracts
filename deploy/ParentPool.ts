@@ -69,7 +69,7 @@ const deployParentPool: DeploymentFunction = async function (
 		skipIfAlreadyDeployed: true,
 	});
 
-	log(`ParentPool deployed at:: ${deployment.address}`, "deployParentPool", name);
+	log(`ParentPool deployed at: ${deployment.address}`, "deployParentPool", name);
 	log(
 		`Args: 
 			liquidityToken: ${args.liquidityToken}, 

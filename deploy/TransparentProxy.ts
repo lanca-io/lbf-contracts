@@ -13,7 +13,7 @@ export async function deployTransparentProxy(
 	const { deploy } = hre.deployments;
 	const { name } = hre.network;
 
-	const chain = conceroNetworks[name];
+	const chain = conceroNetworks[name as keyof typeof conceroNetworks];
 	const { type: networkType } = chain;
 
 	let implementationKey: keyof EnvPrefixes;
@@ -31,7 +31,6 @@ export async function deployTransparentProxy(
 	);
 	const [proxyAdmin, proxyAdminAlias] = getEnvAddress(`${proxyType}Admin`, name);
 
-	log("Deploying...", `deployTransparentProxy:${proxyType}`, name);
 	const deployment = await deploy("TransparentUpgradeableProxy", {
 		from: proxyDeployer,
 		args: [initialImplementation, proxyAdmin, "0x"],

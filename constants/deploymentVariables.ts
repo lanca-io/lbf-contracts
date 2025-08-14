@@ -12,6 +12,16 @@ enum ProxyEnum {
 	childPoolProxy = "childPoolProxy",
 }
 
+type ParentPoolVariables = {
+	targetDepositQueueLength: number;
+	targetWithdrawalQueueLength: number;
+	lurScoreSensitivity: bigint;
+	lurScoreWeight: bigint;
+	ndrScoreWeight: bigint;
+};
+
+const MINTER_ROLE = "0x9f2df0fed2c77648de5860a4cc508cd0818c85b8b8a1ab4ceeef8d981c8956a6"; // keccak256("MINTER_ROLE")
+
 const viemReceiptConfig: WaitForTransactionReceiptParameters = {
 	timeout: 0,
 	confirmations: 2,
@@ -19,6 +29,14 @@ const viemReceiptConfig: WaitForTransactionReceiptParameters = {
 
 const writeContractConfig: WriteContractParameters = {
 	gas: 3000000n, // 3M
+};
+
+const parentPoolVariables: ParentPoolVariables = {
+	targetDepositQueueLength: 100,
+	targetWithdrawalQueueLength: 100,
+	lurScoreSensitivity: 2000000n,
+	lurScoreWeight: 500000n,
+	ndrScoreWeight: 500000n,
 };
 
 function getViemReceiptConfig(chain: ConceroNetwork): Partial<WaitForTransactionReceiptParameters> {
@@ -58,4 +76,7 @@ export {
 	envPrefixes,
 	getViemReceiptConfig,
 	parentPoolChainSelectors,
+	ParentPoolVariables,
+	parentPoolVariables,
+	MINTER_ROLE,
 };

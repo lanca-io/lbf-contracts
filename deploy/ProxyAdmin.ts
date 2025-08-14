@@ -26,8 +26,11 @@ export async function deployProxyAdmin(
 		skipIfAlreadyDeployed: false,
 	});
 
-	log(`Deployed at: ${deployment.address}`, `deployProxyAdmin: ${proxyType}`, name);
-	log(`args: initialOwner: ${initialOwner}`, `deployProxyAdmin: ${proxyType}`, name);
+	log(
+		`Deployed at: ${deployment.address}. initialOwner: ${initialOwner}`,
+		`deployProxyAdmin: ${proxyType}`,
+		name,
+	);
 	updateEnvAddress(`${proxyType}Admin`, name, deployment.address, `deployments.${networkType}`);
 
 	return deployment;
