@@ -45,6 +45,8 @@ export async function setLancaKeeper(networkName: string) {
 			abi: parentPoolAbi,
 			functionName: "setLancaKeeper",
 			args: [keeperAddress],
+			account: viemAccount,
+			chain: chain.viemChain,
 		});
 
 		log(

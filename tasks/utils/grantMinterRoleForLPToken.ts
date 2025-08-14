@@ -45,6 +45,8 @@ export async function grantMinterRoleForLPToken(networkName: string) {
 			abi: accessControlAbi,
 			functionName: "grantRole",
 			args: [MINTER_ROLE as `0x${string}`, parentPoolProxyAddress as `0x${string}`],
+			account: viemAccount,
+			chain: chain.viemChain,
 		});
 
 		log(

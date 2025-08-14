@@ -5,20 +5,26 @@ import { getFallbackClients, getViemAccount, log } from "../../utils";
 import { getEnvVar } from "../../utils";
 
 export async function setDstPool(srcChainName: string, dstChainName: string) {
-	const chain = conceroNetworks[srcChainName as keyof typeof conceroNetworks];
-	const dstChainSelector = chain.chainSelector;
+	const srcChain = conceroNetworks[srcChainName as keyof typeof conceroNetworks];
+	const dstChain = conceroNetworks[dstChainName as keyof typeof conceroNetworks];
+
+	if (srcChain.name === dstChain.name) {
+		throw new Error("Source and destination chains cannot be the same");
+	}
+
+	const dstChainSelector = dstChain.chainSelector;
 
 	if (!dstChainName) {
 		throw new Error("Missing destination chain name");
 	}
 
-	const viemAccount = getViemAccount(chain.type, "deployer");
-	const { walletClient, publicClient } = getFallbackClients(chain, viemAccount);
+	const viemAccount = getViemAccount(srcChain.type, "deployer");
+	const { walletClient, publicClient } = getFallbackClients(srcChain, viemAccount);
 
 	let srcPoolProxyAddress: string | undefined;
 	let dstPoolProxyAddress: string | undefined;
 
-	if (chain.name === "arbitrum" || chain.name === "arbitrumSepolia") {
+	if (srcChainName === "arbitrum" || srcChainName === "arbitrumSepolia") {
 		srcPoolProxyAddress = getEnvVar(`PARENT_POOL_PROXY_${getNetworkEnvKey(srcChainName)}`);
 		dstPoolProxyAddress = getEnvVar(`CHILD_POOL_PROXY_${getNetworkEnvKey(dstChainName)}`);
 	} else if (dstChainName === "arbitrum" || dstChainName === "arbitrumSepolia") {
@@ -45,6 +51,8 @@ export async function setDstPool(srcChainName: string, dstChainName: string) {
 			abi: parentPoolAbi,
 			functionName: "setDstPool",
 			args: [dstChainSelector, dstPoolProxyAddress],
+			account: viemAccount,
+			chain: srcChain.viemChain,
 		});
 
 		log(

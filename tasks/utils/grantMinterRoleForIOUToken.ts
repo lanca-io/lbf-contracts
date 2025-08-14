@@ -55,6 +55,8 @@ export async function grantMinterRoleForIOUToken(networkName: string) {
 			abi: accessControlAbi,
 			functionName: "grantRole",
 			args: [MINTER_ROLE as `0x${string}`, poolProxyAddress as `0x${string}`],
+			account: viemAccount,
+			chain: chain.viemChain,
 		});
 
 		log(

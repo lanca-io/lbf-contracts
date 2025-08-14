@@ -30,7 +30,7 @@ const deployChildPool: DeploymentFunction = async function (
 
 	const chain = conceroNetworks[name as keyof typeof conceroNetworks];
 
-	const conceroRouter = getEnvVar(`CONCERO_ROUTER_${getNetworkEnvKey(name)}`);
+	const conceroRouter = getEnvVar(`CONCERO_ROUTER_PROXY_${getNetworkEnvKey(name)}`);
 	const iouToken = getEnvVar(`IOU_${getNetworkEnvKey(name)}`);
 	const liquidityToken = getEnvVar(`FIAT_TOKEN_PROXY_${getNetworkEnvKey(name)}`);
 	const defaultLiquidityTokenDecimals = 6;
