@@ -35,6 +35,8 @@ async function deployParentPoolTask(taskArgs: any, hre: HardhatRuntimeEnvironmen
 	if (taskArgs.proxy) {
 		await deployProxyAdmin(hre, ProxyEnum.parentPoolProxy);
 		await deployTransparentProxy(hre, ProxyEnum.parentPoolProxy);
+		await grantMinterRoleForLPToken(hre.network.name);
+		await grantMinterRoleForIOUToken(hre.network.name);
 	}
 
 	if (taskArgs.implementation) {
@@ -42,8 +44,6 @@ async function deployParentPoolTask(taskArgs: any, hre: HardhatRuntimeEnvironmen
 	}
 
 	if (taskArgs.vars) {
-		await grantMinterRoleForLPToken(hre.network.name);
-		await grantMinterRoleForIOUToken(hre.network.name);
 		await setParentPoolVariables(hre.network.name);
 	}
 }
