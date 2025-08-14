@@ -39,6 +39,12 @@ const parentPoolVariables: ParentPoolVariables = {
 	ndrScoreWeight: 500000n,
 };
 
+const parentPoolChainSelectors: Record<NetworkType, number> = {
+	localhost: 1,
+	testnet: 421614,
+	mainnet: 42161,
+};
+
 function getViemReceiptConfig(chain: ConceroNetwork): Partial<WaitForTransactionReceiptParameters> {
 	return {
 		timeout: 0,
@@ -59,14 +65,10 @@ const envPrefixes: EnvPrefixes = {
 	lpToken: "LPTOKEN",
 	iouToken: "IOUTOKEN",
 	childPool: "CHILD_POOL",
+	childPoolProxy: "CHILD_POOL_PROXY",
+	childPoolProxyAdmin: "CHILD_POOL_PROXY_ADMIN",
 	create3Factory: "CREATE3_FACTORY",
 	pause: "CONCERO_PAUSE",
-};
-
-const parentPoolChainSelectors: Record<NetworkType, number> = {
-	localhost: 1,
-	testnet: 421614,
-	mainnet: 42161,
 };
 
 export {

@@ -6,6 +6,7 @@ import { getEnvVar } from "../../utils";
 
 export async function setDstPool(srcChainName: string, dstChainName: string) {
 	const chain = conceroNetworks[srcChainName as keyof typeof conceroNetworks];
+	const dstChainSelector = chain.chainSelector;
 
 	const viemAccount = getViemAccount(chain.type, "deployer");
 	const { walletClient, publicClient } = getFallbackClients(chain, viemAccount);
@@ -15,6 +16,9 @@ export async function setDstPool(srcChainName: string, dstChainName: string) {
 
 	if (chain.name === "arbitrum" || chain.name === "arbitrumSepolia") {
 		srcPoolProxyAddress = getEnvVar(`PARENT_POOL_PROXY_${getNetworkEnvKey(srcChainName)}`);
+		dstPoolProxyAddress = getEnvVar(`CHILD_POOL_PROXY_${getNetworkEnvKey(dstChainName)}`);
+	} else if (dstChainName === "arbitrum" || dstChainName === "arbitrumSepolia") {
+		srcPoolProxyAddress = getEnvVar(`CHILD_POOL_PROXY_${getNetworkEnvKey(srcChainName)}`);
 		dstPoolProxyAddress = getEnvVar(`PARENT_POOL_PROXY_${getNetworkEnvKey(dstChainName)}`);
 	} else {
 		srcPoolProxyAddress = getEnvVar(`CHILD_POOL_PROXY_${getNetworkEnvKey(srcChainName)}`);
@@ -36,7 +40,7 @@ export async function setDstPool(srcChainName: string, dstChainName: string) {
 			address: srcPoolProxyAddress,
 			abi: parentPoolAbi,
 			functionName: "setDstPool",
-			args: [dstPoolProxyAddress],
+			args: [dstChainSelector, dstPoolProxyAddress],
 		});
 
 		log(

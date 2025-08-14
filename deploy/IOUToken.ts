@@ -23,7 +23,7 @@ const deployIOUToken: DeploymentFunction = async function (
 	const { deploy } = hre.deployments;
 	const { name } = hre.network;
 
-	const chain = conceroNetworks[name];
+	const chain = conceroNetworks[name as keyof typeof conceroNetworks];
 
 	const args: DeployArgs = {
 		defaultAdmin: overrideArgs?.defaultAdmin || deployer,

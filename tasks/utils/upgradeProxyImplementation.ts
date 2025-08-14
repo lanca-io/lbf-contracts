@@ -11,7 +11,8 @@ export async function upgradeProxyImplementation(
 	shouldPause: boolean,
 ) {
 	const { name } = hre.network;
-	const { viemChain, type } = conceroNetworks[name];
+	const chain = conceroNetworks[name as keyof typeof conceroNetworks];
+	const { viemChain, type } = chain;
 
 	let implementationKey: keyof EnvPrefixes;
 
@@ -31,7 +32,7 @@ export async function upgradeProxyImplementation(
 	);
 
 	const viemAccount = getViemAccount(type, "proxyDeployer");
-	const { walletClient, publicClient } = getFallbackClients(conceroNetworks[name], viemAccount);
+	const { walletClient } = getFallbackClients(chain, viemAccount);
 
 	const [conceroProxy, conceroProxyAlias] = getEnvAddress(proxyType, name);
 	const [proxyAdmin, proxyAdminAlias] = getEnvAddress(`${proxyType}Admin`, name);
@@ -49,7 +50,7 @@ export async function upgradeProxyImplementation(
 		account: viemAccount,
 		args: [conceroProxy, implementation, "0x"],
 		chain: viemChain,
-		gas: 100000,
+		gas: 100000n,
 	});
 
 	log(
