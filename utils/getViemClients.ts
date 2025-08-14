@@ -17,6 +17,7 @@ import { WalletClient } from "viem/clients/createWalletClient";
 
 import { urls } from "../constants";
 import { ConceroNetwork, ConceroNetworkType } from "../types/ConceroNetwork";
+import { getWallet } from "./getWallet";
 import { localhostViemChain } from "./localhostViemChain";
 
 function getClients(
@@ -104,4 +105,8 @@ function getFallbackClients(
 	return { walletClient, publicClient, account };
 }
 
-export { getClients, getFallbackClients, getTestClient };
+function getViemAccount(chainType: ConceroNetworkType, accountType: "proxyDeployer" | "deployer") {
+	return privateKeyToAccount(`0x${getWallet(chainType, accountType, "privateKey")}`);
+}
+
+export { getClients, getFallbackClients, getTestClient, getViemAccount };

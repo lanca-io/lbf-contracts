@@ -9,8 +9,7 @@ import { deployParentPool } from "../../deploy/ParentPool";
 import { deployProxyAdmin } from "../../deploy/ProxyAdmin";
 import { deployTransparentProxy } from "../../deploy/TransparentProxy";
 import { compileContracts } from "../../utils/compileContracts";
-
-// import { upgradeProxyImplementation } from "../utils";
+import { upgradeProxyImplementation } from "../utils/upgradeProxyImplementation";
 
 async function deployParentPoolTask(taskArgs: any, hre: HardhatRuntimeEnvironment) {
 	compileContracts({ quiet: true });
@@ -35,9 +34,9 @@ async function deployParentPoolTask(taskArgs: any, hre: HardhatRuntimeEnvironmen
 		await deployTransparentProxy(hre, ProxyEnum.parentPoolProxy);
 	}
 
-	// if (taskArgs.implementation) {
-	// 	await upgradeProxyImplementation(hre, ProxyEnum.parentPoolProxy, false);
-	// }
+	if (taskArgs.implementation) {
+		await upgradeProxyImplementation(hre, ProxyEnum.parentPoolProxy, false);
+	}
 
 	// if (taskArgs.vars) {
 	// 	await setParentPoolVariables(hre.network.name);
