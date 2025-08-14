@@ -7,6 +7,7 @@ import { deployIOUToken } from "../../deploy/IOUToken";
 import { deployLPToken } from "../../deploy/LPToken";
 import { deployParentPool } from "../../deploy/ParentPool";
 import { deployProxyAdmin } from "../../deploy/ProxyAdmin";
+import { deployTransparentProxy } from "../../deploy/TransparentProxy";
 import { compileContracts } from "../../utils/compileContracts";
 
 // import { upgradeProxyImplementation } from "../utils";
@@ -31,7 +32,7 @@ async function deployParentPoolTask(taskArgs: any, hre: HardhatRuntimeEnvironmen
 
 	if (taskArgs.proxy) {
 		await deployProxyAdmin(hre, ProxyEnum.parentPoolProxy);
-		// await deployTransparentProxy(hre, ProxyEnum.parentPoolProxy);
+		await deployTransparentProxy(hre, ProxyEnum.parentPoolProxy);
 	}
 
 	// if (taskArgs.implementation) {

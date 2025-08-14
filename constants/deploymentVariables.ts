@@ -8,6 +8,8 @@ import { EnvPrefixes } from "../types/deploymentVariables";
 enum ProxyEnum {
 	routerProxy = "routerProxy",
 	verifierProxy = "verifierProxy",
+	parentPoolProxy = "parentPoolProxy",
+	childPoolProxy = "childPoolProxy",
 }
 
 const viemReceiptConfig: WaitForTransactionReceiptParameters = {
@@ -33,9 +35,11 @@ const envPrefixes: EnvPrefixes = {
 	verifier: "CONCERO_VERIFIER",
 	verifierProxy: "CONCERO_VERIFIER_PROXY",
 	verifierProxyAdmin: "CONCERO_VERIFIER_PROXY_ADMIN",
+	parentPool: "PARENT_POOL",
+	parentPoolProxy: "PARENT_POOL_PROXY",
+	parentPoolProxyAdmin: "PARENT_POOL_PROXY_ADMIN",
 	lpToken: "LPTOKEN",
 	iouToken: "IOUTOKEN",
-	parentPool: "PARENT_POOL",
 	childPool: "CHILD_POOL",
 	create3Factory: "CREATE3_FACTORY",
 	pause: "CONCERO_PAUSE",
