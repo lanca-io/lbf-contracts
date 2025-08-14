@@ -9,6 +9,7 @@ import { deployProxyAdmin } from "../../deploy/ProxyAdmin";
 import { deployTransparentProxy } from "../../deploy/TransparentProxy";
 import { compileContracts } from "../../utils/compileContracts";
 import { grantMinterRoleForIOUToken } from "../utils/grantMinterRoleForIOUToken";
+import { setDstPool } from "../utils/setDstPool";
 import { setLancaKeeper } from "../utils/setLancaKeeper";
 import { upgradeProxyImplementation } from "../utils/upgradeProxyImplementation";
 
@@ -28,6 +29,8 @@ async function deployChildPoolTask(taskArgs: any, hre: HardhatRuntimeEnvironment
 		await deployTransparentProxy(hre, ProxyEnum.childPoolProxy);
 		await grantMinterRoleForIOUToken(hre.network.name);
 		await setLancaKeeper(hre.network.name);
+		await setDstPool(hre.network.name, taskArgs.parent);
+		await setDstPool(taskArgs.parent, hre.network.name);
 	}
 
 	if (taskArgs.implementation) {
@@ -41,6 +44,7 @@ task("deploy-child-pool", "Deploy ChildPool")
 	.addFlag("iou", "Deploy IOU Token")
 	.addOptionalParam("admin", "IOUToken default admin")
 	.addOptionalParam("minter", "IOUToken minter")
+	.addOptionalParam("parent", "Parent pool chain name")
 	.setAction(async (taskArgs, hre: HardhatRuntimeEnvironment) => {
 		await deployChildPoolTask(taskArgs, hre);
 	});

@@ -8,6 +8,10 @@ export async function setDstPool(srcChainName: string, dstChainName: string) {
 	const chain = conceroNetworks[srcChainName as keyof typeof conceroNetworks];
 	const dstChainSelector = chain.chainSelector;
 
+	if (!dstChainName) {
+		throw new Error("Missing destination chain name");
+	}
+
 	const viemAccount = getViemAccount(chain.type, "deployer");
 	const { walletClient, publicClient } = getFallbackClients(chain, viemAccount);
 
