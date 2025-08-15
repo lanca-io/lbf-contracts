@@ -24,13 +24,11 @@ abstract contract ParentPoolBase is LancaTest {
     address internal s_childPool_2;
     address internal s_childPool_3;
     address internal s_childPool_4;
-    address internal s_childPool_5;
 
     uint24 internal constant childPoolChainSelector_1 = 1;
     uint24 internal constant childPoolChainSelector_2 = 2;
     uint24 internal constant childPoolChainSelector_3 = 3;
     uint24 internal constant childPoolChainSelector_4 = 4;
-    uint24 internal constant childPoolChainSelector_5 = 5;
 
     ParentPoolHarness public s_parentPool;
     LPToken public lpToken;
@@ -40,7 +38,6 @@ abstract contract ParentPoolBase is LancaTest {
         s_childPool_2 = makeAddr("childPool_2");
         s_childPool_3 = makeAddr("childPool_3");
         s_childPool_4 = makeAddr("childPool_4");
-        s_childPool_5 = makeAddr("childPool_5");
 
         DeployMockERC20 deployMockERC20 = new DeployMockERC20();
         usdc = IERC20(deployMockERC20.deployERC20("USD Coin", "USDC", 6));
@@ -72,6 +69,7 @@ abstract contract ParentPoolBase is LancaTest {
         _setQueuesLength();
         _setSupportedChildPools();
         _setLancaKeeper();
+        _setTargetBalanceCalculationVars();
     }
 
     /* HELPER FUNCTIONS */
@@ -102,9 +100,11 @@ abstract contract ParentPoolBase is LancaTest {
     }
 
     function _enterDepositQueue(address depositor, uint256 amount) internal returns (bytes32) {
-        vm.prank(depositor);
+        vm.startPrank(depositor);
+        usdc.approve(address(s_parentPool), amount);
         vm.recordLogs();
         s_parentPool.enterDepositQueue(amount);
+        vm.stopPrank();
         Vm.Log[] memory entries = vm.getRecordedLogs();
         return entries[entries.length - 1].topics[1];
     }
@@ -149,7 +149,6 @@ abstract contract ParentPoolBase is LancaTest {
         s_parentPool.setDstPool(childPoolChainSelector_2, s_childPool_2);
         s_parentPool.setDstPool(childPoolChainSelector_3, s_childPool_3);
         s_parentPool.setDstPool(childPoolChainSelector_4, s_childPool_4);
-        s_parentPool.setDstPool(childPoolChainSelector_5, s_childPool_5);
         vm.stopPrank();
     }
 
@@ -164,27 +163,112 @@ abstract contract ParentPoolBase is LancaTest {
         for (uint256 i; i < childPoolChainSelectors.length; ++i) {
             s_parentPool.exposed_setChildPoolSnapshot(
                 childPoolChainSelectors[i],
-                IParentPool.ChildPoolSnapshot({
-                    timestamp: NOW_TIMESTAMP,
-                    balance: 0,
-                    iouTotalReceived: 0,
-                    iouTotalSent: 0,
-                    iouTotalSupply: 0,
-                    dailyFlow: IBase.LiqTokenDailyFlow({inflow: 0, outflow: 0})
-                })
+                _getChildPoolSnapshot()
             );
         }
     }
 
+    function _getChildPoolSnapshot(
+        uint256 balance,
+        uint256 dailyInflow,
+        uint256 dailyOutflow
+    ) internal pure returns (IParentPool.ChildPoolSnapshot memory) {
+        IParentPool.ChildPoolSnapshot memory snapshot = _getChildPoolSnapshot();
+        snapshot.balance = balance;
+        snapshot.dailyFlow.inflow = dailyInflow;
+        snapshot.dailyFlow.outflow = dailyOutflow;
+
+        return snapshot;
+    }
+
+    function _getChildPoolSnapshot() internal pure returns (IParentPool.ChildPoolSnapshot memory) {
+        return
+            IParentPool.ChildPoolSnapshot({
+                timestamp: NOW_TIMESTAMP,
+                balance: 0,
+                iouTotalReceived: 0,
+                iouTotalSent: 0,
+                iouTotalSupply: 0,
+                dailyFlow: IBase.LiqTokenDailyFlow({inflow: 0, outflow: 0}),
+                totalLiqTokenSent: 0,
+                totalLiqTokenReceived: 0
+            });
+    }
+
     function _getChildPoolsChainSelectors() internal returns (uint24[] memory) {
-        uint24[] memory childPoolChainSelectors = new uint24[](5);
+        uint24[] memory childPoolChainSelectors = new uint24[](4);
         childPoolChainSelectors[0] = childPoolChainSelector_1;
         childPoolChainSelectors[1] = childPoolChainSelector_2;
         childPoolChainSelectors[2] = childPoolChainSelector_3;
         childPoolChainSelectors[3] = childPoolChainSelector_4;
-        childPoolChainSelectors[4] = childPoolChainSelector_5;
 
         return childPoolChainSelectors;
+    }
+
+    function _setTargetBalanceCalculationVars() internal {
+        vm.startPrank(deployer);
+        s_parentPool.setLurScoreSensitivity(uint64(5 * LIQ_TOKEN_SCALE_FACTOR));
+        s_parentPool.setScoresWeights(
+            uint64((7 * LIQ_TOKEN_SCALE_FACTOR) / 10),
+            uint64((3 * LIQ_TOKEN_SCALE_FACTOR) / 10)
+        );
+        vm.stopPrank();
+    }
+
+    function _setupParentPoolWithWhitePaperExample() internal {
+        /*
+               LBF state before target balances adjustments
+
+               Pool  Balance  targetBalance  Outflow(24h)  Inflow(24h)
+               A     120k     100k           80k           60k
+               B     85k      100k           150k          140k
+               C     95k      100k           200k          180k
+               D     110k     100k           40k           50k
+               E     90k      100k           90k           70k
+        */
+        uint256[3][4] memory childPoolsSetupData = [
+            [
+                85_000 * LIQ_TOKEN_SCALE_FACTOR,
+                140_000 * LIQ_TOKEN_SCALE_FACTOR,
+                150_000 * LIQ_TOKEN_SCALE_FACTOR
+            ],
+            [
+                95_000 * LIQ_TOKEN_SCALE_FACTOR,
+                180_000 * LIQ_TOKEN_SCALE_FACTOR,
+                200_000 * LIQ_TOKEN_SCALE_FACTOR
+            ],
+            [
+                110_000 * LIQ_TOKEN_SCALE_FACTOR,
+                50_000 * LIQ_TOKEN_SCALE_FACTOR,
+                40_000 * LIQ_TOKEN_SCALE_FACTOR
+            ],
+            [
+                90_000 * LIQ_TOKEN_SCALE_FACTOR,
+                70_000 * LIQ_TOKEN_SCALE_FACTOR,
+                90_000 * LIQ_TOKEN_SCALE_FACTOR
+            ]
+        ];
+        uint256 defaultTargetBalance = 100_000 * LIQ_TOKEN_SCALE_FACTOR;
+
+        for (uint256 i; i < _getChildPoolsChainSelectors().length; ++i) {
+            s_parentPool.exposed_setChildPoolSnapshot(
+                _getChildPoolsChainSelectors()[i],
+                _getChildPoolSnapshot(
+                    childPoolsSetupData[i][0],
+                    childPoolsSetupData[i][1],
+                    childPoolsSetupData[i][2]
+                )
+            );
+            s_parentPool.exposed_setChildPoolTargetBalance(
+                _getChildPoolsChainSelectors()[i],
+                defaultTargetBalance
+            );
+        }
+        s_parentPool.exposed_setTargetBalance(defaultTargetBalance);
+        s_parentPool.exposed_setYesterdayFlow(
+            60_000 * LIQ_TOKEN_SCALE_FACTOR,
+            80_000 * LIQ_TOKEN_SCALE_FACTOR
+        );
     }
 
     /* MINT FUNCTIONS */
@@ -192,5 +276,10 @@ abstract contract ParentPoolBase is LancaTest {
     function _mintUsdc(address receiver, uint256 amount) internal {
         vm.prank(deployer);
         MockERC20(address(usdc)).mint(receiver, amount);
+    }
+
+    function _mintLpToken(address receiver, uint256 amount) internal {
+        vm.prank(address(s_parentPool));
+        lpToken.mint(receiver, amount);
     }
 }

@@ -22,18 +22,19 @@ interface IParentPool {
 
     struct ChildPoolSnapshot {
         uint256 balance;
+        // TODO: flat this structure
         IBase.LiqTokenDailyFlow dailyFlow;
         uint256 iouTotalSent;
         uint256 iouTotalReceived;
         uint256 iouTotalSupply;
+        uint256 totalLiqTokenSent;
+        uint256 totalLiqTokenReceived;
         uint32 timestamp;
     }
 
     error DepositQueueIsFull();
     error WithdrawalQueueIsFull();
     error QueuesAreNotFull();
-    error ChildPoolSnapshotsAreNotReady();
-    error InvalidLiqTokenDecimals();
 
     event DepositQueued(bytes32 indexed depositId, address indexed lp, uint256 amount);
     event WithdrawalQueued(bytes32 indexed withdrawId, address indexed lp, uint256 liqTokenAmount);

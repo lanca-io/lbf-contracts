@@ -31,7 +31,10 @@ contract ReceiveSnapshot is ParentPoolBase {
             iouTotalSent: iouTotalSent,
             iouTotalReceived: iouTotalReceived,
             iouTotalSupply: iouTotalSupply,
-            timestamp: uint32(block.timestamp)
+            timestamp: uint32(block.timestamp),
+            //todo: fill it
+            totalLiqTokenSent: 0,
+            totalLiqTokenReceived: 0
         });
 
         bytes32 messageId = keccak256(

@@ -15,10 +15,6 @@ library Namespaces {
 }
 
 library Storage {
-    struct NonReentrant {
-        uint256 status;
-    }
-
     struct Bridge {
         uint256 totalSent;
         uint256 totalReceived;
@@ -28,13 +24,6 @@ library Storage {
 
     function bridge() internal pure returns (Bridge storage s) {
         bytes32 slot = Namespaces.BRIDGE;
-        assembly {
-            s.slot := slot
-        }
-    }
-
-    function nonReentrant() internal pure returns (NonReentrant storage s) {
-        bytes32 slot = Namespaces.NON_REENTRANT;
         assembly {
             s.slot := slot
         }

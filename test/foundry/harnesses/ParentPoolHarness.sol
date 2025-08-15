@@ -29,6 +29,8 @@ contract ParentPoolHarness is ParentPool {
         )
     {}
 
+    /* GETTERS */
+
     function exposed_getChildPoolTargetBalance(uint24 chainSelector) public view returns (uint256) {
         return s.parentPool().childPoolTargetBalances[chainSelector];
     }
@@ -38,6 +40,27 @@ contract ParentPoolHarness is ParentPool {
     ) public view returns (ChildPoolSnapshot memory) {
         return s.parentPool().childPoolSnapshots[chainSelector];
     }
+
+    function exposed_getSentNonce(uint24 dstChainSelector) external view returns (uint256) {
+        return bs.bridge().sentNonces[dstChainSelector];
+    }
+
+    function exposed_getTotalSent() external view returns (uint256) {
+        return bs.bridge().totalSent;
+    }
+
+    function exposed_getTotalReceived() external view returns (uint256) {
+        return bs.bridge().totalReceived;
+    }
+
+    function exposed_getReceivedBridgeAmount(
+        uint24 srcChainSelector,
+        uint256 nonce
+    ) external view returns (uint256) {
+        return bs.bridge().receivedBridges[srcChainSelector][nonce];
+    }
+
+    /* SETTERS */
 
     function exposed_setChildPoolSnapshot(
         uint24 chainSelector,
@@ -54,22 +77,8 @@ contract ParentPoolHarness is ParentPool {
         s.parentPool().childPoolTargetBalances[chainSelector] = targetBalance;
     }
 
-    function getSentNonce(uint24 dstChainSelector) external view returns (uint256) {
-        return bs.bridge().sentNonces[dstChainSelector];
-    }
-
-    function getTotalSent() external view returns (uint256) {
-        return bs.bridge().totalSent;
-    }
-
-    function getTotalReceived() external view returns (uint256) {
-        return bs.bridge().totalReceived;
-    }
-
-    function getReceivedBridgeAmount(
-        uint24 srcChainSelector,
-        uint256 nonce
-    ) external view returns (uint256) {
-        return bs.bridge().receivedBridges[srcChainSelector][nonce];
+    function exposed_setYesterdayFlow(uint256 inflow, uint256 outflow) public {
+        pbs.base().flowByDay[getYesterdayStartTimestamp()].inflow = inflow;
+        pbs.base().flowByDay[getYesterdayStartTimestamp()].outflow = outflow;
     }
 }
