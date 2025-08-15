@@ -139,11 +139,12 @@ abstract contract Rebalancer is IRebalancer, Base {
             gasLimit: gasLimitForExecution
         });
 
-        return IConceroRouter(i_conceroRouter).getMessageFee(
-            destinationChainSelector,
-            false, // shouldFinaliseSrc
-            address(0), // feeToken (native)
-            destinationChainData
-        );
+        return
+            IConceroRouter(i_conceroRouter).getMessageFee(
+                destinationChainSelector,
+                false, // shouldFinaliseSrc
+                address(0), // feeToken (native)
+                destinationChainData
+            );
     }
 }
