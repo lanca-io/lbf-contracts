@@ -5,6 +5,7 @@ import {ParentPool} from "../../../contracts/ParentPool/ParentPool.sol";
 import {Storage as s} from "../../../contracts/ParentPool/libraries/Storage.sol";
 import {Storage as pbs} from "../../../contracts/Base/libraries/Storage.sol";
 import {Storage as bs} from "../../../contracts/LancaBridge/libraries/Storage.sol";
+import {Storage as rs} from "../../../contracts/Rebalancer/libraries/Storage.sol";
 
 contract ParentPoolHarness is ParentPool {
     using s for s.ParentPool;
@@ -80,5 +81,13 @@ contract ParentPoolHarness is ParentPool {
     function exposed_setYesterdayFlow(uint256 inflow, uint256 outflow) public {
         pbs.base().flowByDay[getYesterdayStartTimestamp()].inflow = inflow;
         pbs.base().flowByDay[getYesterdayStartTimestamp()].outflow = outflow;
+    }
+
+    function exposed_getConceroRouter() public view returns (address) {
+        return i_conceroRouter;
+    }
+
+    function exposed_setTotalRebalancerFee(uint256 rebalancerFee) public {
+        rs.rebalancer().totalRebalancingFee = rebalancerFee;
     }
 }

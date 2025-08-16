@@ -112,7 +112,6 @@ abstract contract LancaBridge is ILancaBridge, Base, ReentrancyGuard {
             bytes memory dstCallData
         ) = abi.decode(messageData, (address, address, uint256, uint256, uint256, bytes));
 
-        // todo: Think about adding retry and increase _postOutflow() when balance is insufficient
         require(getActiveBalance() >= tokenAmount, ICommonErrors.InvalidAmount());
 
         uint256 existingAmount = s_bridge.receivedBridges[sourceChainSelector][nonce];

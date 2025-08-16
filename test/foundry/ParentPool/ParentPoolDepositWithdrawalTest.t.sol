@@ -9,8 +9,6 @@ import {IParentPool} from "../../../contracts/ParentPool/interfaces/IParentPool.
 import "forge-std/src/console.sol";
 
 contract ParentPoolDepositWithdrawalTest is ParentPoolBase {
-    uint256 private constant MAX_DEPOSIT_AMOUNT = 1_000_000_000e6;
-
     function setUp() public override {
         super.setUp();
         vm.warp(NOW_TIMESTAMP);

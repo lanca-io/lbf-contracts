@@ -18,7 +18,7 @@ abstract contract ChildPoolBase is LancaTest {
         usdc = IERC20(deployMockERC20.deployERC20("USD Coin", "USDC", 6));
 
         DeployIOUToken deployIOUToken = new DeployIOUToken();
-        iouToken = address(IOUToken(deployIOUToken.deployIOUToken(deployer, address(0))));
+        iouToken = IOUToken(deployIOUToken.deployIOUToken(deployer, address(0)));
 
         DeployChildPool deployChildPool = new DeployChildPool();
         childPool = ChildPool(

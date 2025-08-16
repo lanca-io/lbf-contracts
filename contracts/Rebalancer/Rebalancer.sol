@@ -12,6 +12,7 @@ import {IConceroRouter} from "@concero/v2-contracts/contracts/interfaces/IConcer
 import {ICommonErrors} from "../common/interfaces/ICommonErrors.sol";
 import {CommonConstants} from "../common/CommonConstants.sol";
 import {Storage as s} from "./libraries/Storage.sol";
+import {Storage as bs} from "../Base/libraries/Storage.sol";
 
 /**
  * @title Rebalancer
@@ -19,6 +20,7 @@ import {Storage as s} from "./libraries/Storage.sol";
  */
 abstract contract Rebalancer is IRebalancer, Base {
     using s for s.Rebalancer;
+    using bs for bs.Base;
     using SafeERC20 for IERC20;
 
     uint256 private constant DEFAULT_GAS_LIMIT = 300_000;
@@ -72,7 +74,7 @@ abstract contract Rebalancer is IRebalancer, Base {
         s.Rebalancer storage s_rebalancer = s.rebalancer();
 
         // Validate destination pool exists
-        address destinationPoolAddress = s_rebalancer.dstPools[destinationChainSelector];
+        address destinationPoolAddress = bs.base().dstPools[destinationChainSelector];
         require(destinationPoolAddress != address(0), InvalidDestinationChain());
 
         // Burn IOU tokens from sender first (fail early if insufficient balance)

@@ -24,7 +24,7 @@ abstract contract LancaBridgeBase is LancaTest {
         usdc = IERC20(deployMockERC20.deployERC20("USD Coin", "USDC", 6));
 
         DeployIOUToken deployIOUToken = new DeployIOUToken();
-        iouToken = address(IOUToken(deployIOUToken.deployIOUToken(deployer, address(0))));
+        iouToken = IOUToken(deployIOUToken.deployIOUToken(deployer, address(0)));
 
         DeployLPToken deployLPToken = new DeployLPToken();
         lpToken = LPToken(deployLPToken.deployLPToken(address(this), address(this)));

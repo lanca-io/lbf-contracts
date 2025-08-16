@@ -19,6 +19,7 @@ import {IBase} from "../../../contracts/Base/interfaces/IBase.sol";
 abstract contract ParentPoolBase is LancaTest {
     uint16 internal constant DEFAULT_TARGET_QUEUE_LENGTH = 5;
     uint32 internal constant NOW_TIMESTAMP = 1754300013;
+    uint256 internal constant MAX_DEPOSIT_AMOUNT = 1_000_000_000e6;
 
     address internal s_childPool_1;
     address internal s_childPool_2;
@@ -43,7 +44,7 @@ abstract contract ParentPoolBase is LancaTest {
         usdc = IERC20(deployMockERC20.deployERC20("USD Coin", "USDC", 6));
 
         DeployIOUToken deployIOUToken = new DeployIOUToken();
-        iouToken = deployIOUToken.deployIOUToken(deployer, address(0));
+        iouToken = IOUToken(deployIOUToken.deployIOUToken(address(this), address(0)));
 
         DeployLPToken deployLPToken = new DeployLPToken();
         lpToken = LPToken(deployLPToken.deployLPToken(address(this), address(this)));
@@ -64,6 +65,7 @@ abstract contract ParentPoolBase is LancaTest {
         );
 
         lpToken.grantRole(lpToken.MINTER_ROLE(), address(s_parentPool));
+        iouToken.grantRole(iouToken.MINTER_ROLE(), address(s_parentPool));
         _fundTestAddresses();
         _approveUSDCForAll();
         _setQueuesLength();

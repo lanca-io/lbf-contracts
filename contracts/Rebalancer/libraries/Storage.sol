@@ -10,7 +10,6 @@ library Namespaces {
 
 library Storage {
     struct Rebalancer {
-        mapping(uint24 => address) dstPools;
         uint256 totalRebalancingFee;
         uint256 totalIouSent;
         uint256 totalIouReceived;

@@ -1,18 +1,18 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.28;
 
+import {IOUToken} from "../../../contracts/Rebalancer/IOUToken.sol";
+import {ConceroRouterMock} from "../mocks/ConceroRouterMock.sol";
+import {DeployMockConceroRouter} from "../scripts/deploy/DeployMockConceroRouter.s.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Script} from "forge-std/src/Script.sol";
-import {ConceroRouterMock} from "../mocks/ConceroRouterMock.sol";
-
-import {DeployMockConceroRouter} from "../scripts/deploy/DeployMockConceroRouter.s.sol";
 
 abstract contract LancaBaseScript is Script {
     address public immutable deployer;
     address public immutable proxyDeployer;
 
     IERC20 public usdc;
-    address public iouToken;
+    IOUToken public iouToken;
     address public conceroRouter;
     address public s_lancaKeeper;
 

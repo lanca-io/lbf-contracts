@@ -21,7 +21,7 @@ contract SendSnapshot is ChildPoolBase {
         vm.startPrank(deployer);
         childPool = new ChildPoolWrapper(
             conceroRouter,
-            iouToken,
+            address(iouToken),
             address(usdc),
             6,
             CHILD_POOL_CHAIN_SELECTOR,
