@@ -8,6 +8,13 @@ export async function setDstPool(srcChainName: string, dstChainName: string) {
 	const srcChain = conceroNetworks[srcChainName as keyof typeof conceroNetworks];
 	const dstChain = conceroNetworks[dstChainName as keyof typeof conceroNetworks];
 
+	if (!srcChain || !dstChain) {
+		throw new Error(`Chain ${srcChainName} or ${dstChainName} not found`);
+	}
+
+	console.log(srcChain.name, dstChain.name);
+	console.log(srcChain.chainSelector, dstChain.chainSelector);
+
 	if (srcChain.name === dstChain.name) {
 		throw new Error("Source and destination chains cannot be the same");
 	}
