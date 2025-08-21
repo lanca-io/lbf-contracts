@@ -30,14 +30,14 @@ async function deployChildPoolTask(taskArgs: any, hre: HardhatRuntimeEnvironment
 		await grantMinterRoleForIOUToken(hre.network.name);
 	}
 
+	if (taskArgs.implementation) {
+		await upgradeProxyImplementation(hre, ProxyEnum.childPoolProxy, false);
+	}
+
 	if (taskArgs.vars) {
 		await setLancaKeeper(hre.network.name);
 		await setDstPool(hre.network.name, taskArgs.parent);
 		await setDstPool(taskArgs.parent, hre.network.name);
-	}
-
-	if (taskArgs.implementation) {
-		await upgradeProxyImplementation(hre, ProxyEnum.childPoolProxy, false);
 	}
 }
 

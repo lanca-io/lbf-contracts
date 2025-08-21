@@ -10,7 +10,7 @@ import {
 	ConceroLocalNetwork,
 	ConceroNetwork,
 } from "../types/ConceroNetwork";
-import { getEnvVar, getWallet } from "../utils";
+import { getWallet } from "../utils";
 import { createViemChain } from "../utils/createViemChain";
 import { urls } from "./rpcUrls";
 
@@ -59,14 +59,6 @@ const testingNetworks: Record<"localhost", ConceroLocalNetwork> &
 				privateKey: localhostDeployerPK,
 				balance: "10000000000000000000000",
 			},
-			{
-				privateKey: getEnvVar("TESTNET_OPERATOR_PRIVATE_KEY"),
-				balance: "10000000000000000000000",
-			},
-			{
-				privateKey: getEnvVar("TESTNET_USER_PRIVATE_KEY"),
-				balance: "10000000000000000000000",
-			},
 		],
 		chainSelector: 31337n,
 		confirmations: 1,
@@ -84,11 +76,7 @@ const testingNetworks: Record<"localhost", ConceroLocalNetwork> &
 		viemChain: localhostViemChain,
 		confirmations: 1,
 		chainSelector: BigInt(process.env.CL_CCIP_CHAIN_SELECTOR_LOCALHOST || "1"),
-		accounts: [
-			localhostDeployerPK,
-			localhostProxyDeployerPK,
-			getEnvVar("TESTNET_OPERATOR_PRIVATE_KEY"),
-		],
+		accounts: [],
 		saveDeployments: true,
 		url: process.env.LOCALHOST_RPC_URL || "http://localhost:8545",
 	},
