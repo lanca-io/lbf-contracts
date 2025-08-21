@@ -8,6 +8,7 @@ core/
 truffle-config.js
 truffle.js
 gethload.js
+hardhat.config.ts
 
 pnpm-lock.yaml
 coverage

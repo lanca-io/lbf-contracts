@@ -7,6 +7,7 @@ export {
 	getClients,
 	getFallbackClients,
 	getTestClient,
+	getViemAccount,
 	type ExtendedTestClient,
 } from "./getViemClients";
 export { localhostViemChain, hardhatViemChain } from "./localhostViemChain";

@@ -29,7 +29,8 @@
                     "^@lanca(/.*)?$",
                     "^contracts/(.*)$",
                     "^@(.*)$",
-                    "^[./]"
+                    "^[./]",
+                    "^@tenderly/hardhat-tenderly$"
                 ]
             }
         },

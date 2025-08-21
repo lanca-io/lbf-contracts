@@ -6,12 +6,14 @@ import "@nomicfoundation/hardhat-ethers";
 import "@nomicfoundation/hardhat-network-helpers";
 import "@nomicfoundation/hardhat-verify";
 import "@nomicfoundation/hardhat-viem";
-import "@tenderly/hardhat-tenderly";
 import "@typechain/hardhat";
 import "hardhat-contract-sizer";
 import "hardhat-deploy";
 import "hardhat-gas-reporter";
 import "solidity-coverage";
+
+// tenderly import should be last
+import "@tenderly/hardhat-tenderly";
 
 import { conceroNetworks } from "./constants";
 import "./tasks";

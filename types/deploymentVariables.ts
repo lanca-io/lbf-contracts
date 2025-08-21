@@ -12,10 +12,14 @@ export type EnvPrefixes = {
 	verifier: string;
 	verifierProxy: string;
 	verifierProxyAdmin: string;
+	parentPool: string;
+	parentPoolProxy: string;
+	parentPoolProxyAdmin: string;
+	childPool: string;
+	childPoolProxy: string;
+	childPoolProxyAdmin: string;
 	lpToken: string;
 	iouToken: string;
-	parentPool: string;
-	childPool: string;
 	create3Factory: string;
 	pause: string;
 };

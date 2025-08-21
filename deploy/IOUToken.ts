@@ -1,48 +1,55 @@
 import { getNetworkEnvKey } from "@concero/contract-utils";
-import { DeployOptions, Deployment } from "hardhat-deploy/types";
+import { Deployment } from "hardhat-deploy/types";
 import { HardhatRuntimeEnvironment } from "hardhat/types";
 
 import { conceroNetworks } from "../constants";
 import { log, updateEnvVariable } from "../utils";
 
+type DeployArgs = {
+	defaultAdmin: string;
+	minter: string;
+};
+
 type DeploymentFunction = (
 	hre: HardhatRuntimeEnvironment,
-	deployOptions?: Partial<DeployOptions>,
+	overrideArgs?: Partial<DeployArgs>,
 ) => Promise<Deployment>;
 
 const deployIOUToken: DeploymentFunction = async function (
 	hre: HardhatRuntimeEnvironment,
-	deployOptions?: Partial<DeployOptions>,
+	overrideArgs?: Partial<DeployArgs>,
 ): Promise<Deployment> {
 	const { deployer } = await hre.getNamedAccounts();
 	const { deploy } = hre.deployments;
 	const { name } = hre.network;
 
-	const chain = conceroNetworks[name];
-	const { type: networkType } = chain;
+	const chain = conceroNetworks[name as keyof typeof conceroNetworks];
 
-	const args = deployOptions?.args || [deployer, deployer];
+	const args: DeployArgs = {
+		defaultAdmin: overrideArgs?.defaultAdmin || deployer,
+		minter: overrideArgs?.minter || deployer,
+	};
 
-	const deployment = await deploy(deployOptions?.contract || "IOUToken", {
+	const deployment = await deploy("IOUToken", {
 		from: deployer,
-		args,
+		args: [args.defaultAdmin, args.minter],
 		log: true,
 		autoMine: true,
 		skipIfAlreadyDeployed: true,
-		...deployOptions,
 	});
 
 	log(`IOUToken deployed at: ${deployment.address}`, "deployIOUToken", name);
+	log(`Args: ${JSON.stringify(args)}`, "deployIOUToken", name);
 	updateEnvVariable(
 		`IOU_${getNetworkEnvKey(name)}`,
 		deployment.address,
-		`deployments.${networkType}`,
+		`deployments.${chain.type}`,
 	);
 
 	return deployment;
 };
 
-deployIOUToken.tags = ["IOUToken", "ParentPoolDependencies", "ChildPoolDependencies"];
+deployIOUToken.tags = ["IOUToken"];
 
 export default deployIOUToken;
 export { deployIOUToken };
