@@ -2,8 +2,7 @@ import { getNetworkEnvKey } from "@concero/contract-utils";
 
 import { conceroNetworks } from "../../constants";
 import { parentPoolVariables } from "../../constants/deploymentVariables";
-import { getFallbackClients, getViemAccount, log } from "../../utils";
-import { getEnvVar } from "../../utils";
+import { getEnvVar, getFallbackClients, getViemAccount, log } from "../../utils";
 
 export async function setParentPoolVariables(name: string) {
 	const chain = conceroNetworks[name as keyof typeof conceroNetworks];
@@ -102,18 +101,33 @@ export async function setParentPoolVariables(name: string) {
 
 	// Lur score sensitivity
 	try {
-		const setLurScoreSensitivityHash = await walletClient.writeContract({
+		const currentLurScoreSensitivity = await publicClient.readContract({
 			address: parentPoolProxyAddress,
 			abi: parentPoolAbi,
-			functionName: "setLurScoreSensitivity",
-			args: [args.lurScoreSensitivity],
+			functionName: "getLurScoreSensitivity",
+			args: [],
 		});
 
-		log(
-			`Set lur score sensitivity to ${args.lurScoreSensitivity}, hash: ${setLurScoreSensitivityHash}`,
-			"setParentPoolVariables",
-			name,
-		);
+		if (currentLurScoreSensitivity !== args.lurScoreSensitivity) {
+			const setLurScoreSensitivityHash = await walletClient.writeContract({
+				address: parentPoolProxyAddress,
+				abi: parentPoolAbi,
+				functionName: "setLurScoreSensitivity",
+				args: [args.lurScoreSensitivity],
+			});
+
+			log(
+				`Set lur score sensitivity to ${args.lurScoreSensitivity}, hash: ${setLurScoreSensitivityHash}`,
+				"setParentPoolVariables",
+				name,
+			);
+		} else {
+			log(
+				`Lur score sensitivity already set to ${args.lurScoreSensitivity}`,
+				"setParentPoolVariables",
+				name,
+			);
+		}
 	} catch (error) {
 		log(
 			`Failed to set lur score sensitivity: ${error.message}`,
@@ -124,18 +138,33 @@ export async function setParentPoolVariables(name: string) {
 
 	// Scores weights
 	try {
-		const setScoresWeightsHash = await walletClient.writeContract({
+		const [, currentNdrScoreWeight] = await publicClient.readContract({
 			address: parentPoolProxyAddress,
 			abi: parentPoolAbi,
-			functionName: "setScoresWeights",
-			args: [args.lurScoreWeight, args.ndrScoreWeight],
+			functionName: "getScoresWeights",
+			args: [],
 		});
 
-		log(
-			`Set scores weights to ${args.lurScoreWeight} and ${args.ndrScoreWeight}, hash: ${setScoresWeightsHash}`,
-			"setParentPoolVariables",
-			name,
-		);
+		if (currentNdrScoreWeight !== args.ndrScoreWeight) {
+			const setScoresWeightsHash = await walletClient.writeContract({
+				address: parentPoolProxyAddress,
+				abi: parentPoolAbi,
+				functionName: "setScoresWeights",
+				args: [args.lurScoreWeight, args.ndrScoreWeight],
+			});
+
+			log(
+				`Set scores weights to ${args.lurScoreWeight} and ${args.ndrScoreWeight}, hash: ${setScoresWeightsHash}`,
+				"setParentPoolVariables",
+				name,
+			);
+		} else {
+			log(
+				`Weights already set to ${args.lurScoreWeight} and ${args.ndrScoreWeight}`,
+				"setParentPoolVariables",
+				name,
+			);
+		}
 	} catch (error) {
 		log(`Failed to set scores weights: ${error.message}`, "setParentPoolVariables", name);
 	}

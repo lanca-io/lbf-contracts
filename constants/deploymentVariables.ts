@@ -22,6 +22,8 @@ type ParentPoolVariables = {
 
 const MINTER_ROLE = "0x9f2df0fed2c77648de5860a4cc508cd0818c85b8b8a1ab4ceeef8d981c8956a6"; // keccak256("MINTER_ROLE")
 
+const liqTokenDecimals = 6;
+
 const viemReceiptConfig: WaitForTransactionReceiptParameters = {
 	timeout: 0,
 	confirmations: 2,
@@ -32,11 +34,11 @@ const writeContractConfig: WriteContractParameters = {
 };
 
 const parentPoolVariables: ParentPoolVariables = {
-	targetDepositQueueLength: 100,
-	targetWithdrawalQueueLength: 100,
-	lurScoreSensitivity: 2000000n,
-	lurScoreWeight: 500000n,
-	ndrScoreWeight: 500000n,
+	targetDepositQueueLength: 3,
+	targetWithdrawalQueueLength: 0,
+	lurScoreSensitivity: 5n * 10n ** BigInt(liqTokenDecimals),
+	lurScoreWeight: (7n * 10n ** BigInt(liqTokenDecimals)) / 10n,
+	ndrScoreWeight: (3n * 10n ** BigInt(liqTokenDecimals)) / 10n,
 };
 
 const parentPoolChainSelectors: Record<NetworkType, number> = {
@@ -81,4 +83,5 @@ export {
 	ParentPoolVariables,
 	parentPoolVariables,
 	MINTER_ROLE,
+	liqTokenDecimals,
 };

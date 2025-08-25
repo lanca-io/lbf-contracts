@@ -1,67 +1,52 @@
 import { task } from "hardhat/config";
 
+import { getNetworkEnvKey } from "@concero/contract-utils";
 import { type HardhatRuntimeEnvironment } from "hardhat/types";
+import { erc20Abi, parseUnits } from "viem";
 
-import { ProxyEnum } from "../../constants";
-import { deployIOUToken } from "../../deploy/IOUToken";
-import { deployLPToken } from "../../deploy/LPToken";
-import { deployParentPool } from "../../deploy/ParentPool";
-import { deployProxyAdmin } from "../../deploy/ProxyAdmin";
-import { deployTransparentProxy } from "../../deploy/TransparentProxy";
+import { conceroNetworks } from "../../constants";
+import { liqTokenDecimals } from "../../constants/deploymentVariables";
+import { getEnvAddress, getEnvVar, getFallbackClients } from "../../utils";
 import { compileContracts } from "../../utils/compileContracts";
-import { grantMinterRoleForIOUToken } from "../utils/grantMinterRoleForIOUToken";
-import { grantMinterRoleForLPToken } from "../utils/grantMinterRoleForLPToken";
-import { setLancaKeeper } from "../utils/setLancaKeeper";
-import { setParentPoolVariables } from "../utils/setParentPoolVariables";
-import { upgradeProxyImplementation } from "../utils/upgradeProxyImplementation";
 
-async function deployParentPoolTask(taskArgs: any, hre: HardhatRuntimeEnvironment) {
-	compileContracts({ quiet: true });
+async function depositToParentPool(amount: string, networkName: string) {
+	const { walletClient, publicClient } = getFallbackClients(conceroNetworks[networkName]);
+	const { abi: parentPoolAbi } = await import(
+		"../../artifacts/contracts/ParentPool/ParentPool.sol/ParentPool.json"
+	);
+	const parentPoolAddress = getEnvAddress("parentPoolProxy", networkName)[0];
 
-	if (taskArgs.lp) {
-		await deployLPToken(hre, { defaultAdmin: taskArgs.admin, minter: taskArgs.minter });
-	}
+	let hash;
 
-	if (taskArgs.iou) {
-		await deployIOUToken(hre, { defaultAdmin: taskArgs.admin, minter: taskArgs.minter });
-	}
-
-	if (taskArgs.implementation) {
-		await deployParentPool(hre, {
-			liquidityTokenDecimals: taskArgs.decimals,
-			minTargetBalance: taskArgs.mtb,
-		});
-	}
-
-	if (taskArgs.proxy) {
-		await deployProxyAdmin(hre, ProxyEnum.parentPoolProxy);
-		await deployTransparentProxy(hre, ProxyEnum.parentPoolProxy);
-		await grantMinterRoleForLPToken(hre.network.name);
-		await grantMinterRoleForIOUToken(hre.network.name);
-	}
-
-	if (taskArgs.implementation) {
-		await upgradeProxyImplementation(hre, ProxyEnum.parentPoolProxy, false);
-	}
-
-	if (taskArgs.vars) {
-		await setParentPoolVariables(hre.network.name);
-		await setLancaKeeper(hre.network.name);
-	}
-}
-
-task("deploy-parent-pool", "Deploy ParentPool")
-	.addFlag("proxy", "Deploy proxy")
-	.addFlag("implementation", "Deploy implementation")
-	.addFlag("vars", "Set contract variables")
-	.addFlag("lp", "Deploy LPToken")
-	.addFlag("iou", "Deploy IOU Token")
-	.addOptionalParam("decimals", "Liquidity token decimals")
-	.addOptionalParam("mtb", "Minimum target balance")
-	.addOptionalParam("admin", "LPToken default admin")
-	.addOptionalParam("minter", "LPToken minter")
-	.setAction(async (taskArgs, hre: HardhatRuntimeEnvironment) => {
-		await deployParentPoolTask(taskArgs, hre);
+	hash = await walletClient.writeContract({
+		abi: erc20Abi,
+		functionName: "approve",
+		address: getEnvVar(`FIAT_TOKEN_PROXY_${getNetworkEnvKey(networkName)}`),
+		args: [parentPoolAddress, parseUnits(amount, liqTokenDecimals)],
 	});
 
-export { deployParentPoolTask };
+	const { status: approveStatus } = await publicClient.waitForTransactionReceipt({ hash });
+
+	console.log("approve", approveStatus, hash);
+
+	hash = await walletClient.writeContract({
+		abi: parentPoolAbi,
+		functionName: "enterDepositQueue",
+		address: parentPoolAddress,
+		args: [parseUnits(amount, liqTokenDecimals)],
+	});
+
+	const { status } = await publicClient.waitForTransactionReceipt({ hash });
+
+	console.log("enterDepositQueue", status, hash);
+}
+
+task("deposit-to-parent-pool", "deposit to parent pool")
+	.addParam("amount")
+	.setAction(async (taskArgs, hre: HardhatRuntimeEnvironment) => {
+		compileContracts({ quiet: true });
+
+		await depositToParentPool(taskArgs.amount, hre.network.name);
+	});
+
+export default {};

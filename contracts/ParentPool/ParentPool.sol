@@ -106,52 +106,6 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
         emit WithdrawalQueued(withdrawId, withdraw.lp, lpTokenAmount);
     }
 
-    function _handleConceroReceiveSnapshot(
-        bytes32 messageId,
-        uint24 sourceChainSelector,
-        bytes memory messageData
-    ) internal override {
-        (IParentPool.ChildPoolSnapshot memory snapshot) = abi.decode(
-            messageData,
-            (IParentPool.ChildPoolSnapshot)
-        );
-
-        s.parentPool().childPoolSnapshots[sourceChainSelector] = snapshot;
-
-        emit IParentPool.SnapshotReceived(messageId, sourceChainSelector, snapshot);
-    }
-
-    function getChildPoolChainSelectors() public view returns (uint24[] memory) {
-        return s.parentPool().supportedChainSelectors;
-    }
-
-    function isReadyToTriggerDepositWithdrawProcess() external view returns (bool) {
-        (bool success, ) = _getTotalPoolsBalance();
-        return success && areQueuesFull();
-    }
-
-    function areQueuesFull() public view returns (bool) {
-        s.ParentPool storage s_parentPool = s.parentPool();
-        return
-            s_parentPool.withdrawalQueueIds.length == s_parentPool.targetWithdrawalQueueLength &&
-            s_parentPool.depositQueueIds.length == s_parentPool.targetDepositQueueLength;
-    }
-
-    function isReadyToProcessPendingWithdrawals() public view returns (bool) {
-        s.ParentPool storage s_parentPool = s.parentPool();
-        return
-            (s_parentPool.remainingWithdrawalAmount == 0) &&
-            (s_parentPool.totalWithdrawalAmountLocked > 0);
-    }
-
-    function getActiveBalance() public view override returns (uint256) {
-        s.ParentPool storage s_parentPool = s.parentPool();
-        return
-            super.getActiveBalance() -
-            s_parentPool.totalDepositAmountInQueue -
-            s_parentPool.totalWithdrawalAmountLocked;
-    }
-
     function getWithdrawalFee(uint256 amount) public view returns (uint256, uint256) {
         s.ParentPool storage s_parentPool = s.parentPool();
         uint256 pendingWithdrawalCount = s_parentPool.pendingWithdrawalIds.length;
@@ -170,18 +124,6 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
             4) / pendingWithdrawalCount;
 
         return (conceroFee, getRebalancerFee(amount));
-    }
-
-    function getTargetDepositQueueLength() public view returns (uint16) {
-        return s.parentPool().targetDepositQueueLength;
-    }
-
-    function getTargetWithdrawalQueueLength() public view returns (uint16) {
-        return s.parentPool().targetWithdrawalQueueLength;
-    }
-
-    function getPendingWithdrawalIds() public view returns (bytes32[] memory) {
-        return s.parentPool().pendingWithdrawalIds;
     }
 
     function triggerDepositWithdrawProcess() external onlyLancaKeeper {
@@ -244,6 +186,59 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
         s_parentPool.totalWithdrawalAmountLocked -= totalLiquidityTokenAmountToWithdraw;
         s_parentPool.totalLancaFeeInLiqToken += totalLancaFee;
         rs.rebalancer().totalRebalancingFee += totalRebalanceFee;
+    }
+
+    /*   VIEW FUNCTIONS   */
+
+    function getChildPoolChainSelectors() public view returns (uint24[] memory) {
+        return s.parentPool().supportedChainSelectors;
+    }
+
+    function isReadyToTriggerDepositWithdrawProcess() external view returns (bool) {
+        (bool success, ) = _getTotalPoolsBalance();
+        return success && areQueuesFull();
+    }
+
+    function areQueuesFull() public view returns (bool) {
+        s.ParentPool storage s_parentPool = s.parentPool();
+        return
+            s_parentPool.withdrawalQueueIds.length == s_parentPool.targetWithdrawalQueueLength &&
+            s_parentPool.depositQueueIds.length == s_parentPool.targetDepositQueueLength;
+    }
+
+    function isReadyToProcessPendingWithdrawals() public view returns (bool) {
+        s.ParentPool storage s_parentPool = s.parentPool();
+        return
+            (s_parentPool.remainingWithdrawalAmount == 0) &&
+            (s_parentPool.totalWithdrawalAmountLocked > 0);
+    }
+
+    function getActiveBalance() public view override returns (uint256) {
+        s.ParentPool storage s_parentPool = s.parentPool();
+        return
+            super.getActiveBalance() -
+            s_parentPool.totalDepositAmountInQueue -
+            s_parentPool.totalWithdrawalAmountLocked;
+    }
+
+    function getTargetDepositQueueLength() public view returns (uint16) {
+        return s.parentPool().targetDepositQueueLength;
+    }
+
+    function getTargetWithdrawalQueueLength() public view returns (uint16) {
+        return s.parentPool().targetWithdrawalQueueLength;
+    }
+
+    function getPendingWithdrawalIds() public view returns (bytes32[] memory) {
+        return s.parentPool().pendingWithdrawalIds;
+    }
+
+    function getLurScoreSensitivity() public view returns (uint64) {
+        return s.parentPool().lurScoreSensitivity;
+    }
+
+    function getScoresWeights() public view returns (uint64 lurScoreWeight, uint64 ndrScoreWeight) {
+        return (s.parentPool().lurScoreWeight, s.parentPool().ndrScoreWeight);
     }
 
     /*   ADMIN FUNCTIONS   */
@@ -659,5 +654,20 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
         uint256 liqTokenOnTheWay = totalLiqTokenSent - totalLiqTokenReceived;
 
         return (true, totalPoolsBalance - (liqTokenOnTheWay + iouTotalSupply + iouOnTheWay));
+    }
+
+    function _handleConceroReceiveSnapshot(
+        bytes32 messageId,
+        uint24 sourceChainSelector,
+        bytes memory messageData
+    ) internal override {
+        (IParentPool.ChildPoolSnapshot memory snapshot) = abi.decode(
+            messageData,
+            (IParentPool.ChildPoolSnapshot)
+        );
+
+        s.parentPool().childPoolSnapshots[sourceChainSelector] = snapshot;
+
+        emit IParentPool.SnapshotReceived(messageId, sourceChainSelector, snapshot);
     }
 }
