@@ -14,6 +14,7 @@ import { grantMinterRoleForLPToken } from "../utils/grantMinterRoleForLPToken";
 import { setAllDstPools } from "../utils/setAllDstPools";
 import { setLancaKeeper } from "../utils/setLancaKeeper";
 import { setParentPoolCalculationVars } from "../utils/setParentPoolCalculationVars";
+import { setParentPoolLiqCap } from "../utils/setParentPoolLiqCap";
 import { upgradeProxyImplementation } from "../utils/upgradeProxyImplementation";
 
 async function deployParentPoolTask(taskArgs: any, hre: HardhatRuntimeEnvironment) {
@@ -45,6 +46,7 @@ async function deployParentPoolTask(taskArgs: any, hre: HardhatRuntimeEnvironmen
 
 	if (taskArgs.vars) {
 		await setParentPoolCalculationVars(hre.network.name);
+		await setParentPoolLiqCap(hre.network.name);
 		await setLancaKeeper(hre.network.name);
 		await setAllDstPools(hre.network.name);
 		await grantMinterRoleForLPToken(hre.network.name);

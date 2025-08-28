@@ -9,7 +9,7 @@ import { liqTokenDecimals } from "../../constants/deploymentVariables";
 import { getEnvAddress, getEnvVar, getFallbackClients } from "../../utils";
 import { compileContracts } from "../../utils/compileContracts";
 
-async function depositToParentPool(amount: string, networkName: string) {
+async function withdrawFromParentPool(amount: string, networkName: string) {
 	const { walletClient, publicClient } = getFallbackClients(conceroNetworks[networkName]);
 	const { abi: parentPoolAbi } = await import(
 		"../../artifacts/contracts/ParentPool/ParentPool.sol/ParentPool.json"
@@ -19,7 +19,7 @@ async function depositToParentPool(amount: string, networkName: string) {
 	let hash = await walletClient.writeContract({
 		abi: erc20Abi,
 		functionName: "approve",
-		address: getEnvVar(`FIAT_TOKEN_PROXY_${getNetworkEnvKey(networkName)}`),
+		address: getEnvVar(`LPT_${getNetworkEnvKey(networkName)}`),
 		args: [parentPoolAddress, parseUnits(amount, liqTokenDecimals)],
 	});
 
@@ -29,22 +29,22 @@ async function depositToParentPool(amount: string, networkName: string) {
 
 	hash = await walletClient.writeContract({
 		abi: parentPoolAbi,
-		functionName: "enterDepositQueue",
+		functionName: "enterWithdrawalQueue",
 		address: parentPoolAddress,
 		args: [parseUnits(amount, liqTokenDecimals)],
 	});
 
 	const { status } = await publicClient.waitForTransactionReceipt({ hash });
 
-	console.log("enterDepositQueue", status, hash);
+	console.log("enterWithdrawalQueue", status, hash);
 }
 
-task("deposit-to-parent-pool", "deposit to parent pool")
+task("withdraw-from-parent-pool", "withdraw from parent pool")
 	.addParam("amount", "formatted amount (1.443)")
 	.setAction(async (taskArgs, hre: HardhatRuntimeEnvironment) => {
 		compileContracts({ quiet: true });
 
-		await depositToParentPool(taskArgs.amount, hre.network.name);
+		await withdrawFromParentPool(taskArgs.amount, hre.network.name);
 	});
 
 export default {};

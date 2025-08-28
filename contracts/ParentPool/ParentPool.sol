@@ -60,7 +60,7 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
         s.ParentPool storage s_parentPool = s.parentPool();
         require(s_parentPool.depositQueueIds.length < MAX_QUEUE_LENGTH, DepositQueueIsFull());
         require(
-            s_parentPool.prevTotaPoolsBalance >= s_parentPool.liquidityCap,
+            s_parentPool.prevTotaPoolsBalance <= s_parentPool.liquidityCap,
             LiquidityCapReached(s_parentPool.liquidityCap)
         );
 
@@ -81,7 +81,7 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
         emit DepositQueued(depositId, deposit.lp, liquidityTokenAmount);
     }
 
-    function enterWithdrawQueue(uint256 lpTokenAmount) external {
+    function enterWithdrawalQueue(uint256 lpTokenAmount) external {
         require(lpTokenAmount > 0, ICommonErrors.AmountIsZero());
 
         s.ParentPool storage s_parentPool = s.parentPool();
@@ -239,6 +239,10 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
         return (s.parentPool().lurScoreWeight, s.parentPool().ndrScoreWeight);
     }
 
+    function getLiquidityCap() public view returns (uint256) {
+        return s.parentPool().liquidityCap;
+    }
+
     /*   ADMIN FUNCTIONS   */
 
     function setTargetDepositQueueLength(uint16 length) external onlyOwner {
@@ -285,6 +289,10 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
 
         s_parentPool.lurScoreWeight = lurScoreWeight;
         s_parentPool.ndrScoreWeight = ndrScoreWeight;
+    }
+
+    function setLiquidityCap(uint256 newLiqCap) external onlyOwner {
+        s.parentPool().liquidityCap = newLiqCap;
     }
 
     /*   INTERNAL FUNCTIONS   */
