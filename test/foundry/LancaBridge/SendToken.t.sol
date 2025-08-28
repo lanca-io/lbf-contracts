@@ -163,13 +163,13 @@ contract SendToken is LancaBridgeBase {
         address secondChildPool = makeAddr("secondChildPool");
         uint24 secondChildPoolChainSelector = 200;
 
-        uint24[] memory dstChainSelectors = new uint24[](1);
-        dstChainSelectors[0] = secondChildPoolChainSelector;
-        address[] memory dstPools = new address[](1);
-        dstPools[0] = secondChildPool;
+        //        uint24[] memory dstChainSelectors = new uint24[](1);
+        //        dstChainSelectors[0] = secondChildPoolChainSelector;
+        //        address[] memory dstPools = new address[](1);
+        //        dstPools[0] = secondChildPool;
 
         vm.prank(deployer);
-        childPool.addDstPools(dstChainSelectors, dstPools);
+        childPool.setDstPool(secondChildPoolChainSelector, secondChildPool);
 
         uint256 dstGasLimit = 200_000;
         uint256 messageFee = childPool.getBridgeNativeFee(

@@ -51,14 +51,14 @@ contract SendSnapshot is ChildPoolBase {
         uint256 inflow = 100e6;
         uint256 outflow = 200e6;
 
-        ChildPoolWrapper(address(childPool)).setDailyFlow(inflow, outflow);
+        ChildPoolWrapper(payable(childPool)).setDailyFlow(inflow, outflow);
 
         // Set total IOU sent and received
         uint256 totalIouSent = 300e6;
         uint256 totalIouReceived = 400e6;
 
-        ChildPoolWrapper(address(childPool)).setTotalIouSent(totalIouSent);
-        ChildPoolWrapper(address(childPool)).setTotalIouReceived(totalIouReceived);
+        ChildPoolWrapper(payable(childPool)).setTotalIouSent(totalIouSent);
+        ChildPoolWrapper(payable(childPool)).setTotalIouReceived(totalIouReceived);
 
         // Create snapshot
         IParentPool.ChildPoolSnapshot memory snapshot = IParentPool.ChildPoolSnapshot({

@@ -31,12 +31,14 @@ abstract contract LancaBridgeBase is LancaTest {
 
         DeployChildPool deployChildPool = new DeployChildPool();
         childPool = ChildPool(
-            deployChildPool.deployChildPool(
-                address(usdc),
-                6,
-                CHILD_POOL_CHAIN_SELECTOR,
-                address(iouToken),
-                conceroRouter
+            payable(
+                deployChildPool.deployChildPool(
+                    address(usdc),
+                    6,
+                    CHILD_POOL_CHAIN_SELECTOR,
+                    address(iouToken),
+                    conceroRouter
+                )
             )
         );
 
@@ -65,19 +67,19 @@ abstract contract LancaBridgeBase is LancaTest {
 
     function _addDstPools() internal {
         vm.startPrank(deployer);
-        uint24[] memory dstChainSelectorsForChildPool = new uint24[](1);
-        address[] memory dstPoolsForChildPool = new address[](1);
+        //        uint24[] memory dstChainSelectorsForChildPool = new uint24[](1);
+        //        address[] memory dstPoolsForChildPool = new address[](1);
 
-        dstChainSelectorsForChildPool[0] = PARENT_POOL_CHAIN_SELECTOR;
-        dstPoolsForChildPool[0] = address(parentPool);
-        childPool.addDstPools(dstChainSelectorsForChildPool, dstPoolsForChildPool);
+        //        dstChainSelectorsForChildPool[0] = PARENT_POOL_CHAIN_SELECTOR;
+        //        dstPoolsForChildPool[0] = address(parentPool);
+        childPool.setDstPool(PARENT_POOL_CHAIN_SELECTOR, address(parentPool));
 
-        uint24[] memory dstChainSelectorsForParentPool = new uint24[](1);
-        address[] memory dstPoolsForParentPool = new address[](1);
+        //        uint24[] memory dstChainSelectorsForParentPool = new uint24[](1);
+        //        address[] memory dstPoolsForParentPool = new address[](1);
 
-        dstChainSelectorsForParentPool[0] = CHILD_POOL_CHAIN_SELECTOR;
-        dstPoolsForParentPool[0] = address(childPool);
-        parentPool.addDstPools(dstChainSelectorsForParentPool, dstPoolsForParentPool);
+        //        dstChainSelectorsForParentPool[0] = CHILD_POOL_CHAIN_SELECTOR;
+        //        dstPoolsForParentPool[0] = address(childPool);
+        parentPool.setDstPool(CHILD_POOL_CHAIN_SELECTOR, address(childPool));
         vm.stopPrank();
     }
 

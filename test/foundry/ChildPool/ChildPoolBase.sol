@@ -22,12 +22,14 @@ abstract contract ChildPoolBase is LancaTest {
 
         DeployChildPool deployChildPool = new DeployChildPool();
         childPool = ChildPool(
-            deployChildPool.deployChildPool(
-                address(usdc),
-                6,
-                CHILD_POOL_CHAIN_SELECTOR,
-                address(iouToken),
-                conceroRouter
+            payable(
+                deployChildPool.deployChildPool(
+                    address(usdc),
+                    6,
+                    CHILD_POOL_CHAIN_SELECTOR,
+                    address(iouToken),
+                    conceroRouter
+                )
             )
         );
 
