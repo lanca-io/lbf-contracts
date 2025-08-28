@@ -6,6 +6,7 @@ node_modules
 .env
 !.env.deployments*
 !.env.tokens
+!.env.addresses
 .env.deployments.localhost
 
 # coverage

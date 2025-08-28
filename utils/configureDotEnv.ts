@@ -10,6 +10,7 @@ const ENV_FILES = [
 	".env.deployments.testnet",
 	".env.deployments.localhost",
 	".env.wallets",
+	".env.addresses",
 ];
 
 /**

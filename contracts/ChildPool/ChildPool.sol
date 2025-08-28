@@ -39,6 +39,8 @@ contract ChildPool is Rebalancer, LancaBridge {
     }
 
     function sendSnapshotToParentPool() external payable onlyLancaKeeper {
+        pbs.Base storage s_base = pbs.base();
+
         IParentPool.ChildPoolSnapshot memory snapshot = IParentPool.ChildPoolSnapshot({
             balance: getActiveBalance(),
             dailyFlow: getYesterdayFlow(),
@@ -46,12 +48,11 @@ contract ChildPool is Rebalancer, LancaBridge {
             iouTotalReceived: rs.rebalancer().totalIouReceived,
             iouTotalSupply: i_iouToken.totalSupply(),
             timestamp: uint32(block.timestamp),
-            // TODO: fill it in future
-            totalLiqTokenReceived: 0,
-            totalLiqTokenSent: 0
+            totalLiqTokenReceived: s_base.totalLiqTokenSent,
+            totalLiqTokenSent: s_base.totalLiqTokenReceived
         });
 
-        address parentPool = pbs.base().dstPools[i_parentPoolChainSelector];
+        address parentPool = s_base.dstPools[i_parentPoolChainSelector];
         require(
             parentPool != address(0),
             ICommonErrors.InvalidDstChainSelector(i_parentPoolChainSelector)

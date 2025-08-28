@@ -1,8 +1,7 @@
 import { getNetworkEnvKey } from "@concero/contract-utils";
 
 import { conceroNetworks } from "../../constants";
-import { getFallbackClients, getViemAccount, log } from "../../utils";
-import { getEnvVar } from "../../utils";
+import { getEnvVar, getFallbackClients, getViemAccount, log } from "../../utils";
 
 export async function setDstPool(srcChainName: string, dstChainName: string) {
 	const srcChain = conceroNetworks[srcChainName as keyof typeof conceroNetworks];
@@ -11,9 +10,6 @@ export async function setDstPool(srcChainName: string, dstChainName: string) {
 	if (!srcChain || !dstChain) {
 		throw new Error(`Chain ${srcChainName} or ${dstChainName} not found`);
 	}
-
-	console.log(srcChain.name, dstChain.name);
-	console.log(srcChain.chainSelector, dstChain.chainSelector);
 
 	if (srcChain.name === dstChain.name) {
 		throw new Error("Source and destination chains cannot be the same");
@@ -42,10 +38,9 @@ export async function setDstPool(srcChainName: string, dstChainName: string) {
 		dstPoolProxyAddress = getEnvVar(`CHILD_POOL_PROXY_${getNetworkEnvKey(dstChainName)}`);
 	}
 
-	if (!srcPoolProxyAddress || !dstPoolProxyAddress) {
-		throw new Error(
-			`Missing required Pool proxy address for ${srcChainName} or ${dstChainName}`,
-		);
+	if (!dstPoolProxyAddress) {
+		console.warn(`Missing required Pool proxy address for ${dstChainName}`);
+		return;
 	}
 
 	const { abi: parentPoolAbi } = await import(
@@ -53,20 +48,33 @@ export async function setDstPool(srcChainName: string, dstChainName: string) {
 	);
 
 	try {
-		const setDstPoolHash = await walletClient.writeContract({
+		const currentDstPool = await publicClient.readContract({
 			address: srcPoolProxyAddress,
 			abi: parentPoolAbi,
-			functionName: "setDstPool",
-			args: [dstChainSelector, dstPoolProxyAddress],
-			account: viemAccount,
-			chain: srcChain.viemChain,
+			functionName: "getDstPool",
+			args: [dstChainSelector],
 		});
 
-		log(
-			`Set destination pool for ${srcChainName} to ${dstChainName}, hash: ${setDstPoolHash}`,
-			"setDstPool",
-			srcChainName,
-		);
+		if (currentDstPool !== dstPoolProxyAddress) {
+			const setDstPoolHash = await walletClient.writeContract({
+				address: srcPoolProxyAddress,
+				abi: parentPoolAbi,
+				functionName: "setDstPool",
+				args: [dstChainSelector, dstPoolProxyAddress],
+			});
+
+			log(
+				`Set destination pool for ${srcChainName} to ${dstChainName}, hash: ${setDstPoolHash}`,
+				"setDstPool",
+				srcChainName,
+			);
+		} else {
+			log(
+				`Destination pool already set for ${srcChainName} to ${dstChainName}`,
+				"setDstPool",
+				srcChainName,
+			);
+		}
 	} catch (error) {
 		log(
 			`Failed to set destination pool for ${srcChainName} to ${dstChainName}: ${error.message}`,

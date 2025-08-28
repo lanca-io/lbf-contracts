@@ -4,7 +4,7 @@ import { conceroNetworks } from "../../constants";
 import { parentPoolVariables } from "../../constants/deploymentVariables";
 import { getEnvVar, getFallbackClients, getViemAccount, log } from "../../utils";
 
-export async function setParentPoolVariables(name: string) {
+export async function setParentPoolCalculationVars(name: string) {
 	const chain = conceroNetworks[name as keyof typeof conceroNetworks];
 	const viemAccount = getViemAccount(chain.type, "deployer");
 	const { walletClient, publicClient } = getFallbackClients(chain, viemAccount);

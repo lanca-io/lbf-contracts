@@ -1,8 +1,7 @@
 import { getNetworkEnvKey } from "@concero/contract-utils";
 
 import { conceroNetworks } from "../../constants";
-import { getFallbackClients, getViemAccount, log } from "../../utils";
-import { getEnvVar } from "../../utils";
+import { getEnvVar, getFallbackClients, getViemAccount, log } from "../../utils";
 
 export async function setLancaKeeper(networkName: string) {
 	const chain = conceroNetworks[networkName as keyof typeof conceroNetworks];
@@ -10,22 +9,22 @@ export async function setLancaKeeper(networkName: string) {
 	const viemAccount = getViemAccount(chain.type, "deployer");
 	const { walletClient, publicClient } = getFallbackClients(chain, viemAccount);
 
-	let poolProxyAddress: string | undefined;
+	let poolAddress: string | undefined;
 	let poolType: string;
 
 	if (
-		networkName === "arbitrum" ||
+		networkName === "arbitrjum" ||
 		networkName === "arbitrumSepolia" ||
 		networkName === "localhost"
 	) {
-		poolProxyAddress = getEnvVar(`PARENT_POOL_PROXY_${getNetworkEnvKey(networkName)}`);
+		poolAddress = getEnvVar(`PARENT_POOL_PROXY_${getNetworkEnvKey(networkName)}`);
 		poolType = "ParentPool";
 	} else {
-		poolProxyAddress = getEnvVar(`CHILD_POOL_PROXY_${getNetworkEnvKey(networkName)}`);
+		poolAddress = getEnvVar(`CHILD_POOL_PROXY_${getNetworkEnvKey(networkName)}`);
 		poolType = "ChildPool";
 	}
 
-	if (!poolProxyAddress) {
+	if (!poolAddress) {
 		throw new Error(`Missing ${poolType} proxy address for ${networkName}`);
 	}
 
@@ -40,20 +39,33 @@ export async function setLancaKeeper(networkName: string) {
 	);
 
 	try {
-		const setLancaKeeperHash = await walletClient.writeContract({
-			address: poolProxyAddress,
+		const currentLancaKeeper = await publicClient.readContract({
+			address: poolAddress,
 			abi: parentPoolAbi,
-			functionName: "setLancaKeeper",
-			args: [keeperAddress],
-			account: viemAccount,
-			chain: chain.viemChain,
+			functionName: "getLancaKeeper",
+			args: [],
 		});
 
-		log(
-			`Set LancaKeeper for ${poolType} on ${networkName} to ${keeperAddress}, hash: ${setLancaKeeperHash}`,
-			"setLancaKeeper",
-			networkName,
-		);
+		if (currentLancaKeeper.toLowerCase() !== keeperAddress.toLowerCase()) {
+			const setLancaKeeperHash = await walletClient.writeContract({
+				address: poolAddress,
+				abi: parentPoolAbi,
+				functionName: "setLancaKeeper",
+				args: [keeperAddress],
+			});
+
+			log(
+				`Set LancaKeeper for ${poolType} on ${networkName} to ${keeperAddress}, hash: ${setLancaKeeperHash}`,
+				"setLancaKeeper",
+				networkName,
+			);
+		} else {
+			log(
+				`LancaKeeper for ${poolType} on ${networkName} already set to ${keeperAddress}`,
+				"setLancaKeeper",
+				networkName,
+			);
+		}
 	} catch (error) {
 		log(
 			`Failed to set LancaKeeper for ${poolType} on ${networkName}: ${error.message}`,

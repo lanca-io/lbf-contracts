@@ -46,33 +46,9 @@ abstract contract Base is IBase, ConceroClient, ConceroOwnable {
         i_iouToken = IOUToken(iouToken);
     }
 
-    function addDstPools(
-        uint24[] calldata dstChainSelectors,
-        address[] calldata dstPools
-    ) external onlyOwner {
-        require(dstChainSelectors.length > 0, ICommonErrors.EmptyArray());
-        require(dstChainSelectors.length == dstPools.length, ICommonErrors.LengthMismatch());
+    receive() external payable {}
 
-        s.Base storage s_base = s.base();
-
-        for (uint256 i = 0; i < dstChainSelectors.length; i++) {
-            require(
-                s_base.dstPools[dstChainSelectors[i]] == address(0),
-                PoolAlreadyExists(dstChainSelectors[i])
-            );
-            s_base.dstPools[dstChainSelectors[i]] = dstPools[i];
-        }
-    }
-
-    function removeDstPools(uint24[] calldata dstChainSelectors) external onlyOwner {
-        require(dstChainSelectors.length > 0, ICommonErrors.EmptyArray());
-
-        s.Base storage s_base = s.base();
-
-        for (uint256 i = 0; i < dstChainSelectors.length; i++) {
-            s_base.dstPools[dstChainSelectors[i]] = address(0);
-        }
-    }
+    /*   VIEW FUNCTIONS   */
 
     function getActiveBalance() public view virtual returns (uint256) {
         return
@@ -107,9 +83,78 @@ abstract contract Base is IBase, ConceroClient, ConceroOwnable {
         s.base().dstPools[chainSelector] = dstPool;
     }
 
+    function getDstPool(uint24 chainSelector) public view returns (address) {
+        return s.base().dstPools[chainSelector];
+    }
+
+    function getLancaKeeper() public view returns (address) {
+        return s.base().lancaKeeper;
+    }
+
+    function getTargetBalance() public view returns (uint256) {
+        return s.base().targetBalance;
+    }
+
+    function getYesterdayFlow() public view returns (LiqTokenDailyFlow memory) {
+        return s.base().flowByDay[getYesterdayStartTimestamp()];
+    }
+
+    function getTodayStartTimestamp() public view returns (uint32) {
+        return uint32(block.timestamp) / SECONDS_IN_DAY;
+    }
+
+    function getYesterdayStartTimestamp() public view returns (uint32) {
+        return getTodayStartTimestamp() - 1;
+    }
+
+    function getLpFee(uint256 amount) public pure returns (uint256) {
+        return (amount * CommonConstants.LP_PREMIUM_BPS) / CommonConstants.BPS_DENOMINATOR;
+    }
+
+    function getBridgeFee(uint256 amount) public pure returns (uint256) {
+        return
+            (amount * (CommonConstants.LANCA_BRIDGE_PREMIUM_BPS)) / CommonConstants.BPS_DENOMINATOR;
+    }
+
+    function getRebalancerFee(uint256 amount) public pure returns (uint256) {
+        return (amount * CommonConstants.REBALANCER_PREMIUM_BPS) / CommonConstants.BPS_DENOMINATOR;
+    }
+
+    /*   ADMIN FUNCTIONS   */
+
     function setLancaKeeper(address lancaKeeper) external onlyOwner {
         s.base().lancaKeeper = lancaKeeper;
     }
+
+    //    function addDstPools(
+    //        uint24[] calldata dstChainSelectors,
+    //        address[] calldata dstPools
+    //    ) external onlyOwner {
+    //        require(dstChainSelectors.length > 0, ICommonErrors.EmptyArray());
+    //        require(dstChainSelectors.length == dstPools.length, ICommonErrors.LengthMismatch());
+    //
+    //        s.Base storage s_base = s.base();
+    //
+    //        for (uint256 i = 0; i < dstChainSelectors.length; i++) {
+    //            require(
+    //                s_base.dstPools[dstChainSelectors[i]] == address(0),
+    //                PoolAlreadyExists(dstChainSelectors[i])
+    //            );
+    //            s_base.dstPools[dstChainSelectors[i]] = dstPools[i];
+    //        }
+    //    }
+    //
+    //    function removeDstPools(uint24[] calldata dstChainSelectors) external onlyOwner {
+    //        require(dstChainSelectors.length > 0, ICommonErrors.EmptyArray());
+    //
+    //        s.Base storage s_base = s.base();
+    //
+    //        for (uint256 i = 0; i < dstChainSelectors.length; i++) {
+    //            s_base.dstPools[dstChainSelectors[i]] = address(0);
+    //        }
+    //    }
+
+    /*   INTERNAL FUNCTIONS   */
 
     function _conceroReceive(
         bytes32 messageId,
@@ -160,33 +205,4 @@ abstract contract Base is IBase, ConceroClient, ConceroOwnable {
         uint24 sourceChainSelector,
         bytes memory messageData
     ) internal virtual;
-
-    function getTargetBalance() public view returns (uint256) {
-        return s.base().targetBalance;
-    }
-
-    function getYesterdayFlow() public view returns (LiqTokenDailyFlow memory) {
-        return s.base().flowByDay[getYesterdayStartTimestamp()];
-    }
-
-    function getTodayStartTimestamp() public view returns (uint32) {
-        return uint32(block.timestamp) / SECONDS_IN_DAY;
-    }
-
-    function getYesterdayStartTimestamp() public view returns (uint32) {
-        return getTodayStartTimestamp() - 1;
-    }
-
-    function getLpFee(uint256 amount) public pure returns (uint256) {
-        return (amount * CommonConstants.LP_PREMIUM_BPS) / CommonConstants.BPS_DENOMINATOR;
-    }
-
-    function getBridgeFee(uint256 amount) public pure returns (uint256) {
-        return
-            (amount * (CommonConstants.LANCA_BRIDGE_PREMIUM_BPS)) / CommonConstants.BPS_DENOMINATOR;
-    }
-
-    function getRebalancerFee(uint256 amount) public pure returns (uint256) {
-        return (amount * CommonConstants.REBALANCER_PREMIUM_BPS) / CommonConstants.BPS_DENOMINATOR;
-    }
 }

@@ -16,9 +16,7 @@ async function depositToParentPool(amount: string, networkName: string) {
 	);
 	const parentPoolAddress = getEnvAddress("parentPoolProxy", networkName)[0];
 
-	let hash;
-
-	hash = await walletClient.writeContract({
+	let hash = await walletClient.writeContract({
 		abi: erc20Abi,
 		functionName: "approve",
 		address: getEnvVar(`FIAT_TOKEN_PROXY_${getNetworkEnvKey(networkName)}`),

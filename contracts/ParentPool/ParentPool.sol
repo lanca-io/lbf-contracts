@@ -54,8 +54,6 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
         i_liquidityTokenScaleFactor = 10 ** liquidityTokenDecimals;
     }
 
-    receive() external payable {}
-
     function enterDepositQueue(uint256 liquidityTokenAmount) external {
         require(liquidityTokenAmount > 0, ICommonErrors.AmountIsZero());
 
