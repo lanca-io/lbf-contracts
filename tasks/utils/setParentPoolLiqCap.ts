@@ -27,7 +27,7 @@ export async function setParentPoolLiqCap(name: string) {
 		});
 
 		if (currentLiqCap !== parenPoolLiqCap) {
-			const setTargetDepositQueueLength = await walletClient.writeContract({
+			const setMinDepositQueueLength = await walletClient.writeContract({
 				address: parentPoolProxyAddress,
 				abi: parentPoolAbi,
 				functionName: "setLiquidityCap",
@@ -35,7 +35,7 @@ export async function setParentPoolLiqCap(name: string) {
 			});
 
 			log(
-				`Set parent pool liq cap to ${parenPoolLiqCap}, hash: ${setTargetDepositQueueLength}`,
+				`Set parent pool liq cap to ${parenPoolLiqCap}, hash: ${setMinDepositQueueLength}`,
 				"setLiquidityCap",
 				name,
 			);

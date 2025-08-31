@@ -17,10 +17,10 @@ contract ParentPoolDepositWithdrawalTest is ParentPoolBase {
     function test_initialDepositAndUpdateTargetBalances(uint256 amountToDepositPerUser) public {
         vm.assume(amountToDepositPerUser > 0 && amountToDepositPerUser < MAX_DEPOSIT_AMOUNT);
 
-        _mintUsdc(user, amountToDepositPerUser * s_parentPool.getTargetDepositQueueLength());
+        _mintUsdc(user, amountToDepositPerUser * s_parentPool.getMinDepositQueueLength());
 
         vm.prank(deployer);
-        s_parentPool.setTargetWithdrawalQueueLength(0);
+        s_parentPool.setMinWithdrawalQueueLength(0);
 
         uint256 initialParentPoolBalance = s_parentPool.getActiveBalance();
 
@@ -32,7 +32,7 @@ contract ParentPoolDepositWithdrawalTest is ParentPoolBase {
 
         // @dev A fee is charged on part of the amount, not on the entire amount, in order to maintain accuracy
         uint256 totalDeposited;
-        for (uint256 i; i < s_parentPool.getTargetDepositQueueLength(); ++i) {
+        for (uint256 i; i < s_parentPool.getMinDepositQueueLength(); ++i) {
             totalDeposited +=
                 amountToDepositPerUser - s_parentPool.getRebalancerFee(amountToDepositPerUser);
         }
@@ -54,15 +54,14 @@ contract ParentPoolDepositWithdrawalTest is ParentPoolBase {
 
     function test_recalculateTargetBalancesWithInflow() public {
         vm.prank(deployer);
-        s_parentPool.setTargetWithdrawalQueueLength(0);
+        s_parentPool.setMinWithdrawalQueueLength(0);
 
         _mintUsdc(address(s_parentPool), 110_000 * LIQ_TOKEN_SCALE_FACTOR);
 
         _setupParentPoolWithWhitePaperExample();
 
         uint256 remainingAmount = 10_000 * LIQ_TOKEN_SCALE_FACTOR;
-        uint256 amountToDepositPerUser = remainingAmount /
-            s_parentPool.getTargetDepositQueueLength();
+        uint256 amountToDepositPerUser = remainingAmount / s_parentPool.getMinDepositQueueLength();
         _fillDepositWithdrawalQueue(
             amountToDepositPerUser + s_parentPool.getRebalancerFee(amountToDepositPerUser),
             0
@@ -91,7 +90,7 @@ contract ParentPoolDepositWithdrawalTest is ParentPoolBase {
 
     function test_recalculateTargetBalancesWithOutflow() public {
         vm.prank(deployer);
-        s_parentPool.setTargetDepositQueueLength(0);
+        s_parentPool.setMinDepositQueueLength(0);
 
         uint256 userLiqTokenBalanceBefore = usdc.balanceOf(user);
 
@@ -108,7 +107,7 @@ contract ParentPoolDepositWithdrawalTest is ParentPoolBase {
 
         uint256 remainingAmount = 10_000 * LIQ_TOKEN_SCALE_FACTOR;
         uint256 amountToWithdrawPerUser = remainingAmount /
-            s_parentPool.getTargetWithdrawalQueueLength();
+            s_parentPool.getMinWithdrawalQueueLength();
         _fillDepositWithdrawalQueue(0, amountToWithdrawPerUser);
 
         vm.prank(s_lancaKeeper);
@@ -144,8 +143,8 @@ contract ParentPoolDepositWithdrawalTest is ParentPoolBase {
 
     function test_calculateLpTokenAmountInEmptyPool() public {
         vm.startPrank(deployer);
-        s_parentPool.setTargetDepositQueueLength(1);
-        s_parentPool.setTargetWithdrawalQueueLength(0);
+        s_parentPool.setMinDepositQueueLength(1);
+        s_parentPool.setMinWithdrawalQueueLength(0);
         vm.stopPrank();
 
         _fillChildPoolSnapshots();
@@ -169,8 +168,8 @@ contract ParentPoolDepositWithdrawalTest is ParentPoolBase {
 
     function test_calculateLpTokenAmountDepositQueueInEmptyPool() public {
         vm.startPrank(deployer);
-        s_parentPool.setTargetDepositQueueLength(3);
-        s_parentPool.setTargetWithdrawalQueueLength(0);
+        s_parentPool.setMinDepositQueueLength(3);
+        s_parentPool.setMinWithdrawalQueueLength(0);
         vm.stopPrank();
 
         _fillChildPoolSnapshots();

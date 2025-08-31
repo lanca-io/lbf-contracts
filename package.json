@@ -30,7 +30,8 @@
         "check-updates": "npx npm-check-updates",
         "prepare": "husky",
         "operator-setup": "bun test/operator/testOperator.ts",
-        "rebuild": "yarn clean && yarn compile"
+        "rebuild": "yarn clean && yarn compile",
+        "preinstall": "sh validatePackageManager.sh yarn"
     },
     "devDependencies": {
         "@chainlink/solhint-plugin-chainlink-solidity": "1.0.1",

@@ -36,15 +36,15 @@ export async function setParentPoolCalculationVars(name: string) {
 		});
 
 		if (currentTargetDepositQueueLength !== args.targetDepositQueueLength) {
-			const setTargetDepositQueueLength = await walletClient.writeContract({
+			const setMinDepositQueueLength = await walletClient.writeContract({
 				address: parentPoolProxyAddress,
 				abi: parentPoolAbi,
-				functionName: "setTargetDepositQueueLength",
+				functionName: "setMinDepositQueueLength",
 				args: [args.targetDepositQueueLength],
 			});
 
 			log(
-				`Set target deposit queue length to ${args.targetDepositQueueLength}, hash: ${setTargetDepositQueueLength}`,
+				`Set target deposit queue length to ${args.targetDepositQueueLength}, hash: ${setMinDepositQueueLength}`,
 				"setParentPoolVariables",
 				name,
 			);
@@ -75,7 +75,7 @@ export async function setParentPoolCalculationVars(name: string) {
 			const setTargetWithdrawalQueueLengthHash = await walletClient.writeContract({
 				address: parentPoolProxyAddress,
 				abi: parentPoolAbi,
-				functionName: "setTargetWithdrawalQueueLength",
+				functionName: "setMinWithdrawalQueueLength",
 				args: [args.targetWithdrawalQueueLength],
 			});
 

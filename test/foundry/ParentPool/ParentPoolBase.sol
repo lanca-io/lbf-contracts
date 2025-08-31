@@ -121,8 +121,8 @@ abstract contract ParentPoolBase is LancaTest {
 
     function _setQueuesLength() internal {
         vm.startPrank(deployer);
-        s_parentPool.setTargetDepositQueueLength(DEFAULT_TARGET_QUEUE_LENGTH);
-        s_parentPool.setTargetWithdrawalQueueLength(DEFAULT_TARGET_QUEUE_LENGTH);
+        s_parentPool.setMinDepositQueueLength(DEFAULT_TARGET_QUEUE_LENGTH);
+        s_parentPool.setMinWithdrawalQueueLength(DEFAULT_TARGET_QUEUE_LENGTH);
         vm.stopPrank();
     }
 
@@ -131,13 +131,13 @@ abstract contract ParentPoolBase is LancaTest {
         uint256 amountToWithdrawPerUser
     ) internal returns (uint256, uint256) {
         uint256 totalDeposited;
-        for (uint256 i; i < s_parentPool.getTargetDepositQueueLength(); ++i) {
+        for (uint256 i; i < s_parentPool.getMinDepositQueueLength(); ++i) {
             _enterDepositQueue(user, amountToDepositPerUser);
             totalDeposited += amountToDepositPerUser;
         }
 
         uint256 totalWithdraw;
-        for (uint256 i; i < s_parentPool.getTargetWithdrawalQueueLength(); ++i) {
+        for (uint256 i; i < s_parentPool.getMinWithdrawalQueueLength(); ++i) {
             _enterWithdrawalQueue(user, amountToWithdrawPerUser);
             totalWithdraw += amountToWithdrawPerUser;
         }

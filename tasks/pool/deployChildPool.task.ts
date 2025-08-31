@@ -10,7 +10,6 @@ import { deployTransparentProxy } from "../../deploy/TransparentProxy";
 import { compileContracts } from "../../utils/compileContracts";
 import { grantMinterRoleForIOUToken } from "../utils/grantMinterRoleForIOUToken";
 import { setAllDstPools } from "../utils/setAllDstPools";
-import { setDstPool } from "../utils/setDstPool";
 import { setLancaKeeper } from "../utils/setLancaKeeper";
 import { upgradeProxyImplementation } from "../utils/upgradeProxyImplementation";
 
@@ -28,7 +27,6 @@ async function deployChildPoolTask(taskArgs: any, hre: HardhatRuntimeEnvironment
 	if (taskArgs.proxy) {
 		await deployProxyAdmin(hre, ProxyEnum.childPoolProxy);
 		await deployTransparentProxy(hre, ProxyEnum.childPoolProxy);
-		await grantMinterRoleForIOUToken(hre.network.name);
 	}
 
 	if (taskArgs.implementation) {
@@ -38,6 +36,7 @@ async function deployChildPoolTask(taskArgs: any, hre: HardhatRuntimeEnvironment
 	if (taskArgs.vars) {
 		await setLancaKeeper(hre.network.name);
 		await setAllDstPools(hre.network.name);
+		await grantMinterRoleForIOUToken(hre.network.name);
 	}
 }
 

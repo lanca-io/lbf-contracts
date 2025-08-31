@@ -29,8 +29,8 @@ library Storage {
         uint256 targetBalanceFloor;
         uint256 prevTotaPoolsBalance;
         uint256 liquidityCap;
-        uint16 targetWithdrawalQueueLength;
-        uint16 targetDepositQueueLength;
+        uint16 minWithdrawalQueueLength;
+        uint16 minDepositQueueLength;
         uint96 averageConceroMessageFee;
         uint64 lurScoreSensitivity; // has the scale i_liquidityTokenDecimals
         uint64 lurScoreWeight; // has the scale i_liquidityTokenDecimals

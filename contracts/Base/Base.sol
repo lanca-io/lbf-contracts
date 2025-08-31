@@ -183,6 +183,8 @@ abstract contract Base is IBase, ConceroClient, ConceroOwnable {
             _handleConceroReceiveSnapshot(messageId, sourceChainSelector, messageData);
         } else if (messageType == ConceroMessageType.BRIDGE) {
             _handleConceroReceiveBridgeLiquidity(messageId, sourceChainSelector, messageData);
+        } else if (messageType == ConceroMessageType.UPDATE_TARGET_BALANCE) {
+            _handleConceroReceiveUpdateTargetBalance(messageData);
         } else {
             revert InvalidConceroMessageType();
         }
@@ -205,4 +207,6 @@ abstract contract Base is IBase, ConceroClient, ConceroOwnable {
         uint24 sourceChainSelector,
         bytes memory messageData
     ) internal virtual;
+
+    function _handleConceroReceiveUpdateTargetBalance(bytes memory messageData) internal virtual;
 }

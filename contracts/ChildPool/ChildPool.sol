@@ -84,6 +84,11 @@ contract ChildPool is Rebalancer, LancaBridge {
         );
     }
 
+    function _handleConceroReceiveUpdateTargetBalance(bytes memory messageData) internal override {
+        uint256 targetBalance = abi.decode(messageData, (uint256));
+        pbs.base().targetBalance = targetBalance;
+    }
+
     function _handleConceroReceiveSnapshot(bytes32, uint24, bytes memory) internal pure override {
         revert ICommonErrors.FunctionNotImplemented();
     }

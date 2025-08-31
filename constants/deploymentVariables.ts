@@ -36,7 +36,7 @@ const writeContractConfig: WriteContractParameters = {
 };
 
 const parentPoolVariables: ParentPoolVariables = {
-	targetDepositQueueLength: 3,
+	targetDepositQueueLength: 0,
 	targetWithdrawalQueueLength: 0,
 	lurScoreSensitivity: 5n * 10n ** BigInt(liqTokenDecimals),
 	lurScoreWeight: (7n * 10n ** BigInt(liqTokenDecimals)) / 10n,

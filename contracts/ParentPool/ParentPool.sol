@@ -199,9 +199,15 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
 
     function areQueuesFull() public view returns (bool) {
         s.ParentPool storage s_parentPool = s.parentPool();
+
+        uint256 withdrawalLength = s_parentPool.withdrawalQueueIds.length;
+        uint256 depositLength = s_parentPool.depositQueueIds.length;
+
+        if ((depositLength == 0) && withdrawalLength == 0) return false;
+
         return
-            s_parentPool.withdrawalQueueIds.length == s_parentPool.targetWithdrawalQueueLength &&
-            s_parentPool.depositQueueIds.length == s_parentPool.targetDepositQueueLength;
+            withdrawalLength >= s_parentPool.minWithdrawalQueueLength &&
+            depositLength >= s_parentPool.minDepositQueueLength;
     }
 
     function isReadyToProcessPendingWithdrawals() public view returns (bool) {
@@ -219,12 +225,12 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
             s_parentPool.totalWithdrawalAmountLocked;
     }
 
-    function getTargetDepositQueueLength() public view returns (uint16) {
-        return s.parentPool().targetDepositQueueLength;
+    function getMinDepositQueueLength() public view returns (uint16) {
+        return s.parentPool().minDepositQueueLength;
     }
 
-    function getTargetWithdrawalQueueLength() public view returns (uint16) {
-        return s.parentPool().targetWithdrawalQueueLength;
+    function getMinWithdrawalQueueLength() public view returns (uint16) {
+        return s.parentPool().minWithdrawalQueueLength;
     }
 
     function getPendingWithdrawalIds() public view returns (bytes32[] memory) {
@@ -245,12 +251,12 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
 
     /*   ADMIN FUNCTIONS   */
 
-    function setTargetDepositQueueLength(uint16 length) external onlyOwner {
-        s.parentPool().targetDepositQueueLength = length;
+    function setMinDepositQueueLength(uint16 length) external onlyOwner {
+        s.parentPool().minDepositQueueLength = length;
     }
 
-    function setTargetWithdrawalQueueLength(uint16 length) external onlyOwner {
-        s.parentPool().targetWithdrawalQueueLength = length;
+    function setMinWithdrawalQueueLength(uint16 length) external onlyOwner {
+        s.parentPool().minWithdrawalQueueLength = length;
     }
 
     function setDstPool(uint24 chainSelector, address dstPool) public override onlyOwner {
@@ -579,7 +585,7 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
 
         bytes memory messagePayload = abi.encode(
             ConceroMessageType.UPDATE_TARGET_BALANCE,
-            newTargetBalance
+            abi.encode(newTargetBalance)
         );
 
         IConceroRouter(i_conceroRouter).conceroSend{value: messageFee}(
@@ -675,5 +681,9 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
         s.parentPool().childPoolSnapshots[sourceChainSelector] = snapshot;
 
         emit IParentPool.SnapshotReceived(messageId, sourceChainSelector, snapshot);
+    }
+
+    function _handleConceroReceiveUpdateTargetBalance(bytes memory) internal pure override {
+        revert ICommonErrors.FunctionNotImplemented();
     }
 }
