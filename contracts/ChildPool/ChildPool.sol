@@ -89,7 +89,7 @@ contract ChildPool is Rebalancer, LancaBridge {
         pbs.base().targetBalance = targetBalance;
     }
 
-    function _handleConceroReceiveSnapshot(bytes32, uint24, bytes memory) internal pure override {
+    function _handleConceroReceiveSnapshot(uint24, bytes memory) internal pure override {
         revert ICommonErrors.FunctionNotImplemented();
     }
 }

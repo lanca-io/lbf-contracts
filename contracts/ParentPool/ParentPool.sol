@@ -94,14 +94,46 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
             lpTokenAmountToWithdraw: lpTokenAmount,
             lp: msg.sender
         });
-        bytes32 withdrawId = keccak256(
+        bytes32 withdrawalId = keccak256(
             abi.encodePacked(msg.sender, block.number, ++s_parentPool.withdrawalNonce)
         );
 
-        s_parentPool.withdrawalQueue[withdrawId] = withdraw;
-        s_parentPool.withdrawalQueueIds.push(withdrawId);
+        s_parentPool.withdrawalQueue[withdrawalId] = withdraw;
+        s_parentPool.withdrawalQueueIds.push(withdrawalId);
 
-        emit WithdrawalQueued(withdrawId, withdraw.lp, lpTokenAmount);
+        emit WithdrawalQueued(withdrawalId, withdraw.lp, lpTokenAmount);
+    }
+
+    function exitDepositQueue(bytes32 depositQueueId) external {
+        s.ParentPool storage s_parentPool = s.parentPool();
+
+        Deposit memory deposit = s_parentPool.depositQueue[depositQueueId];
+        require(deposit.lp == msg.sender, ICommonErrors.UnauthorizedCaller(msg.sender, deposit.lp));
+
+        delete s_parentPool.depositQueue[depositQueueId];
+        s_parentPool.totalDepositAmountInQueue -= deposit.liquidityTokenAmountToDeposit;
+        _removeIdFromArray(depositQueueId, s_parentPool.depositQueueIds);
+
+        IERC20(i_liquidityToken).safeTransfer(deposit.lp, deposit.liquidityTokenAmountToDeposit);
+
+        emit DepositDequeued(depositQueueId);
+    }
+
+    function exitWithdrawalQueue(bytes32 withdrawalId) external {
+        s.ParentPool storage s_parentPool = s.parentPool();
+
+        Withdrawal memory withdrawal = s_parentPool.withdrawalQueue[withdrawalId];
+        require(
+            withdrawal.lp == msg.sender,
+            ICommonErrors.UnauthorizedCaller(msg.sender, withdrawal.lp)
+        );
+
+        delete s_parentPool.withdrawalQueue[withdrawalId];
+        _removeIdFromArray(withdrawalId, s_parentPool.withdrawalQueueIds);
+
+        IERC20(i_lpToken).safeTransfer(withdrawal.lp, withdrawal.lpTokenAmountToWithdraw);
+
+        emit WithdrawalDequeued(withdrawalId);
     }
 
     function getWithdrawalFee(uint256 amount) public view returns (uint256, uint256) {
@@ -175,6 +207,8 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
             totalLiquidityTokenAmountToWithdraw += pendingWithdrawal.liqTokenAmountToWithdraw;
             totalLancaFee += conceroFee;
             totalRebalanceFee += rebalanceFee;
+
+            emit WithdrawalCompleted(pendingWithdrawalIds[i], amountToWithdrawWithFee);
         }
 
         /* @dev do not clear this array before a loop because
@@ -330,6 +364,13 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
             s_parentPool.totalDepositAmountInQueue -= deposit.liquidityTokenAmountToDeposit;
             LPToken(i_lpToken).mint(deposit.lp, lpTokenAmountToMint);
             totalDepositedLiqTokenAmount += amountToDepositWithFee;
+
+            emit DepositProcessed(
+                depositQueueIds[i],
+                deposit.lp,
+                amountToDepositWithFee,
+                lpTokenAmountToMint
+            );
         }
 
         delete s_parentPool.depositQueueIds;
@@ -364,6 +405,13 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
                 lp: withdrawal.lp
             });
             s_parentPool.pendingWithdrawalIds.push(withdrawalQueueIds[i]);
+
+            emit WithdrawalProcessed(
+                withdrawalQueueIds[i],
+                withdrawal.lp,
+                withdrawal.lpTokenAmountToWithdraw,
+                liqTokenAmountToWithdraw
+            );
         }
 
         delete s_parentPool.withdrawalQueueIds;
@@ -669,7 +717,6 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
     }
 
     function _handleConceroReceiveSnapshot(
-        bytes32 messageId,
         uint24 sourceChainSelector,
         bytes memory messageData
     ) internal override {
@@ -679,11 +726,21 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
         );
 
         s.parentPool().childPoolSnapshots[sourceChainSelector] = snapshot;
-
-        emit IParentPool.SnapshotReceived(messageId, sourceChainSelector, snapshot);
     }
 
     function _handleConceroReceiveUpdateTargetBalance(bytes memory) internal pure override {
         revert ICommonErrors.FunctionNotImplemented();
+    }
+
+    function _removeIdFromArray(bytes32 id, bytes32[] storage ids) internal {
+        uint256 idsLength = ids.length;
+
+        for (uint256 i; i < idsLength; ++i) {
+            if (ids[i] == id) {
+                ids[i] = ids[idsLength - 1];
+                ids.pop();
+                return;
+            }
+        }
     }
 }

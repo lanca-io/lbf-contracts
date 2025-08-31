@@ -180,7 +180,7 @@ abstract contract Base is IBase, ConceroClient, ConceroOwnable {
         if (messageType == ConceroMessageType.BRIDGE_IOU) {
             _handleConceroReceiveBridgeIou(messageId, sourceChainSelector, messageData);
         } else if (messageType == ConceroMessageType.SEND_SNAPSHOT) {
-            _handleConceroReceiveSnapshot(messageId, sourceChainSelector, messageData);
+            _handleConceroReceiveSnapshot(sourceChainSelector, messageData);
         } else if (messageType == ConceroMessageType.BRIDGE) {
             _handleConceroReceiveBridgeLiquidity(messageId, sourceChainSelector, messageData);
         } else if (messageType == ConceroMessageType.UPDATE_TARGET_BALANCE) {
@@ -197,7 +197,6 @@ abstract contract Base is IBase, ConceroClient, ConceroOwnable {
     ) internal virtual;
 
     function _handleConceroReceiveSnapshot(
-        bytes32 messageId,
         uint24 sourceChainSelector,
         bytes memory messageData
     ) internal virtual;

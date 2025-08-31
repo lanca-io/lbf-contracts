@@ -37,11 +37,21 @@ interface IParentPool {
     error QueuesAreNotFull();
     error LiquidityCapReached(uint256 liqCapAmount);
 
-    event DepositQueued(bytes32 indexed depositId, address indexed lp, uint256 amount);
-    event WithdrawalQueued(bytes32 indexed withdrawId, address indexed lp, uint256 liqTokenAmount);
-    event SnapshotReceived(
-        bytes32 indexed messageId,
-        uint24 indexed sourceChainSelector,
-        ChildPoolSnapshot snapshot
+    event DepositQueued(bytes32 indexed id, address lp, uint256 amount);
+    event DepositDequeued(bytes32 indexed id);
+    event DepositProcessed(
+        bytes32 indexed id,
+        address lp,
+        uint256 liqTokenAmountWithFee,
+        uint256 lpTokenAmount
     );
+    event WithdrawalQueued(bytes32 indexed withdrawId, address lp, uint256 lpTokenAmount);
+    event WithdrawalDequeued(bytes32 indexed id);
+    event WithdrawalProcessed(
+        bytes32 indexed id,
+        address lp,
+        uint256 lpTokenAmount,
+        uint256 liqTokenAmount
+    );
+    event WithdrawalCompleted(bytes32 indexed id, uint256 liqTokenAmountReceivedWithFee);
 }
