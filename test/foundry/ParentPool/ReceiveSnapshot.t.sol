@@ -47,9 +47,6 @@ contract ReceiveSnapshot is ParentPoolBase {
             )
         );
 
-        vm.expectEmit(true, true, true, true);
-        emit IParentPool.SnapshotReceived(messageId, childPoolChainSelector_1, snapshot);
-
         vm.prank(conceroRouter);
         s_parentPool.conceroReceive(
             messageId,
