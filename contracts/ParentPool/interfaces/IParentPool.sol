@@ -22,7 +22,6 @@ interface IParentPool {
 
     struct ChildPoolSnapshot {
         uint256 balance;
-        // TODO: flat this structure
         IBase.LiqTokenDailyFlow dailyFlow;
         uint256 iouTotalSent;
         uint256 iouTotalReceived;
