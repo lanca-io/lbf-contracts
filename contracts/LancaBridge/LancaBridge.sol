@@ -24,7 +24,7 @@ abstract contract LancaBridge is ILancaBridge, Base, ReentrancyGuard {
     using rs for rs.Rebalancer;
     using bs for bs.Bridge;
 
-    uint256 internal constant BRIDGE_GAS_OVERHEAD = 100_000;
+    uint256 internal constant BRIDGE_GAS_OVERHEAD = 300_000;
 
     function bridge(
         address tokenReceiver,
@@ -55,7 +55,14 @@ abstract contract LancaBridge is ILancaBridge, Base, ReentrancyGuard {
         s_bridge.totalSent += amountAfterFee;
         s.base().flowByDay[getTodayStartTimestamp()].inflow += amountAfterFee;
 
-        emit TokenSent(messageId, dstChainSelector, msg.sender, tokenReceiver, amountAfterFee);
+        emit TokenSent(
+            messageId,
+            dstChainSelector,
+            msg.sender,
+            tokenReceiver,
+            tokenAmount,
+            dstGasLimit
+        );
     }
 
     /*   INTERNAL FUNCTIONS   */
@@ -144,13 +151,7 @@ abstract contract LancaBridge is ILancaBridge, Base, ReentrancyGuard {
             );
         }
 
-        emit BridgeDelivered(
-            messageId,
-            sourceChainSelector,
-            tokenSender,
-            tokenReceiver,
-            tokenAmount
-        );
+        emit BridgeDelivered(messageId, tokenAmount);
     }
 
     function _isValidContractReceiver(address tokenReceiver) internal view returns (bool) {

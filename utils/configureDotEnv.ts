@@ -11,6 +11,7 @@ const ENV_FILES = [
 	".env.deployments.localhost",
 	".env.wallets",
 	".env.addresses",
+	"node_modules/@lanca/canonical-bridge/.env.deployments.testnet",
 ];
 
 /**

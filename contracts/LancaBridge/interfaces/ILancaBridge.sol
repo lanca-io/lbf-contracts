@@ -4,20 +4,13 @@ pragma solidity ^0.8.28;
 interface ILancaBridge {
     event TokenSent(
         bytes32 indexed messageId,
-        uint24 indexed dstChainSelector,
+        uint24 dstChainSelector,
         address tokenSender,
         address tokenReceiver,
-        uint256 tokenAmount
+        uint256 tokenAmountBeforeFee,
+        uint256 dstGasLimit
     );
-
-    event BridgeDelivered(
-        bytes32 indexed messageId,
-        uint24 indexed sourceChainSelector,
-        address tokenSender,
-        address tokenReceiver,
-        uint256 tokenAmount
-    );
-
+    event BridgeDelivered(bytes32 indexed messageId, uint256 tokenAmountAfterFee);
     event SrcBridgeReorged(uint24 indexed sourceChainSelector, uint256 oldAmount);
 
     error InvalidToken();

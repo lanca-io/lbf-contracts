@@ -1,3 +1,4 @@
+import bridgeTask from "./pool/bridge.task";
 import { deployChildPoolTask } from "./pool/deployChildPool.task";
 import { deployParentPoolTask } from "./pool/deployParentPool.task";
 import depositToParentPoolTask from "./pool/depositToParentPool.task";
@@ -16,4 +17,5 @@ export default {
 	setLancaKeeperTask,
 	depositToParentPoolTask,
 	withdrawFromParentPoolTask,
+	bridgeTask,
 };
