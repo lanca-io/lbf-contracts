@@ -19,7 +19,7 @@ async function depositToParentPool(amount: string, networkName: string) {
 	let hash = await walletClient.writeContract({
 		abi: erc20Abi,
 		functionName: "approve",
-		address: getEnvVar(`USDC_${getNetworkEnvKey(networkName)}`),
+		address: getEnvVar(`USDC_PROXY_${getNetworkEnvKey(networkName)}`),
 		args: [parentPoolAddress, parseUnits(amount, liqTokenDecimals)],
 	});
 

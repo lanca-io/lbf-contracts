@@ -42,7 +42,7 @@ const deployMockUSDC: DeploymentFunction = async function (
 		name,
 	);
 	updateEnvVariable(
-		`USDC_${getNetworkEnvKey(name)}`,
+		`USDC_PROXY_${getNetworkEnvKey(name)}`,
 		deployment.address,
 		`deployments.${networkType}`,
 	);
