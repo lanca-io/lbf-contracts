@@ -32,7 +32,7 @@ const deployChildPool: DeploymentFunction = async function (
 
 	const conceroRouter = getEnvVar(`CONCERO_ROUTER_PROXY_${getNetworkEnvKey(name)}`);
 	const iouToken = getEnvVar(`IOU_${getNetworkEnvKey(name)}`);
-	const liquidityToken = getEnvVar(`FIAT_TOKEN_PROXY_${getNetworkEnvKey(name)}`);
+	const liquidityToken = getEnvVar(`USDC_${getNetworkEnvKey(name)}`);
 	const defaultLiquidityTokenDecimals = 6;
 
 	if (!conceroRouter || !iouToken || !liquidityToken) {

@@ -42,7 +42,7 @@ const deployMockUSDC: DeploymentFunction = async function (
 		name,
 	);
 	updateEnvVariable(
-		`FIAT_TOKEN_PROXY_${getNetworkEnvKey(name)}`,
+		`USDC_${getNetworkEnvKey(name)}`,
 		deployment.address,
 		`deployments.${networkType}`,
 	);
