@@ -35,13 +35,7 @@ contract ReceiveToken is LancaBridgeBase {
         });
 
         vm.expectEmit(true, true, true, true);
-        emit ILancaBridge.BridgeDelivered(
-            DEFAULT_MESSAGE_ID,
-            CHILD_POOL_CHAIN_SELECTOR,
-            user,
-            dstUser,
-            bridgeAmount
-        );
+        emit ILancaBridge.BridgeDelivered(DEFAULT_MESSAGE_ID, bridgeAmount);
 
         vm.prank(conceroRouter);
         parentPool.conceroReceive(
@@ -81,13 +75,7 @@ contract ReceiveToken is LancaBridgeBase {
         });
 
         vm.expectEmit(true, true, true, true);
-        emit ILancaBridge.BridgeDelivered(
-            DEFAULT_MESSAGE_ID,
-            PARENT_POOL_CHAIN_SELECTOR,
-            user,
-            dstUser,
-            bridgeAmount
-        );
+        emit ILancaBridge.BridgeDelivered(DEFAULT_MESSAGE_ID, bridgeAmount);
 
         vm.prank(conceroRouter);
         childPool.conceroReceive(

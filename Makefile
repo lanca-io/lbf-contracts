@@ -12,7 +12,6 @@
 #                              For example: `make test args="--match-test Deposit"`
 
 include ./.env
-include ./.env.tokens
 include ./.env.deployments.mainnet
 include ./.env.deployments.testnet
 include ./.env.wallets

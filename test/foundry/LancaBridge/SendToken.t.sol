@@ -54,7 +54,8 @@ contract SendToken is LancaBridgeBase {
             CHILD_POOL_CHAIN_SELECTOR,
             user,
             user,
-            bridgeAmount - totalLancaFee
+            bridgeAmount,
+            0
         );
 
         vm.prank(user);
@@ -125,7 +126,8 @@ contract SendToken is LancaBridgeBase {
             PARENT_POOL_CHAIN_SELECTOR,
             user,
             user,
-            bridgeAmount - totalLancaFee
+            bridgeAmount,
+            0
         );
 
         vm.prank(user);
