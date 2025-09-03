@@ -1,9 +1,10 @@
-import { getNetworkEnvKey } from "@concero/contract-utils";
+import { getNetworkEnvKey, hardhatDeployWrapper } from "@concero/contract-utils";
 import { Deployment } from "hardhat-deploy/types";
 import { HardhatRuntimeEnvironment } from "hardhat/types";
 
 import { conceroNetworks } from "../constants";
-import { log, updateEnvVariable } from "../utils";
+import { DEPLOY_CONFIG_TESTNET } from "../constants/deployConfigTestnet";
+import { getFallbackClients, getViemAccount, log, updateEnvVariable } from "../utils";
 
 type DeployArgs = {
 	defaultAdmin: string;
@@ -19,22 +20,30 @@ const deployIOUToken: DeploymentFunction = async function (
 	hre: HardhatRuntimeEnvironment,
 	overrideArgs?: Partial<DeployArgs>,
 ): Promise<Deployment> {
-	const { deployer } = await hre.getNamedAccounts();
-	const { deploy } = hre.deployments;
 	const { name } = hre.network;
 
 	const chain = conceroNetworks[name as keyof typeof conceroNetworks];
+
+	const viemAccount = getViemAccount(chain.type, "deployer");
+	const { publicClient } = getFallbackClients(chain, viemAccount);
+	const deployer = viemAccount.address;
 
 	const args: DeployArgs = {
 		defaultAdmin: overrideArgs?.defaultAdmin || deployer,
 		minter: overrideArgs?.minter || deployer,
 	};
 
-	const deployment = await deploy("IOUToken", {
-		from: deployer,
+	let gasLimit = 0;
+	const config = DEPLOY_CONFIG_TESTNET[name];
+	if (config) {
+		gasLimit = config.childPool?.gasLimit || 0;
+	}
+
+	const deployment = await hardhatDeployWrapper("IOUToken", {
+		hre,
 		args: [args.defaultAdmin, args.minter],
-		log: true,
-		autoMine: true,
+		publicClient,
+		gasLimit,
 		skipIfAlreadyDeployed: true,
 	});
 

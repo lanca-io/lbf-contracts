@@ -67,7 +67,7 @@
         "@chainlink/contracts": "1.4.0",
         "@chainlink/env-enc": "1.0.5",
         "@chainlink/functions-toolkit": "0.3.2",
-        "@concero/contract-utils": "github:concero/contract-utils",
+        "@concero/contract-utils": "github:concero/contract-utils#feature/deploy-wrapper",
         "@concero/rpcs": "github:concero/rpcs",
         "@concero/v2-contracts": "github:concero/messaging-contracts-v2",
         "@concero/v2-networks": "github:concero/v2-networks",

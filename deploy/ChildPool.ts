@@ -1,10 +1,11 @@
-import { getNetworkEnvKey } from "@concero/contract-utils";
+import { getNetworkEnvKey, hardhatDeployWrapper } from "@concero/contract-utils";
 import { Deployment } from "hardhat-deploy/types";
 import { HardhatRuntimeEnvironment } from "hardhat/types";
 
 import { conceroNetworks } from "../constants";
+import { DEPLOY_CONFIG_TESTNET } from "../constants/deployConfigTestnet";
 import { parentPoolChainSelectors } from "../constants/deploymentVariables";
-import { getEnvVar, log, updateEnvVariable } from "../utils";
+import { getEnvVar, getFallbackClients, getViemAccount, log, updateEnvVariable } from "../utils";
 
 type DeployArgs = {
 	conceroRouter: string;
@@ -24,8 +25,6 @@ const deployChildPool: DeploymentFunction = async function (
 	hre: HardhatRuntimeEnvironment,
 	overrideArgs?: Partial<DeployArgs>,
 ): Promise<Deployment> {
-	const { deployer } = await hre.getNamedAccounts();
-	const { deploy } = hre.deployments;
 	const { name } = hre.network;
 
 	const chain = conceroNetworks[name as keyof typeof conceroNetworks];
@@ -39,6 +38,9 @@ const deployChildPool: DeploymentFunction = async function (
 		throw new Error("Missing env variables for ChildPool deployment");
 	}
 
+	const viemAccount = getViemAccount(chain.type, "deployer");
+	const { publicClient } = getFallbackClients(chain, viemAccount);
+
 	const args: DeployArgs = {
 		conceroRouter,
 		iouToken,
@@ -49,8 +51,14 @@ const deployChildPool: DeploymentFunction = async function (
 		parentPoolChainSelector: parentPoolChainSelectors[chain.type],
 	};
 
-	const deployment = await deploy("ChildPool", {
-		from: deployer,
+	let gasLimit = 0;
+	const config = DEPLOY_CONFIG_TESTNET[name];
+	if (config) {
+		gasLimit = config.childPool?.gasLimit || 0;
+	}
+
+	const deployment = await hardhatDeployWrapper("ChildPool", {
+		hre,
 		args: [
 			args.conceroRouter,
 			args.iouToken,
@@ -59,8 +67,8 @@ const deployChildPool: DeploymentFunction = async function (
 			args.chainSelector,
 			args.parentPoolChainSelector,
 		],
-		log: true,
-		autoMine: true,
+		publicClient,
+		gasLimit,
 		skipIfAlreadyDeployed: true,
 	});
 
