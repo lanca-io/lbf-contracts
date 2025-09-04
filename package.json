@@ -36,7 +36,7 @@
     "devDependencies": {
         "@chainlink/solhint-plugin-chainlink-solidity": "1.0.1",
         "@lanca/rebalancer": "https://github.com/lanca-io/rebalancer",
-        "@lanca/canonical-bridge": "https://github.com/lanca-io/lanca-canonical-bridge.git",
+        "@lanca/canonical-bridge": "https://github.com/lanca-io/lanca-canonical-bridge#chore/deploy-usdc-lcb",
         "@tenderly/api-client": "1.1.0",
         "@trivago/prettier-plugin-sort-imports": "5.2.2",
         "@typechain/ethers-v6": "0.5.1",
@@ -67,7 +67,7 @@
         "@chainlink/contracts": "1.4.0",
         "@chainlink/env-enc": "1.0.5",
         "@chainlink/functions-toolkit": "0.3.2",
-        "@concero/contract-utils": "github:concero/contract-utils",
+        "@concero/contract-utils": "github:concero/contract-utils#feature/deploy-wrapper",
         "@concero/rpcs": "github:concero/rpcs",
         "@concero/v2-contracts": "github:concero/messaging-contracts-v2",
         "@concero/v2-networks": "github:concero/v2-networks",
