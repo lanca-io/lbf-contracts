@@ -14,7 +14,7 @@ interface ILancaBridge {
     event SrcBridgeReorged(uint24 indexed sourceChainSelector, uint256 oldAmount);
 
     error InvalidToken();
-    error InvalidDstPool();
+    error InvalidDstChainSelector();
     error InvalidDstGasLimitOrCallData();
     error InvalidConceroMessage();
 
@@ -28,7 +28,6 @@ interface ILancaBridge {
 
     function getBridgeNativeFee(
         uint24 dstChainSelector,
-        address dstPool,
         uint256 dstGasLimit
     ) external view returns (uint256);
 }

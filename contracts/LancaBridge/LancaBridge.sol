@@ -36,7 +36,7 @@ abstract contract LancaBridge is ILancaBridge, Base, ReentrancyGuard {
         bs.Bridge storage s_bridge = bs.bridge();
 
         address dstPool = s.base().dstPools[dstChainSelector];
-        require(dstPool != address(0), InvalidDstPool());
+        require(dstPool != address(0), InvalidDstChainSelector());
 
         IERC20(i_liquidityToken).safeTransferFrom(msg.sender, address(this), tokenAmount);
 
@@ -182,7 +182,6 @@ abstract contract LancaBridge is ILancaBridge, Base, ReentrancyGuard {
 
     function getBridgeNativeFee(
         uint24 dstChainSelector,
-        address dstPool,
         uint256 dstGasLimit
     ) external view returns (uint256) {
         return
@@ -191,7 +190,7 @@ abstract contract LancaBridge is ILancaBridge, Base, ReentrancyGuard {
                 false, // shouldFinaliseSrc
                 address(0), // feeToken (native)
                 ConceroTypes.EvmDstChainData({
-                    receiver: dstPool,
+                    receiver: s.base().dstPools[dstChainSelector],
                     gasLimit: BRIDGE_GAS_OVERHEAD + dstGasLimit
                 })
             );
