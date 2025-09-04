@@ -28,6 +28,7 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
     error InvalidLurScoreSensitivity();
 
     uint32 internal constant UPDATE_TARGET_BALANCE_MESSAGE_GAS_LIMIT = 100_000;
+    uint32 internal constant CHILD_POOL_SNAPSHOT_EXPIRATION_TIME = 10 minutes;
     uint8 internal constant MAX_QUEUE_LENGTH = 250;
 
     LPToken internal immutable i_lpToken;
@@ -667,7 +668,7 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
 
     function _isChildPoolSnapshotTimestampInRange(uint32 timestamp) internal view returns (bool) {
         if ((timestamp == 0) || (timestamp > block.timestamp)) return false;
-        return (block.timestamp - timestamp) <= (30 minutes);
+        return (block.timestamp - timestamp) <= (CHILD_POOL_SNAPSHOT_EXPIRATION_TIME);
     }
 
     function _getTotalPoolsBalance() internal view returns (bool, uint256) {
