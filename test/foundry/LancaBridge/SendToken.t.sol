@@ -18,11 +18,7 @@ contract SendToken is LancaBridgeBase {
     }
 
     function test_bridge_fromParentToChildPool_Success() public {
-        uint256 messageFee = parentPool.getBridgeNativeFee(
-            CHILD_POOL_CHAIN_SELECTOR,
-            address(childPool),
-            GAS_LIMIT
-        );
+        uint256 messageFee = parentPool.getBridgeNativeFee(CHILD_POOL_CHAIN_SELECTOR, GAS_LIMIT);
 
         uint256 bridgeAmount = 100e6;
 
@@ -36,7 +32,7 @@ contract SendToken is LancaBridgeBase {
         uint256 activeBalanceBefore = parentPool.getActiveBalance();
 
         uint256 totalLancaFee = parentPool.getLpFee(bridgeAmount) +
-            parentPool.getBridgeFee(bridgeAmount) +
+            parentPool.getLancaFee(bridgeAmount) +
             parentPool.getRebalancerFee(bridgeAmount);
 
         bytes memory messageData = abi.encode(user, user, bridgeAmount - totalLancaFee, 0, 0, "");
@@ -84,17 +80,13 @@ contract SendToken is LancaBridgeBase {
             activeBalanceAfter,
             activeBalanceBefore +
                 bridgeAmount -
-                parentPool.getBridgeFee(bridgeAmount) -
+                parentPool.getLancaFee(bridgeAmount) -
                 parentPool.getRebalancerFee(bridgeAmount)
         );
     }
 
     function test_bridge_fromChildPoolToParentPool_Success() public {
-        uint256 messageFee = parentPool.getBridgeNativeFee(
-            PARENT_POOL_CHAIN_SELECTOR,
-            address(parentPool),
-            GAS_LIMIT
-        );
+        uint256 messageFee = parentPool.getBridgeNativeFee(PARENT_POOL_CHAIN_SELECTOR, GAS_LIMIT);
 
         uint256 bridgeAmount = 100e6;
 
@@ -108,7 +100,7 @@ contract SendToken is LancaBridgeBase {
         uint256 activeBalanceBefore = childPool.getActiveBalance();
 
         uint256 totalLancaFee = childPool.getLpFee(bridgeAmount) +
-            childPool.getBridgeFee(bridgeAmount) +
+            childPool.getLancaFee(bridgeAmount) +
             childPool.getRebalancerFee(bridgeAmount);
 
         bytes memory messageData = abi.encode(user, user, bridgeAmount - totalLancaFee, 0, 0, "");
@@ -156,7 +148,7 @@ contract SendToken is LancaBridgeBase {
             activeBalanceAfter,
             activeBalanceBefore +
                 bridgeAmount -
-                childPool.getBridgeFee(bridgeAmount) -
+                childPool.getLancaFee(bridgeAmount) -
                 childPool.getRebalancerFee(bridgeAmount)
         );
     }
@@ -176,7 +168,6 @@ contract SendToken is LancaBridgeBase {
         uint256 dstGasLimit = 200_000;
         uint256 messageFee = childPool.getBridgeNativeFee(
             secondChildPoolChainSelector,
-            secondChildPool,
             dstGasLimit
         );
 

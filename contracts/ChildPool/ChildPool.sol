@@ -40,12 +40,13 @@ contract ChildPool is Rebalancer, LancaBridge {
 
     function sendSnapshotToParentPool() external payable onlyLancaKeeper {
         pbs.Base storage s_base = pbs.base();
+        rs.Rebalancer storage s_rebalancer = rs.rebalancer();
 
         IParentPool.ChildPoolSnapshot memory snapshot = IParentPool.ChildPoolSnapshot({
             balance: getActiveBalance(),
             dailyFlow: getYesterdayFlow(),
-            iouTotalSent: rs.rebalancer().totalIouSent,
-            iouTotalReceived: rs.rebalancer().totalIouReceived,
+            iouTotalSent: s_rebalancer.totalIouSent,
+            iouTotalReceived: s_rebalancer.totalIouReceived,
             iouTotalSupply: i_iouToken.totalSupply(),
             timestamp: uint32(block.timestamp),
             totalLiqTokenReceived: s_base.totalLiqTokenSent,

@@ -111,7 +111,7 @@ abstract contract Base is IBase, ConceroClient, ConceroOwnable {
         return (amount * CommonConstants.LP_PREMIUM_BPS) / CommonConstants.BPS_DENOMINATOR;
     }
 
-    function getBridgeFee(uint256 amount) public pure returns (uint256) {
+    function getLancaFee(uint256 amount) public pure returns (uint256) {
         return
             (amount * (CommonConstants.LANCA_BRIDGE_PREMIUM_BPS)) / CommonConstants.BPS_DENOMINATOR;
     }
