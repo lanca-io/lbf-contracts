@@ -32,7 +32,7 @@ contract SendToken is LancaBridgeBase {
         uint256 activeBalanceBefore = parentPool.getActiveBalance();
 
         uint256 totalLancaFee = parentPool.getLpFee(bridgeAmount) +
-            parentPool.getBridgeFee(bridgeAmount) +
+            parentPool.getLancaFee(bridgeAmount) +
             parentPool.getRebalancerFee(bridgeAmount);
 
         bytes memory messageData = abi.encode(user, user, bridgeAmount - totalLancaFee, 0, 0, "");
@@ -80,7 +80,7 @@ contract SendToken is LancaBridgeBase {
             activeBalanceAfter,
             activeBalanceBefore +
                 bridgeAmount -
-                parentPool.getBridgeFee(bridgeAmount) -
+                parentPool.getLancaFee(bridgeAmount) -
                 parentPool.getRebalancerFee(bridgeAmount)
         );
     }
@@ -100,7 +100,7 @@ contract SendToken is LancaBridgeBase {
         uint256 activeBalanceBefore = childPool.getActiveBalance();
 
         uint256 totalLancaFee = childPool.getLpFee(bridgeAmount) +
-            childPool.getBridgeFee(bridgeAmount) +
+            childPool.getLancaFee(bridgeAmount) +
             childPool.getRebalancerFee(bridgeAmount);
 
         bytes memory messageData = abi.encode(user, user, bridgeAmount - totalLancaFee, 0, 0, "");
@@ -148,7 +148,7 @@ contract SendToken is LancaBridgeBase {
             activeBalanceAfter,
             activeBalanceBefore +
                 bridgeAmount -
-                childPool.getBridgeFee(bridgeAmount) -
+                childPool.getLancaFee(bridgeAmount) -
                 childPool.getRebalancerFee(bridgeAmount)
         );
     }

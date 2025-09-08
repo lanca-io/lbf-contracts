@@ -166,7 +166,7 @@ abstract contract LancaBridge is ILancaBridge, Base, ReentrancyGuard {
     }
 
     function _chargeTotalLancaFee(uint256 tokenAmount) internal returns (uint256) {
-        uint256 bridgeFee = getBridgeFee(tokenAmount);
+        uint256 bridgeFee = getLancaFee(tokenAmount);
         uint256 rebalancerFee = getRebalancerFee(tokenAmount);
 
         uint256 totalLancaFee = getLpFee(tokenAmount) + bridgeFee + rebalancerFee;
