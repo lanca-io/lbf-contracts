@@ -27,9 +27,10 @@ abstract contract Rebalancer is IRebalancer, Base {
 
     function fillDeficit(uint256 liquidityAmountToFill) external {
         require(liquidityAmountToFill > 0, ICommonErrors.AmountIsZero());
-
-        uint256 deficit = getDeficit();
-        require(deficit > 0, NoDeficitToFill());
+        require(
+            getDeficit() >= liquidityAmountToFill,
+            AmountExceedsDeficit(getDeficit(), liquidityAmountToFill)
+        );
 
         // Safe transfer liquidity tokens from caller to the pool
         IERC20(i_liquidityToken).safeTransferFrom(msg.sender, address(this), liquidityAmountToFill);
@@ -43,7 +44,10 @@ abstract contract Rebalancer is IRebalancer, Base {
 
     function takeSurplus(uint256 iouTokensToBurn) external returns (uint256) {
         require(iouTokensToBurn > 0, ICommonErrors.AmountIsZero());
-        require(getSurplus() > 0, NoSurplusToTake());
+        require(
+            getSurplus() >= iouTokensToBurn,
+            AmountExceedsSurplus(getSurplus(), iouTokensToBurn)
+        );
 
         i_iouToken.burnFrom(msg.sender, iouTokensToBurn);
 
