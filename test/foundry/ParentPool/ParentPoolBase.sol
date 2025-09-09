@@ -126,6 +126,13 @@ abstract contract ParentPoolBase is LancaTest {
         vm.stopPrank();
     }
 
+    function _setQueuesLength(uint16 depositQueueLength, uint16 withdrawalQueueLength) internal {
+        vm.startPrank(deployer);
+        s_parentPool.setMinDepositQueueLength(depositQueueLength);
+        s_parentPool.setMinWithdrawalQueueLength(withdrawalQueueLength);
+        vm.stopPrank();
+    }
+
     function _fillDepositWithdrawalQueue(
         uint256 amountToDepositPerUser,
         uint256 amountToWithdrawPerUser
@@ -157,6 +164,11 @@ abstract contract ParentPoolBase is LancaTest {
     function _setLancaKeeper() internal {
         vm.prank(deployer);
         s_parentPool.setLancaKeeper(s_lancaKeeper);
+    }
+
+    function _triggerDepositWithdrawProcess() internal {
+        vm.prank(s_lancaKeeper);
+        s_parentPool.triggerDepositWithdrawProcess();
     }
 
     function _fillChildPoolSnapshots() internal {

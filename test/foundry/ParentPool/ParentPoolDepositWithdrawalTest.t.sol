@@ -202,4 +202,45 @@ contract ParentPoolDepositWithdrawalTest is ParentPoolBase {
             (amountToWithdraw - s_parentPool.getRebalancerFee(amountToWithdraw)) * users.length
         );
     }
+
+    function test_calculateLpTokenAmountWhenDepositAndWithdrawalQueue() public {
+        test_calculateLpTokenAmountDepositQueueInEmptyPool();
+
+        uint256 amountToDeposit = 100 * LIQ_TOKEN_SCALE_FACTOR;
+        uint256 amountToWithdraw = amountToDeposit - s_parentPool.getRebalancerFee(amountToDeposit);
+
+        address user1 = makeAddr("user1");
+        _mintUsdc(user1, amountToDeposit);
+        _setQueuesLength(1, 1);
+
+        uint256 lpTokenBalanceBefore = lpToken.balanceOf(user1);
+        uint256 usdcBalanceBefore = usdc.balanceOf(user1);
+        console.log("lpTokenBalanceBefore", lpTokenBalanceBefore);
+        console.log("usdcBalanceBefore", usdcBalanceBefore);
+
+        vm.startPrank(user1);
+        usdc.approve(address(s_parentPool), type(uint256).max);
+        s_parentPool.enterDepositQueue(amountToDeposit);
+
+        lpToken.approve(address(s_parentPool), type(uint256).max);
+        s_parentPool.enterWithdrawalQueue(amountToWithdraw);
+        vm.stopPrank();
+
+        _setupParentPoolWithWhitePaperExample();
+        _triggerDepositWithdrawProcess();
+
+        vm.prank(s_lancaKeeper);
+        // s_parentPool.processPendingWithdrawals();
+
+        // uint256 lpTokenBalanceAfter = lpToken.balanceOf(user1);
+        // uint256 usdcBalanceAfter = usdc.balanceOf(user1);
+
+        // console.log("lpTokenBalanceAfter", lpTokenBalanceAfter);
+        // console.log("usdcBalanceAfter", usdcBalanceAfter);
+
+        // TODO: Finish this test
+
+        // assertEq(lpTokenBalanceAfter - lpTokenBalanceBefore, amountToDeposit - s_parentPool.getRebalancerFee(amountToDeposit));
+        // assertEq(usdcBalanceAfter - usdcBalanceBefore, amountToWithdraw);
+    }
 }
