@@ -5,7 +5,7 @@ interface ILancaClient {
     function lancaReceive(
         bytes32 id,
         uint24 srcChainSelector,
-        address from,
+        address sender,
         uint256 amount,
         bytes memory data
     ) external;
