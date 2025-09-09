@@ -55,7 +55,7 @@ abstract contract LancaBridge is ILancaBridge, Base, ReentrancyGuard {
         s_bridge.totalSent += amountAfterFee;
         s.base().flowByDay[getTodayStartTimestamp()].inflow += amountAfterFee;
 
-        emit TokenSent(
+        emit BridgeSent(
             messageId,
             dstChainSelector,
             msg.sender,

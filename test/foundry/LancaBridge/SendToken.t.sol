@@ -45,7 +45,7 @@ contract SendToken is LancaBridgeBase {
         );
 
         vm.expectEmit(true, true, true, true);
-        emit ILancaBridge.TokenSent(
+        emit ILancaBridge.BridgeSent(
             messageId,
             CHILD_POOL_CHAIN_SELECTOR,
             user,
@@ -113,7 +113,7 @@ contract SendToken is LancaBridgeBase {
         );
 
         vm.expectEmit(true, true, true, true);
-        emit ILancaBridge.TokenSent(
+        emit ILancaBridge.BridgeSent(
             messageId,
             PARENT_POOL_CHAIN_SELECTOR,
             user,

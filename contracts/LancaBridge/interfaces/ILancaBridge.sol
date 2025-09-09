@@ -2,7 +2,7 @@
 pragma solidity ^0.8.28;
 
 interface ILancaBridge {
-    event TokenSent(
+    event BridgeSent(
         bytes32 indexed messageId,
         uint24 dstChainSelector,
         address tokenSender,
