@@ -35,7 +35,6 @@
     },
     "devDependencies": {
         "@chainlink/solhint-plugin-chainlink-solidity": "1.0.1",
-        "@lanca/rebalancer": "https://github.com/lanca-io/rebalancer",
         "@lanca/canonical-bridge": "https://github.com/lanca-io/lanca-canonical-bridge",
         "@tenderly/api-client": "1.1.0",
         "@trivago/prettier-plugin-sort-imports": "5.2.2",

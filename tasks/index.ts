@@ -7,6 +7,7 @@ import { setDstPoolTask } from "./setDstPool.task";
 import { setLancaKeeperTask } from "./setLancaKeeper.task";
 import testTask from "./testTask";
 import { updateAllChildPoolImplementations } from "./updateAllChildPoolImplementations.task";
+import updateAllPoolsVarsTask from "./updateAllPoolsVars.task";
 import { deployMockUSDCTask } from "./usdc/deployMockUSDC.task";
 
 export default {
@@ -20,4 +21,5 @@ export default {
 	withdrawFromParentPoolTask,
 	bridgeTask,
 	updateAllChildPoolImplementations,
+	updateAllPoolsVarsTask,
 };
