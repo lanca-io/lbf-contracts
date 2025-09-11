@@ -18,10 +18,6 @@ async function sendBridge(amount: string, srcChainName: string, dstChainName: st
 		? getEnvAddress("parentPoolProxy", srcChainName)[0]
 		: getEnvAddress("childPoolProxy", srcChainName)[0];
 
-	const dstPool = isParentPoolNetwork(dstChainName)
-		? getEnvAddress("parentPoolProxy", dstChainName)[0]
-		: getEnvAddress("childPoolProxy", dstChainName)[0];
-
 	let hash = await walletClient.writeContract({
 		abi: erc20Abi,
 		functionName: "approve",
@@ -43,7 +39,7 @@ async function sendBridge(amount: string, srcChainName: string, dstChainName: st
 			abi: parentPoolAbi,
 			functionName: "getBridgeNativeFee",
 			address: srcPool,
-			args: [conceroNetworks[dstChainName].chainSelector, dstPool, 0n],
+			args: [conceroNetworks[dstChainName].chainSelector, 0n],
 		})) as bigint,
 		args: [
 			walletClient.account?.address!,
