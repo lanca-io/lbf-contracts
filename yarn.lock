@@ -929,7 +929,7 @@
 
 "@concero/contract-utils@github:concero/contract-utils#feature/deploy-wrapper":
   version "1.0.0"
-  resolved "https://codeload.github.com/concero/contract-utils/tar.gz/d1cf2075ac7c63404cb23b6bad088ac7778ae8d4"
+  resolved "https://codeload.github.com/concero/contract-utils/tar.gz/f974902edef6b854d50d11c646a02d2eea693ccb"
 
 "@concero/operator-utils@github:concero/operator-utils":
   version "1.0.0"
@@ -944,7 +944,7 @@
 
 "@concero/rpcs@github:concero/rpcs":
   version "1.0.0"
-  resolved "https://codeload.github.com/concero/rpcs/tar.gz/46351afe7196d515dd3099480efad247380ace5d"
+  resolved "https://codeload.github.com/concero/rpcs/tar.gz/4657446ff005e3ea1394db2a67effecdf5573eb9"
   dependencies:
     acorn "^8.14.0"
     acorn-walk "^8.3.4"
@@ -2044,19 +2044,19 @@
 
 "@kwsites/file-exists@^1.1.1":
   version "1.1.1"
-  resolved "https://registry.yarnpkg.com/@kwsites/file-exists/-/file-exists-1.1.1.tgz#ad1efcac13e1987d8dbaf235ef3be5b0d96faa99"
+  resolved "https://registry.npmjs.org/@kwsites/file-exists/-/file-exists-1.1.1.tgz#ad1efcac13e1987d8dbaf235ef3be5b0d96faa99"
   integrity sha512-m9/5YGR18lIwxSFDwfE3oA7bWuq9kdau6ugN4H2rJeyhFQZcG9AgSHkQtSD15a8WvTgfz9aikZMrKPHvbpqFiw==
   dependencies:
     debug "^4.1.1"
 
 "@kwsites/promise-deferred@^1.1.1":
   version "1.1.1"
-  resolved "https://registry.yarnpkg.com/@kwsites/promise-deferred/-/promise-deferred-1.1.1.tgz#8ace5259254426ccef57f3175bc64ed7095ed919"
+  resolved "https://registry.npmjs.org/@kwsites/promise-deferred/-/promise-deferred-1.1.1.tgz#8ace5259254426ccef57f3175bc64ed7095ed919"
   integrity sha512-GaHYm+c0O9MjZRu0ongGBRbinu8gVAMd2UZjji6jVmqKtZluZnptXGWhz1E8j8D2HJ3f/yMxKAUC0b+57wncIw==
 
-"@lanca/canonical-bridge@https://github.com/lanca-io/lanca-canonical-bridge#chore/deploy-usdc-lcb":
+"@lanca/canonical-bridge@https://github.com/lanca-io/lanca-canonical-bridge":
   version "1.0.0"
-  resolved "https://github.com/lanca-io/lanca-canonical-bridge#b207fe5790872658f87c954d275b004750887a23"
+  resolved "https://github.com/lanca-io/lanca-canonical-bridge#e72e099aafece70a7d09db967040b86c2ad5b888"
   dependencies:
     "@chainlink/contracts" "1.3.0"
     "@chainlink/functions-toolkit" "0.3.2"
@@ -3633,7 +3633,7 @@ acorn-jsx@^5.3.2:
 
 acorn-walk@^8.1.1, acorn-walk@^8.3.4:
   version "8.3.4"
-  resolved "https://registry.yarnpkg.com/acorn-walk/-/acorn-walk-8.3.4.tgz#794dd169c3977edf4ba4ea47583587c5866236b7"
+  resolved "https://registry.npmjs.org/acorn-walk/-/acorn-walk-8.3.4.tgz#794dd169c3977edf4ba4ea47583587c5866236b7"
   integrity sha512-ueEepnujpqee2o5aIYnvHU6C0A42MNdsIDeqy5BydrkuC5R1ZuUFnm27EeFJGoEHJQgn3uleRvmTXaJgfXbt4g==
   dependencies:
     acorn "^8.11.0"
@@ -3645,7 +3645,7 @@ acorn@7.1.1:
 
 acorn@^8.11.0, acorn@^8.14.0, acorn@^8.15.0, acorn@^8.4.1:
   version "8.15.0"
-  resolved "https://registry.yarnpkg.com/acorn/-/acorn-8.15.0.tgz#a360898bc415edaac46c8241f6383975b930b816"
+  resolved "https://registry.npmjs.org/acorn/-/acorn-8.15.0.tgz#a360898bc415edaac46c8241f6383975b930b816"
   integrity sha512-NZyJarBfL7nWwIq+FDL6Zp/yHEhePMNnnJ0y3qfieCrmNvYct8uvtiV41UvlSe6apAfk0fY1FbWx+NwfmpvtTg==
 
 adm-zip@^0.4.16:
@@ -7031,7 +7031,7 @@ node-addon-api@^5.0.0:
 
 node-cron@^3.0.3:
   version "3.0.3"
-  resolved "https://registry.yarnpkg.com/node-cron/-/node-cron-3.0.3.tgz#c4bc7173dd96d96c50bdb51122c64415458caff2"
+  resolved "https://registry.npmjs.org/node-cron/-/node-cron-3.0.3.tgz#c4bc7173dd96d96c50bdb51122c64415458caff2"
   integrity sha512-dOal67//nohNgYWb+nWmg5dkFdIwDm8EpeGYMekPMrngV3637lqnX0lbUcCtgibHTz6SEz7DAIjKvKDFYCnO1A==
   dependencies:
     uuid "8.3.2"
@@ -7983,7 +7983,7 @@ signal-exit@^4.0.1:
 
 simple-git@^3.27.0:
   version "3.28.0"
-  resolved "https://registry.yarnpkg.com/simple-git/-/simple-git-3.28.0.tgz#c6345b2e387880f8450788a1e388573366ae48ac"
+  resolved "https://registry.npmjs.org/simple-git/-/simple-git-3.28.0.tgz#c6345b2e387880f8450788a1e388573366ae48ac"
   integrity sha512-Rs/vQRwsn1ILH1oBUy8NucJlXmnnLeLCfcvbSehkPzbv3wwoFWIdtfd6Ndo6ZPhlPsCZ60CPI4rxurnwAa+a2w==
   dependencies:
     "@kwsites/file-exists" "^1.1.1"
@@ -8694,7 +8694,7 @@ uuid@11.1.0:
 
 uuid@8.3.2, uuid@^8.3.2:
   version "8.3.2"
-  resolved "https://registry.yarnpkg.com/uuid/-/uuid-8.3.2.tgz#80d5b5ced271bb9af6c445f21a1a04c606cefbe2"
+  resolved "https://registry.npmjs.org/uuid/-/uuid-8.3.2.tgz#80d5b5ced271bb9af6c445f21a1a04c606cefbe2"
   integrity sha512-+NYs2QeMWy+GWFOEm9xnn6HCDp0l7QBD7ml8zLUmJ+93Q5NF0NocErnwkTkXVFNiX3/fpC6afS8Dhb/gz7R7eg==
 
 uuid@^9.0.1:
@@ -8817,7 +8817,7 @@ widest-line@^3.1.0:
 
 winston-daily-rotate-file@5.0.0, winston-daily-rotate-file@^5.0.0:
   version "5.0.0"
-  resolved "https://registry.yarnpkg.com/winston-daily-rotate-file/-/winston-daily-rotate-file-5.0.0.tgz#8cd94800025490e47c00ec892b655a5821f4266d"
+  resolved "https://registry.npmjs.org/winston-daily-rotate-file/-/winston-daily-rotate-file-5.0.0.tgz#8cd94800025490e47c00ec892b655a5821f4266d"
   integrity sha512-JDjiXXkM5qvwY06733vf09I2wnMXpZEhxEVOSPenZMii+g7pcDcTBt2MRugnoi8BwVSuCT2jfRXBUy+n1Zz/Yw==
   dependencies:
     file-stream-rotator "^0.6.1"
@@ -8836,7 +8836,7 @@ winston-transport@^4.7.0, winston-transport@^4.9.0:
 
 winston@3.17.0, winston@^3.17.0:
   version "3.17.0"
-  resolved "https://registry.yarnpkg.com/winston/-/winston-3.17.0.tgz#74b8665ce9b4ea7b29d0922cfccf852a08a11423"
+  resolved "https://registry.npmjs.org/winston/-/winston-3.17.0.tgz#74b8665ce9b4ea7b29d0922cfccf852a08a11423"
   integrity sha512-DLiFIXYC5fMPxaRg832S6F5mJYvePtmO5G9v9IgUFPhXm9/GkXarH/TUrBAVzhTCzAj9anE/+GjrgXp/54nOgw==
   dependencies:
     "@colors/colors" "^1.6.0"

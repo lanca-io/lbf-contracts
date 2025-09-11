@@ -85,6 +85,19 @@ contract ChildPool is Rebalancer, LancaBridge {
         );
     }
 
+    function getSnapshotMessageFee() external view returns (uint256) {
+        return
+            IConceroRouter(i_conceroRouter).getMessageFee(
+                i_parentPoolChainSelector,
+                false,
+                address(0),
+                ConceroTypes.EvmDstChainData({
+                    receiver: pbs.base().dstPools[i_parentPoolChainSelector],
+                    gasLimit: SEND_SNAPSHOT_MESSAGE_GAS_LIMIT
+                })
+            );
+    }
+
     function _handleConceroReceiveUpdateTargetBalance(bytes memory messageData) internal override {
         uint256 targetBalance = abi.decode(messageData, (uint256));
         pbs.base().targetBalance = targetBalance;
