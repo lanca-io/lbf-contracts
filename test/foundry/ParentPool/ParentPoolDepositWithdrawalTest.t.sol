@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
+/* solhint-disable func-name-mixedcase */
 pragma solidity 0.8.28;
 
 import {ParentPoolBase} from "./ParentPoolBase.sol";
@@ -149,7 +150,7 @@ contract ParentPoolDepositWithdrawalTest is ParentPoolBase {
 
         _fillChildPoolSnapshots();
 
-        uint256 lpTokenBalanceBefore = lpToken.balanceOf(user);
+        uint256 lpBalanceBefore = lpToken.balanceOf(user);
         uint256 amountToDeposit = 100 * LIQ_TOKEN_SCALE_FACTOR;
 
         vm.prank(user);
@@ -161,7 +162,7 @@ contract ParentPoolDepositWithdrawalTest is ParentPoolBase {
         uint256 lpTokenBalanceAfter = lpToken.balanceOf(user);
 
         assertEq(
-            lpTokenBalanceAfter - lpTokenBalanceBefore,
+            lpTokenBalanceAfter - lpBalanceBefore,
             amountToDeposit - s_parentPool.getRebalancerFee(amountToDeposit)
         );
     }
@@ -203,44 +204,99 @@ contract ParentPoolDepositWithdrawalTest is ParentPoolBase {
         );
     }
 
-    function test_calculateLpTokenAmountWhenDepositAndWithdrawalQueue() public {
-        test_calculateLpTokenAmountDepositQueueInEmptyPool();
+    function test_calculateLpWhenDepositWithdrawalQueue() public {
+        // deposit amount 100.000000 USDC
+        // get LP after deposit -> amountToDeposit - rebalancerFee = 99.990000 LP
 
-        uint256 amountToDeposit = 100 * LIQ_TOKEN_SCALE_FACTOR;
-        uint256 amountToWithdraw = amountToDeposit - s_parentPool.getRebalancerFee(amountToDeposit);
+        uint256 lpBalanceBefore = lpToken.balanceOf(user);
+        uint256 amountToDeposit = 100 * LIQ_TOKEN_SCALE_FACTOR; // 100 USDC
 
-        address user1 = makeAddr("user1");
-        _mintUsdc(user1, amountToDeposit);
-        _setQueuesLength(1, 1);
+        vm.prank(user);
+        s_parentPool.enterDepositQueue(amountToDeposit);
 
-        uint256 lpTokenBalanceBefore = lpToken.balanceOf(user1);
-        uint256 usdcBalanceBefore = usdc.balanceOf(user1);
-        console.log("lpTokenBalanceBefore", lpTokenBalanceBefore);
-        console.log("usdcBalanceBefore", usdcBalanceBefore);
+        _setQueuesLength(0, 0);
+        _fillChildPoolSnapshots();
+        _triggerDepositWithdrawProcess();
 
-        vm.startPrank(user1);
-        usdc.approve(address(s_parentPool), type(uint256).max);
+        uint256 lpBalanceAfterDeposit = lpToken.balanceOf(user);
+        uint256 amountToDepositWithFee = amountToDeposit -
+            s_parentPool.getRebalancerFee(amountToDeposit);
+
+        assertEq(lpBalanceAfterDeposit, lpBalanceBefore + amountToDepositWithFee);
+
+        // deposit again 100.000000 USDC -> 99.990000 LP
+        // withdraw half - 99.990000
+
+        vm.startPrank(user);
         s_parentPool.enterDepositQueue(amountToDeposit);
 
         lpToken.approve(address(s_parentPool), type(uint256).max);
-        s_parentPool.enterWithdrawalQueue(amountToWithdraw);
+        s_parentPool.enterWithdrawalQueue(lpBalanceAfterDeposit);
         vm.stopPrank();
 
-        _setupParentPoolWithWhitePaperExample();
+        _fillChildPoolSnapshots();
+        _triggerDepositWithdrawProcess();
+        _processPendingWithdrawals();
+
+        // final LP balance should be 99.990000
+
+        uint256 lpTokenBalanceAfterDepositWithdraw = lpToken.balanceOf(user);
+        assertEq(lpTokenBalanceAfterDepositWithdraw, lpBalanceAfterDeposit);
+    }
+
+    function test_POC_processWithdrawalsQueue_Error() public {
+        // example without fees
+        // ------------ deposit -------------
+        // user1 deposit 100 USDC -> 100 LP
+        // user2 deposit 100 USDC -> 100 LP
+
+        // user1 withdraw 100 LP -> 100 USDC
+        // user2 withdraw 100 LP -> 50 USDC (because we decrease the pool but don't burn LP)
+
+        uint256 amountToDeposit = 100 * LIQ_TOKEN_SCALE_FACTOR;
+
+        address user1 = makeAddr("user1");
+        address user2 = makeAddr("user2");
+        _mintUsdc(user1, amountToDeposit);
+        _mintUsdc(user2, amountToDeposit);
+        vm.prank(user1);
+        usdc.approve(address(s_parentPool), type(uint256).max);
+        vm.prank(user2);
+        usdc.approve(address(s_parentPool), type(uint256).max);
+
+        vm.prank(user1);
+        s_parentPool.enterDepositQueue(amountToDeposit);
+
+        vm.prank(user2);
+        s_parentPool.enterDepositQueue(amountToDeposit);
+
+        _setQueuesLength(0, 0);
+        _fillChildPoolSnapshots();
         _triggerDepositWithdrawProcess();
 
-        vm.prank(s_lancaKeeper);
-        // s_parentPool.processPendingWithdrawals();
+        uint256 lpAmountWithFee = amountToDeposit - s_parentPool.getRebalancerFee(amountToDeposit);
 
-        // uint256 lpTokenBalanceAfter = lpToken.balanceOf(user1);
-        // uint256 usdcBalanceAfter = usdc.balanceOf(user1);
+        assertEq(lpToken.balanceOf(user1), lpAmountWithFee);
+        assertEq(lpToken.balanceOf(user2), lpAmountWithFee);
 
-        // console.log("lpTokenBalanceAfter", lpTokenBalanceAfter);
-        // console.log("usdcBalanceAfter", usdcBalanceAfter);
+        // ------------ withdraw -------------
+        vm.startPrank(user1);
+        lpToken.approve(address(s_parentPool), type(uint256).max);
+        s_parentPool.enterWithdrawalQueue(lpAmountWithFee);
+        vm.stopPrank();
 
-        // TODO: Finish this test
+        vm.startPrank(user2);
+        lpToken.approve(address(s_parentPool), type(uint256).max);
+        s_parentPool.enterWithdrawalQueue(lpAmountWithFee);
+        vm.stopPrank();
 
-        // assertEq(lpTokenBalanceAfter - lpTokenBalanceBefore, amountToDeposit - s_parentPool.getRebalancerFee(amountToDeposit));
-        // assertEq(usdcBalanceAfter - usdcBalanceBefore, amountToWithdraw);
+        _fillChildPoolSnapshots();
+        _triggerDepositWithdrawProcess();
+        _processPendingWithdrawals();
+
+        assertTrue(usdc.balanceOf(user1) != usdc.balanceOf(user2));
     }
+
+    function test_calculateLpWhenDepositWithdrawalQueueWithInflow() public {}
+    function test_calculateLpWhenDepositWithdrawalQueueWithOutflow() public {}
 }

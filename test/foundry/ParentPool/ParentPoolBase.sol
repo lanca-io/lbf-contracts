@@ -171,6 +171,11 @@ abstract contract ParentPoolBase is LancaTest {
         s_parentPool.triggerDepositWithdrawProcess();
     }
 
+    function _processPendingWithdrawals() internal {
+        vm.prank(s_lancaKeeper);
+        s_parentPool.processPendingWithdrawals();
+    }
+
     function _fillChildPoolSnapshots() internal {
         uint24[] memory childPoolChainSelectors = _getChildPoolsChainSelectors();
 
