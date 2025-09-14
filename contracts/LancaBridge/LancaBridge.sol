@@ -170,7 +170,6 @@ abstract contract LancaBridge is ILancaBridge, Base, ReentrancyGuard {
         uint256 rebalancerFee = getRebalancerFee(tokenAmount);
 
         uint256 totalLancaFee = getLpFee(tokenAmount) + bridgeFee + rebalancerFee;
-        require(totalLancaFee > 0, ICommonErrors.InvalidFeeAmount());
 
         s.base().totalLancaFeeInLiqToken += bridgeFee;
         rs.rebalancer().totalRebalancingFee += rebalancerFee;
