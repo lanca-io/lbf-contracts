@@ -36,7 +36,7 @@ const deployParentPool: DeploymentFunction = async function (
 	const conceroRouter = getEnvVar(`CONCERO_ROUTER_PROXY_${getNetworkEnvKey(name)}`); // TODO: v2-contracts
 	const iouToken = getEnvVar(`IOU_${getNetworkEnvKey(name)}`);
 	const defaultLiquidityTokenDecimals = 6;
-	const defaultMinTargetBalance = parseUnits("1000", defaultLiquidityTokenDecimals);
+	const defaultMinTargetBalance = parseUnits("10000", defaultLiquidityTokenDecimals);
 
 	if (!liquidityToken || !lpToken || !conceroRouter || !iouToken) {
 		throw new Error("Missing env variables");
