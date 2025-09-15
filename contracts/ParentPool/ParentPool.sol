@@ -394,7 +394,7 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
             delete s_parentPool.withdrawalQueue[withdrawalQueueIds[i]];
 
             liqTokenAmountToWithdraw = _calculateWithdrawableAmount(
-                totalPoolsBalance - totalLiqTokenAmountToWithdraw,
+                totalPoolsBalance,
                 withdrawal.lpTokenAmountToWithdraw
             );
 
