@@ -8,6 +8,7 @@ import {DeployMockERC20, MockERC20} from "../scripts/deploy/DeployMockERC20.s.so
 import {DeployParentPool} from "../scripts/deploy/DeployParentPool.s.sol";
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 import {IOUToken} from "../../../contracts/Rebalancer/IOUToken.sol";
 import {LPToken} from "../../../contracts/ParentPool/LPToken.sol";
 import {LancaTest} from "../LancaTest.sol";
@@ -15,6 +16,8 @@ import {ParentPool} from "../../../contracts/ParentPool/ParentPool.sol";
 import {IParentPool} from "../../../contracts/ParentPool/interfaces/IParentPool.sol";
 import {Vm} from "forge-std/src/Vm.sol";
 import {IBase} from "../../../contracts/Base/interfaces/IBase.sol";
+
+import {console} from "forge-std/src/console.sol";
 
 abstract contract ParentPoolBase is LancaTest {
     uint16 internal constant DEFAULT_TARGET_QUEUE_LENGTH = 5;
@@ -112,9 +115,11 @@ abstract contract ParentPoolBase is LancaTest {
     }
 
     function _enterWithdrawalQueue(address depositor, uint256 amount) internal returns (bytes32) {
-        vm.prank(depositor);
+        vm.startPrank(depositor);
+        lpToken.approve(address(s_parentPool), amount);
         vm.recordLogs();
         s_parentPool.enterWithdrawalQueue(amount);
+        vm.stopPrank();
         Vm.Log[] memory entries = vm.getRecordedLogs();
         return entries[entries.length - 1].topics[1];
     }
@@ -161,6 +166,18 @@ abstract contract ParentPoolBase is LancaTest {
         vm.stopPrank();
     }
 
+    function _setSupportedChildPools(uint256 poolAmount) internal {
+        uint24[] memory childPoolChainSelectors = _getChildPoolsChainSelectors(poolAmount);
+
+        vm.startPrank(deployer);
+        for (uint256 i = 5; i < childPoolChainSelectors.length; i++) {
+            string memory prefix = "childPool_";
+            string memory poolName = string(abi.encodePacked(prefix, Strings.toString(i + 1)));
+            s_parentPool.setDstPool(childPoolChainSelectors[i], makeAddr(poolName));
+        }
+        vm.stopPrank();
+    }
+
     function _setLancaKeeper() internal {
         vm.prank(deployer);
         s_parentPool.setLancaKeeper(s_lancaKeeper);
@@ -183,6 +200,16 @@ abstract contract ParentPoolBase is LancaTest {
             s_parentPool.exposed_setChildPoolSnapshot(
                 childPoolChainSelectors[i],
                 _getChildPoolSnapshot()
+            );
+        }
+    }
+
+    function _fillChildPoolSnapshots(uint256 amount) internal {
+        uint24[] memory childPoolChainSelectors = _getChildPoolsChainSelectors(amount);
+        for (uint256 i; i < childPoolChainSelectors.length; i++) {
+            s_parentPool.exposed_setChildPoolSnapshot(
+                childPoolChainSelectors[i],
+                _getChildPoolSnapshot(1_000 * LIQ_TOKEN_SCALE_FACTOR, 0, 0)
             );
         }
     }
@@ -214,12 +241,21 @@ abstract contract ParentPoolBase is LancaTest {
             });
     }
 
-    function _getChildPoolsChainSelectors() internal returns (uint24[] memory) {
+    function _getChildPoolsChainSelectors() internal pure returns (uint24[] memory) {
         uint24[] memory childPoolChainSelectors = new uint24[](4);
         childPoolChainSelectors[0] = childPoolChainSelector_1;
         childPoolChainSelectors[1] = childPoolChainSelector_2;
         childPoolChainSelectors[2] = childPoolChainSelector_3;
         childPoolChainSelectors[3] = childPoolChainSelector_4;
+
+        return childPoolChainSelectors;
+    }
+
+    function _getChildPoolsChainSelectors(uint256 amount) internal pure returns (uint24[] memory) {
+        uint24[] memory childPoolChainSelectors = new uint24[](amount);
+        for (uint256 i; i < childPoolChainSelectors.length; i++) {
+            childPoolChainSelectors[i] = uint24(i + 1);
+        }
 
         return childPoolChainSelectors;
     }
@@ -232,6 +268,40 @@ abstract contract ParentPoolBase is LancaTest {
             uint64((3 * LIQ_TOKEN_SCALE_FACTOR) / 10)
         );
         vm.stopPrank();
+    }
+
+    function _setupParentPoolWithBaseExample() internal {
+        /*
+               LBF state before target balances adjustments
+
+               Pool  Balance  targetBalance  Outflow(24h)  Inflow(24h)
+       			1     1k     	1k           	0k           0k
+               	2     1k     	1k           	0k           0k
+               	3     1k     	1k           	0k           0k
+               	4     1k     	1k           	0k           0k
+               	5     1k     	1k           	0k           0k
+               	6     1k     	1k           	0k           0k
+               	7     1k     	1k           	0k           0k
+               	8     1k     	1k           	0k           0k
+               	9     1k     	1k           	0k           0k
+	(Parent)   10     1k     	1k           	0k           0k
+        */
+
+        uint256 defaultTargetBalance = 1_000 * LIQ_TOKEN_SCALE_FACTOR;
+        uint24[] memory childPoolChainSelectors = _getChildPoolsChainSelectors(10);
+
+        for (uint256 i; i < childPoolChainSelectors.length; ++i) {
+            s_parentPool.exposed_setChildPoolSnapshot(
+                childPoolChainSelectors[i],
+                _getChildPoolSnapshot(defaultTargetBalance, 0, 0)
+            );
+            s_parentPool.exposed_setChildPoolTargetBalance(
+                childPoolChainSelectors[i],
+                defaultTargetBalance
+            );
+        }
+        s_parentPool.exposed_setTargetBalance(defaultTargetBalance);
+        s_parentPool.exposed_setYesterdayFlow(0, 0);
     }
 
     function _setupParentPoolWithWhitePaperExample() internal {
@@ -300,5 +370,18 @@ abstract contract ParentPoolBase is LancaTest {
     function _mintLpToken(address receiver, uint256 amount) internal {
         vm.prank(address(s_parentPool));
         lpToken.mint(receiver, amount);
+    }
+
+    function _takeRebalancerFee(uint256 amount) internal view returns (uint256) {
+        return amount - s_parentPool.getRebalancerFee(amount);
+    }
+
+    function _takeWithdrawalFee(uint256 amount) internal view returns (uint256) {
+        (uint256 conceroFee, uint256 rebalanceFee) = s_parentPool.getWithdrawalFee(amount);
+        return amount - (conceroFee + rebalanceFee);
+    }
+
+    function _addDecimals(uint256 amount) internal pure returns (uint256) {
+        return amount * LIQ_TOKEN_SCALE_FACTOR;
     }
 }

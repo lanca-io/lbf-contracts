@@ -340,6 +340,8 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
 
     function _processDepositsQueue(uint256 totalPoolsBalance) internal returns (uint256) {
         s.ParentPool storage s_parentPool = s.parentPool();
+        uint256 totalPoolBalanceWithLockedWithdrawals = totalPoolsBalance +
+            s_parentPool.totalWithdrawalAmountLocked;
 
         bytes32[] memory depositQueueIds = s_parentPool.depositQueueIds;
         uint256 totalDepositedLiqTokenAmount;
@@ -357,7 +359,7 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
             totalDepositFee += depositFee;
 
             uint256 lpTokenAmountToMint = _calculateLpTokenAmountToMint(
-                totalPoolsBalance + totalDepositedLiqTokenAmount,
+                totalPoolBalanceWithLockedWithdrawals + totalDepositedLiqTokenAmount,
                 amountToDepositWithFee
             );
 
@@ -382,6 +384,8 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
 
     function _processWithdrawalsQueue(uint256 totalPoolsBalance) internal returns (uint256) {
         s.ParentPool storage s_parentPool = s.parentPool();
+        uint256 totalPoolBalanceWithLockedWithdrawals = totalPoolsBalance +
+            s_parentPool.totalWithdrawalAmountLocked;
 
         bytes32[] memory withdrawalQueueIds = s_parentPool.withdrawalQueueIds;
         uint256 totalLiqTokenAmountToWithdraw;
@@ -394,7 +398,7 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
             delete s_parentPool.withdrawalQueue[withdrawalQueueIds[i]];
 
             liqTokenAmountToWithdraw = _calculateWithdrawableAmount(
-                totalPoolsBalance,
+                totalPoolBalanceWithLockedWithdrawals,
                 withdrawal.lpTokenAmountToWithdraw
             );
 
@@ -426,7 +430,7 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
         (
             uint24[] memory chainSelectors,
             uint256[] memory targetBalances
-        ) = _calculateNewTargetBalances(totalLbfBalance);
+        ) = _calculateNewTargetBalances(totalLbfBalance - totalRequestedWithdrawals);
 
         s_parentPool.totalWithdrawalAmountLocked += totalRequestedWithdrawals;
         delete s_parentPool.remainingWithdrawalAmount;
@@ -449,12 +453,11 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
     function _processOutflow(uint256 totalLbfBalance, uint256 totalRequested) internal {
         s.ParentPool storage s_parentPool = s.parentPool();
         uint256 surplus = getSurplus();
-        uint256 coveredBySurplus = surplus >= totalRequested ? totalRequested : surplus;
 
         (
             uint24[] memory chainSelectors,
             uint256[] memory targetBalances
-        ) = _calculateNewTargetBalances(totalLbfBalance - coveredBySurplus);
+        ) = _calculateNewTargetBalances(totalLbfBalance - totalRequested);
 
         for (uint256 i; i < chainSelectors.length; ++i) {
             // @dev check if it is child pool chain selector
@@ -467,12 +470,15 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
                         and being used a second time */
                 delete s_parentPool.childPoolSnapshots[chainSelectors[i]].timestamp;
             } else {
+                uint256 coveredBySurplus = surplus >= totalRequested ? totalRequested : surplus;
                 uint256 remaining = totalRequested - coveredBySurplus;
 
                 s_parentPool.totalWithdrawalAmountLocked += coveredBySurplus;
                 s_parentPool.remainingWithdrawalAmount = remaining;
                 s_parentPool.targetBalanceFloor = targetBalances[i];
 
+                // TODO: do we need to change remaining to totalRequested?
+                // pbs.base().targetBalance = targetBalances[i] + totalRequested;
                 pbs.base().targetBalance = targetBalances[i] + remaining;
             }
         }
@@ -651,7 +657,7 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
 
         uint256 remainingWithdrawalAmount = s_parentPool.remainingWithdrawalAmount;
 
-        if (remainingWithdrawalAmount == 0 || s_parentPool.targetBalanceFloor <= getActiveBalance())
+        if (remainingWithdrawalAmount == 0 || s_parentPool.targetBalanceFloor > getActiveBalance())
             return;
 
         if (remainingWithdrawalAmount < inflowLiqTokenAmount) {
