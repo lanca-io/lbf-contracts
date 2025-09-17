@@ -657,7 +657,7 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
 
         uint256 remainingWithdrawalAmount = s_parentPool.remainingWithdrawalAmount;
 
-        if (remainingWithdrawalAmount == 0 || s_parentPool.targetBalanceFloor > getActiveBalance())
+        if (remainingWithdrawalAmount == 0 || getActiveBalance() < s_parentPool.targetBalanceFloor)
             return;
 
         if (remainingWithdrawalAmount < inflowLiqTokenAmount) {

@@ -422,4 +422,15 @@ abstract contract ParentPoolBase is LancaTest {
         _mintUsdc(address(s_parentPool), _addDecimals(1_000));
         _setupParentPoolWithBaseExample();
     }
+
+    function _baseSetupWithLPMinting() internal {
+        _baseSetup();
+
+        address[] memory users = _getUsers(5);
+        uint256 initialLpBalancePerUser = _takeRebalancerFee(_addDecimals(2_000));
+
+        for (uint256 i; i < users.length; i++) {
+            _mintLpToken(users[i], initialLpBalancePerUser);
+        }
+    }
 }

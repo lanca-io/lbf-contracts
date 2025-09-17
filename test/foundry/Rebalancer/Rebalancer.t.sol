@@ -1,15 +1,20 @@
 // SPDX-License-Identifier: UNLICENSED
+/* solhint-disable func-name-mixedcase */
 pragma solidity 0.8.28;
 
 import {ParentPoolBase} from "../ParentPool/ParentPoolBase.sol";
 import {IBase} from "../../../contracts/Base/interfaces/IBase.sol";
+import {MockERC20} from "../scripts/deploy/DeployMockERC20.s.sol";
+
+import "forge-std/src/console.sol";
 
 contract Rebalancer is ParentPoolBase {
     function setUp() public override {
         super.setUp();
+        vm.warp(NOW_TIMESTAMP);
     }
 
-    function test_filDeficitAndSendBridgeIou(
+    function test_fillDeficitAndSendBridgeIou(
         uint256 parentPoolBaseBalance,
         uint256 deficit
     ) public {
@@ -87,6 +92,61 @@ contract Rebalancer is ParentPoolBase {
         assertEq(
             usdcBalanceAfter - usdcBalanceBefore,
             surplusToTake + s_parentPool.getRebalancerFee(surplusToTake)
+        );
+    }
+
+    /* -- Post inflow rebalance -- */
+
+    /*
+     * @dev totalWithdrawalAmountLocked should be 0 when active balance
+     * less than targetBalanceFloor
+     */
+    function test_postInflowRebalance_totalWithdrawalAmountLockedShouldBeZero() public {
+        _baseSetupWithLPMinting();
+
+        address user1 = _getUsers(1)[0];
+        uint256 usdcBalanceBefore = usdc.balanceOf(user1);
+        _enterWithdrawalQueue(user1, _takeRebalancerFee(_addDecimals(2_000)));
+
+        // Imagine that someone send 1000 USDC from ParentPool to ChildPool
+        _fillChildPoolSnapshots(10);
+        MockERC20(address(usdc)).burn(address(s_parentPool), _addDecimals(1_000));
+        s_parentPool.exposed_setChildPoolSnapshot(
+            1,
+            _getChildPoolSnapshot(_addDecimals(2_000), 0, 0)
+        );
+        assertEq(usdc.balanceOf(address(s_parentPool)), 0);
+
+        // Re-calculate target balances
+        _triggerDepositWithdrawProcess();
+        assertEq(s_parentPool.getDeficit(), _addDecimals(2800));
+
+        // Now we have an initial target balance for all pools of about 800 USDC
+        // and a deficit of 2800 USDC
+        //		- parent pool balance is 0
+        //		- withdrawal amount is 2000 USDC
+        //		- new target balance is 800 USDC
+
+        // Fill the deficit with 100 USDC to trigger postInflowRebalance
+        _fillDeficit(_addDecimals(100));
+
+        // Check that totalWithdrawalAmountLocked is 0
+        assertEq(s_parentPool.exposed_getTotalWithdrawalAmountLocked(), 0);
+        assertFalse(s_parentPool.isReadyToProcessPendingWithdrawals());
+
+        // Fill full deficit (2700 USDC)
+        _fillDeficit(s_parentPool.getDeficit());
+
+        // Now we can withdraw 2000 USDC
+        _processPendingWithdrawals();
+
+        // 800 USDC should be in the ParentPool
+        assertApproxEqRel(usdc.balanceOf(address(s_parentPool)), _addDecimals(800), 1e15);
+
+        // User1 should have 2000 USDC
+        assertEq(
+            usdc.balanceOf(user1),
+            usdcBalanceBefore + _takeRebalancerFee(_addDecimals(2_000))
         );
     }
 }

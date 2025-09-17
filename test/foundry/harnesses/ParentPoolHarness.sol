@@ -61,6 +61,10 @@ contract ParentPoolHarness is ParentPool {
         return bs.bridge().receivedBridges[srcChainSelector][nonce];
     }
 
+    function exposed_getTotalWithdrawalAmountLocked() public view returns (uint256) {
+        return s.parentPool().totalWithdrawalAmountLocked;
+    }
+
     /* SETTERS */
 
     function exposed_setChildPoolSnapshot(
