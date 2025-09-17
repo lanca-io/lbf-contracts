@@ -384,4 +384,32 @@ abstract contract ParentPoolBase is LancaTest {
     function _addDecimals(uint256 amount) internal pure returns (uint256) {
         return amount * LIQ_TOKEN_SCALE_FACTOR;
     }
+
+    function _getUsers(uint256 amount) internal returns (address[] memory) {
+        address[] memory users = new address[](amount);
+        for (uint256 i; i < users.length; ++i) {
+            users[i] = makeAddr(string(abi.encodePacked("user", Strings.toString(i + 1))));
+        }
+        return users;
+    }
+
+    function _getEmptyBalances(uint256 amount) internal pure returns (uint256[] memory) {
+        uint256[] memory balances = new uint256[](amount);
+        for (uint256 i; i < balances.length; ++i) {
+            balances[i] = 0;
+        }
+        return balances;
+    }
+
+    function _takeSurplus(uint256 amount) internal {
+        vm.startPrank(operator);
+        iouToken.approve(address(s_parentPool), amount);
+        s_parentPool.takeSurplus(amount);
+        vm.stopPrank();
+    }
+
+    function _fillDeficit(uint256 amount) internal {
+        vm.prank(operator);
+        s_parentPool.fillDeficit(amount);
+    }
 }

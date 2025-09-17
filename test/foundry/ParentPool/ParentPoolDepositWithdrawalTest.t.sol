@@ -244,6 +244,253 @@ contract ParentPoolDepositWithdrawalTest is ParentPoolBase {
         assertEq(lpTokenBalanceAfterDepositWithdraw, lpBalanceAfterDeposit);
     }
 
+    function test_calculateLPWhenDepositWithdrawalQueueWithInflow() public {
+        vm.prank(deployer);
+        s_parentPool.setLiquidityCap(_addDecimals(15_000));
+
+        // Base setup
+        _setSupportedChildPools(10);
+        _setQueuesLength(0, 0);
+        _mintUsdc(address(s_parentPool), _addDecimals(1_000));
+        _setupParentPoolWithBaseExample();
+
+        address[] memory users = _getUsers(5);
+        uint256[] memory balancesBefore = _getEmptyBalances(5);
+        uint256 initialLpBalancePerUser = _takeRebalancerFee(_addDecimals(2_000));
+        uint256 targetBalanceBefore = s_parentPool.getTargetBalance();
+
+        for (uint256 i; i < users.length; i++) {
+            // Evenly distribute existing LP tokens among users
+            _mintLpToken(users[i], initialLpBalancePerUser);
+            balancesBefore[i] = lpToken.balanceOf(users[i]);
+        }
+
+        uint256 totalSupplyBefore = lpToken.totalSupply();
+
+        // Add withdrawal queue for user 0 with 2000 LP tokens
+        uint256 withdrawalAmount = initialLpBalancePerUser;
+        _enterWithdrawalQueue(users[0], withdrawalAmount);
+
+        _fillChildPoolSnapshots(10);
+        _triggerDepositWithdrawProcess();
+
+        // Fill part of the deficit (should not affect on LP calculation)
+        uint256 deficit = s_parentPool.getDeficit();
+        assertEq(deficit, _addDecimals(1800));
+        _fillDeficit(_addDecimals(800));
+
+        // Deposit 2000 USDC for users 1 and 2
+        uint256 newDepositAmount = _addDecimals(2_000);
+        _mintUsdc(users[1], newDepositAmount);
+        _mintUsdc(users[2], newDepositAmount);
+        _enterDepositQueue(users[1], newDepositAmount);
+        _enterDepositQueue(users[2], newDepositAmount);
+
+        _fillChildPoolSnapshots(10);
+        _triggerDepositWithdrawProcess();
+
+        // User 0 should lose LP tokens
+        assertEq(
+            lpToken.balanceOf(users[0]),
+            balancesBefore[0] - initialLpBalancePerUser,
+            "User0 LP balance should decrease"
+        );
+        // Users 1 and 2 should get new LP tokens
+        assertApproxEqRel(
+            lpToken.balanceOf(users[1]),
+            balancesBefore[1] + _takeRebalancerFee(newDepositAmount),
+            1e14, // 0.01% tolerance
+            "User1 LP balance should increase"
+        );
+        assertApproxEqRel(
+            lpToken.balanceOf(users[2]),
+            balancesBefore[2] + _takeRebalancerFee(newDepositAmount),
+            1e14,
+            "User2 LP balance should increase"
+        );
+        // Users 3 and 4 should safe LP tokens
+        assertEq(
+            lpToken.balanceOf(users[3]),
+            balancesBefore[3],
+            "User3 LP balance should not change"
+        );
+        assertEq(
+            lpToken.balanceOf(users[4]),
+            balancesBefore[4],
+            "User4 LP balance should not change"
+        );
+
+        assertApproxEqRel(
+            lpToken.totalSupply(),
+            totalSupplyBefore + _takeRebalancerFee(newDepositAmount) * 2,
+            1e14
+        );
+        assertEq(lpToken.balanceOf(address(s_parentPool)), withdrawalAmount);
+
+        // Process withdrawals
+        _processPendingWithdrawals();
+
+        assertApproxEqRel(
+            lpToken.totalSupply(),
+            totalSupplyBefore + _takeRebalancerFee(newDepositAmount) * 2 - withdrawalAmount,
+            1e14
+        );
+
+        // Take surplus (should not affect on LP calculation)
+        _takeSurplus(_addDecimals(800));
+
+        _enterDepositQueue(users[0], withdrawalAmount);
+        _fillChildPoolSnapshots(10);
+        _triggerDepositWithdrawProcess();
+
+        // ParentPool should have 0 LP tokens
+        assertEq(lpToken.balanceOf(address(s_parentPool)), 0);
+
+        assertApproxEqRel(lpToken.balanceOf(users[0]), withdrawalAmount, 1e15);
+
+        // 10000 + 4000
+        // -2000
+        // +2000
+        // = 14000
+        assertApproxEqRel(
+            lpToken.totalSupply(),
+            totalSupplyBefore +
+                _takeRebalancerFee(newDepositAmount) * 2 -
+                withdrawalAmount +
+                _takeRebalancerFee(withdrawalAmount),
+            1e14
+        );
+
+        // Target balance should be 400 USDC more (400 * 10 = 4000 USDC total inflow)
+        assertApproxEqRel(
+            s_parentPool.getTargetBalance() - targetBalanceBefore,
+            _addDecimals(400),
+            1e15
+        );
+    }
+
+    function test_calculateLPWhenDepositWithdrawalQueueWithOutflow() public {
+        vm.prank(deployer);
+        s_parentPool.setLiquidityCap(_addDecimals(15_000));
+
+        // Base setup
+        _setSupportedChildPools(10);
+        _setQueuesLength(0, 0);
+        _mintUsdc(address(s_parentPool), _addDecimals(1_000));
+        _setupParentPoolWithBaseExample();
+
+        address[] memory users = _getUsers(5);
+        uint256[] memory balancesBefore = _getEmptyBalances(5);
+        uint256 initialLpBalancePerUser = _takeRebalancerFee(_addDecimals(2_000));
+
+        for (uint256 i; i < users.length; i++) {
+            // Evenly distribute existing LP tokens among users
+            _mintLpToken(users[i], initialLpBalancePerUser);
+            balancesBefore[i] = lpToken.balanceOf(users[i]);
+        }
+
+        uint256 totalSupplyBefore = lpToken.totalSupply();
+        uint256 targetBalanceBefore = s_parentPool.getTargetBalance();
+
+        // Add withdrawal queue for users 0 and 1 with 2000 LP tokens for each
+        uint256 withdrawalAmount = initialLpBalancePerUser;
+        _enterWithdrawalQueue(users[0], withdrawalAmount);
+        _enterWithdrawalQueue(users[1], withdrawalAmount);
+
+        _fillChildPoolSnapshots(10);
+        _triggerDepositWithdrawProcess();
+
+        // Fill the deficit (should not affect on LP calculation)
+        uint256 deficit = s_parentPool.getDeficit();
+        assertEq(deficit, _addDecimals(3600));
+        _fillDeficit(deficit);
+
+        // Deposit 1000 USDC for user 2
+        uint256 newDepositAmount = _addDecimals(1_000);
+        _mintUsdc(users[2], newDepositAmount);
+        _enterDepositQueue(users[2], newDepositAmount);
+
+        _fillChildPoolSnapshots(10);
+        _triggerDepositWithdrawProcess();
+
+        // User 0 should lose LP tokens
+        assertEq(
+            lpToken.balanceOf(users[0]),
+            balancesBefore[0] - initialLpBalancePerUser,
+            "User0 LP balance should decrease"
+        );
+        // Users 1 should lose LP tokens
+        assertEq(
+            lpToken.balanceOf(users[1]),
+            balancesBefore[1] - initialLpBalancePerUser,
+            "User1 LP balance should decrease"
+        );
+        // User 2 should get new LP tokens
+        assertApproxEqRel(
+            lpToken.balanceOf(users[2]),
+            balancesBefore[2] + _takeRebalancerFee(newDepositAmount),
+            1e14,
+            "User2 LP balance should increase"
+        );
+        // Users 3 and 4 should safe LP tokens
+        assertEq(
+            lpToken.balanceOf(users[3]),
+            balancesBefore[3],
+            "User3 LP balance should not change"
+        );
+        assertEq(
+            lpToken.balanceOf(users[4]),
+            balancesBefore[4],
+            "User4 LP balance should not change"
+        );
+
+        assertApproxEqRel(
+            lpToken.totalSupply(),
+            totalSupplyBefore + _takeRebalancerFee(newDepositAmount),
+            1e14
+        );
+        assertEq(lpToken.balanceOf(address(s_parentPool)), withdrawalAmount * 2);
+
+        // Process withdrawals
+        _processPendingWithdrawals();
+
+        assertApproxEqRel(
+            lpToken.totalSupply(),
+            totalSupplyBefore + _takeRebalancerFee(newDepositAmount) - withdrawalAmount * 2,
+            1e14
+        );
+
+        // Take surplus (should not affect on LP calculation)
+        uint256 surplus = s_parentPool.getSurplus();
+        _takeSurplus(surplus);
+
+        // Deposit 1000 USDC for user 0
+        _enterDepositQueue(users[0], newDepositAmount);
+        _fillChildPoolSnapshots(10);
+        _triggerDepositWithdrawProcess();
+
+        // ParentPool should have 0 LP tokens
+        assertEq(lpToken.balanceOf(address(s_parentPool)), 0);
+
+        assertApproxEqRel(lpToken.balanceOf(users[0]), _takeRebalancerFee(newDepositAmount), 1e15);
+
+        // 10000 - 4000
+        // +2000
+        // = 8000
+        assertApproxEqRel(
+            lpToken.totalSupply(),
+            totalSupplyBefore - withdrawalAmount * 2 + _takeRebalancerFee(newDepositAmount) * 2,
+            1e14
+        );
+
+        // Target balance should be 200 USDC less (200 * 10 = 2000 USDC total outflow)
+        assertApproxEqRel(
+            targetBalanceBefore - s_parentPool.getTargetBalance(),
+            _addDecimals(200),
+            1e14
+        );
+    }
+
     /** -- Test Liquidity Token amount calculation -- */
 
     function test_calculateLIQWhenDepositWithdrawalQueueWithInflow() public {
