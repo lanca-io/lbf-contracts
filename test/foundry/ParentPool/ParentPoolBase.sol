@@ -412,4 +412,14 @@ abstract contract ParentPoolBase is LancaTest {
         vm.prank(operator);
         s_parentPool.fillDeficit(amount);
     }
+
+    function _baseSetup() internal {
+        vm.prank(deployer);
+        s_parentPool.setLiquidityCap(_addDecimals(15_000));
+
+        _setSupportedChildPools(10);
+        _setQueuesLength(0, 0);
+        _mintUsdc(address(s_parentPool), _addDecimals(1_000));
+        _setupParentPoolWithBaseExample();
+    }
 }

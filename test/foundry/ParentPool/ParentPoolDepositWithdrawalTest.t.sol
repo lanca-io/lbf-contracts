@@ -3,11 +3,6 @@
 pragma solidity 0.8.28;
 
 import {ParentPoolBase} from "./ParentPoolBase.sol";
-import {IBase} from "../../../contracts/Base/interfaces/IBase.sol";
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {IParentPool} from "../../../contracts/ParentPool/interfaces/IParentPool.sol";
-
-import "forge-std/src/console.sol";
 
 contract ParentPoolDepositWithdrawalTest is ParentPoolBase {
     function setUp() public override {
@@ -717,5 +712,159 @@ contract ParentPoolDepositWithdrawalTest is ParentPoolBase {
         );
 
         assertEq(balanceAfterWithdrawal[0], balanceAfterWithdrawal[1]);
+    }
+
+    /** -- Test Exit Deposit Queue -- */
+
+    function test_exitDepositQueue() public {
+        uint256 depositAmount = _addDecimals(100);
+        uint256 userUsdcBalanceBefore = usdc.balanceOf(user);
+
+        bytes32 depositId = _enterDepositQueue(user, depositAmount);
+
+        assertEq(
+            usdc.balanceOf(user),
+            userUsdcBalanceBefore - depositAmount,
+            "USDC should be transferred from user"
+        );
+        assertEq(
+            usdc.balanceOf(address(s_parentPool)),
+            depositAmount,
+            "USDC should be held by contract"
+        );
+
+        vm.prank(user);
+        s_parentPool.exitDepositQueue(depositId);
+
+        // Verify user's balance restored and queue state cleaned up
+        assertEq(usdc.balanceOf(user), userUsdcBalanceBefore, "USDC should be returned to user");
+        assertEq(usdc.balanceOf(address(s_parentPool)), 0, "Contract should not hold any USDC");
+    }
+
+    function test_exitDepositQueue_calculateLPWithMultipleDepositsAndExits() public {
+        _baseSetup();
+
+        address[] memory users = _getUsers(5);
+        uint256[] memory balancesBefore = _getEmptyBalances(5);
+        uint256 initialLpBalancePerUser = _takeRebalancerFee(_addDecimals(2_000));
+
+        uint256 amountToDeposit = _addDecimals(1_000);
+
+        for (uint256 i; i < users.length; i++) {
+            _mintLpToken(users[i], initialLpBalancePerUser);
+            _mintUsdc(users[i], amountToDeposit);
+            balancesBefore[i] = lpToken.balanceOf(users[i]);
+        }
+
+        uint256 totalSupplyBefore = lpToken.totalSupply();
+
+        // First, deposit 5000 USDC (1000 USDC per user)
+        bytes32[] memory depositIds = new bytes32[](users.length);
+        for (uint256 i; i < users.length; i++) {
+            depositIds[i] = _enterDepositQueue(users[i], amountToDeposit);
+        }
+
+        // Then, exit for 2 users (2000 USDC)
+        vm.prank(users[1]);
+        s_parentPool.exitDepositQueue(depositIds[1]);
+
+        vm.prank(users[3]);
+        s_parentPool.exitDepositQueue(depositIds[3]);
+
+        _fillChildPoolSnapshots(10);
+        _triggerDepositWithdrawProcess();
+
+        assertEq(lpToken.balanceOf(users[1]), balancesBefore[1]);
+        assertEq(lpToken.balanceOf(users[3]), balancesBefore[3]);
+
+        assertApproxEqRel(
+            lpToken.balanceOf(users[0]),
+            balancesBefore[0] + _takeRebalancerFee(amountToDeposit),
+            1e14
+        );
+        assertApproxEqRel(
+            lpToken.balanceOf(users[2]),
+            balancesBefore[0] + _takeRebalancerFee(amountToDeposit),
+            1e14
+        );
+        assertApproxEqRel(
+            lpToken.balanceOf(users[4]),
+            balancesBefore[0] + _takeRebalancerFee(amountToDeposit),
+            1e14
+        );
+
+        assertApproxEqRel(
+            lpToken.totalSupply(),
+            totalSupplyBefore + _takeRebalancerFee(amountToDeposit) * 3,
+            1e14
+        );
+    }
+
+    /** -- Test Exit Withdrawal Queue -- */
+
+    function test_exitWithdrawalQueue() public {
+        uint256 withdrawalAmount = _takeRebalancerFee(_addDecimals(100));
+        _mintLpToken(user, withdrawalAmount);
+
+        uint256 userLpBalanceBefore = lpToken.balanceOf(user);
+        bytes32 withdrawalId = _enterWithdrawalQueue(user, withdrawalAmount);
+
+        assertEq(lpToken.balanceOf(user), userLpBalanceBefore - withdrawalAmount);
+        assertEq(lpToken.balanceOf(address(s_parentPool)), withdrawalAmount);
+
+        vm.prank(user);
+        s_parentPool.exitWithdrawalQueue(withdrawalId);
+
+        assertEq(lpToken.balanceOf(user), userLpBalanceBefore);
+        assertEq(lpToken.balanceOf(address(s_parentPool)), 0);
+    }
+
+    function test_exitWithdrawalQueue_calculateLPWithMultipleWithdrawalsAndExits() public {
+        _baseSetup();
+
+        address[] memory users = _getUsers(5);
+        uint256[] memory balancesBefore = _getEmptyBalances(5);
+        uint256 initialLpBalancePerUser = _takeRebalancerFee(_addDecimals(2_000));
+
+        uint256 withdrawalAmount = _takeRebalancerFee(_addDecimals(1_000));
+
+        for (uint256 i; i < users.length; i++) {
+            _mintLpToken(users[i], initialLpBalancePerUser);
+            balancesBefore[i] = lpToken.balanceOf(users[i]);
+        }
+
+        uint256 totalSupplyBefore = lpToken.totalSupply();
+
+        // First, withdraw 5000 USDC (1000 USDC per user)
+        bytes32[] memory depositIds = new bytes32[](users.length);
+        for (uint256 i; i < users.length; i++) {
+            depositIds[i] = _enterWithdrawalQueue(users[i], withdrawalAmount);
+        }
+
+        // Then, exit for 2 users (2000 USDC)
+        vm.prank(users[1]);
+        s_parentPool.exitWithdrawalQueue(depositIds[1]);
+
+        vm.prank(users[3]);
+        s_parentPool.exitWithdrawalQueue(depositIds[3]);
+
+        uint256 amountToDeposit = _addDecimals(3_000);
+        _enterDepositQueue(user, amountToDeposit);
+        _fillChildPoolSnapshots(10);
+        _triggerDepositWithdrawProcess();
+        _processPendingWithdrawals();
+
+        assertEq(lpToken.balanceOf(users[1]), balancesBefore[1]);
+        assertEq(lpToken.balanceOf(users[3]), balancesBefore[3]);
+
+        assertEq(lpToken.balanceOf(users[0]), balancesBefore[0] - withdrawalAmount);
+        assertEq(lpToken.balanceOf(users[2]), balancesBefore[0] - withdrawalAmount);
+        assertEq(lpToken.balanceOf(users[4]), balancesBefore[0] - withdrawalAmount);
+
+        assertApproxEqRel(
+            lpToken.totalSupply(),
+            totalSupplyBefore - withdrawalAmount * 3 + _takeRebalancerFee(amountToDeposit),
+            1e14
+        );
     }
 }
