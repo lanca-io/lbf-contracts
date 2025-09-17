@@ -17,8 +17,8 @@ interface IRebalancer {
         uint256 amount
     );
 
-    error AmountExceedsDeficit(uint256 expected, uint256 recevied);
-    error AmountExceedsSurplus(uint256 expected, uint256 recevied);
+    error AmountExceedsDeficit(uint256 expected, uint256 received);
+    error AmountExceedsSurplus(uint256 expected, uint256 received);
     error InvalidDestinationChain();
     error ConceroSendFailed();
     error UnauthorizedSender();

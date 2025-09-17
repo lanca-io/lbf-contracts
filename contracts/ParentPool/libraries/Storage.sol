@@ -27,7 +27,7 @@ library Storage {
         uint256 remainingWithdrawalAmount;
         uint256 totalLancaFeeInLiqToken;
         uint256 targetBalanceFloor;
-        uint256 prevTotaPoolsBalance;
+        uint256 prevTotalPoolsBalance;
         uint256 liquidityCap;
         uint16 minWithdrawalQueueLength;
         uint16 minDepositQueueLength;

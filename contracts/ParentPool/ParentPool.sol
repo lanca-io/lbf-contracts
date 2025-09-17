@@ -61,7 +61,7 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
         s.ParentPool storage s_parentPool = s.parentPool();
         require(s_parentPool.depositQueueIds.length < MAX_QUEUE_LENGTH, DepositQueueIsFull());
         require(
-            s_parentPool.prevTotaPoolsBalance <= s_parentPool.liquidityCap,
+            s_parentPool.prevTotalPoolsBalance <= s_parentPool.liquidityCap,
             LiquidityCapReached(s_parentPool.liquidityCap)
         );
 
@@ -165,7 +165,7 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
 
         s.ParentPool storage s_parentPool = s.parentPool();
 
-        s_parentPool.prevTotaPoolsBalance = totalPoolsBalance;
+        s_parentPool.prevTotalPoolsBalance = totalPoolsBalance;
 
         uint256 deposited = _processDepositsQueue(totalPoolsBalance);
         uint256 withdrawals = _processWithdrawalsQueue(totalPoolsBalance);
@@ -512,7 +512,7 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
         uint24[] memory chainSelectors = new uint24[](childPoolChainSelectors.length + 1);
         uint256[] memory weights = new uint256[](chainSelectors.length);
         LiqTokenDailyFlow memory dailyFlow;
-        uint256 tagetBalance;
+        uint256 targetBalance;
         uint256 targetBalancesSum;
         uint256 totalWeight;
 
@@ -522,10 +522,10 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
             chainSelectors[i] = childPoolChainSelectors[i];
             dailyFlow = s_parentPool.childPoolSnapshots[childPoolChainSelectors[i]].dailyFlow;
 
-            tagetBalance = s_parentPool.childPoolTargetBalances[childPoolChainSelectors[i]];
-            targetBalancesSum += tagetBalance;
+            targetBalance = s_parentPool.childPoolTargetBalances[childPoolChainSelectors[i]];
+            targetBalancesSum += targetBalance;
 
-            weights[i] = _calculatePoolWeight(tagetBalance, dailyFlow);
+            weights[i] = _calculatePoolWeight(targetBalance, dailyFlow);
             totalWeight += weights[i];
         }
 
@@ -548,11 +548,11 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
     function _calculateLiquidityUtilisationRatioScore(
         uint256 inflow,
         uint256 outflow,
-        uint256 tagetBalance
+        uint256 targetBalance
     ) internal view returns (uint256) {
-        if (tagetBalance == 0) return i_liquidityTokenScaleFactor;
+        if (targetBalance == 0) return i_liquidityTokenScaleFactor;
 
-        uint256 lur = ((inflow + outflow) * i_liquidityTokenScaleFactor) / tagetBalance;
+        uint256 lur = ((inflow + outflow) * i_liquidityTokenScaleFactor) / targetBalance;
 
         return
             i_liquidityTokenScaleFactor -
@@ -562,28 +562,28 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
     function _calculateNetDrainRateScore(
         uint256 inflow,
         uint256 outflow,
-        uint256 tagetBalance
+        uint256 targetBalance
     ) internal view returns (uint256) {
-        if (inflow >= outflow || tagetBalance == 0) return i_liquidityTokenScaleFactor;
+        if (inflow >= outflow || targetBalance == 0) return i_liquidityTokenScaleFactor;
 
-        uint256 ndr = ((outflow - inflow) * i_liquidityTokenScaleFactor) / tagetBalance;
+        uint256 ndr = ((outflow - inflow) * i_liquidityTokenScaleFactor) / targetBalance;
         return i_liquidityTokenScaleFactor - ndr;
     }
 
     function _calculateLiquidityHealthScore(
         LiqTokenDailyFlow memory dailyFlow,
-        uint256 tagetBalance
+        uint256 targetBalance
     ) internal view returns (uint256) {
         uint256 lurScore = _calculateLiquidityUtilisationRatioScore(
             dailyFlow.inflow,
             dailyFlow.outflow,
-            tagetBalance
+            targetBalance
         );
 
         uint256 ndrScore = _calculateNetDrainRateScore(
             dailyFlow.inflow,
             dailyFlow.outflow,
-            tagetBalance
+            targetBalance
         );
 
         s.ParentPool storage s_parentPool = s.parentPool();

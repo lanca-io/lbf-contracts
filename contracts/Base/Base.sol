@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.28;
 
-import {IRebalancer} from "../Rebalancer/interfaces/IRebalancer.sol";
 import {ICommonErrors} from "../common/interfaces/ICommonErrors.sol";
 import {ConceroClient} from "@concero/v2-contracts/contracts/ConceroClient/ConceroClient.sol";
 import {ConceroOwnable} from "../common/ConceroOwnable.sol";
@@ -59,10 +58,10 @@ abstract contract Base is IBase, ConceroClient, ConceroOwnable {
 
     function getSurplus() public view returns (uint256) {
         uint256 activeBalance = getActiveBalance();
-        uint256 tagetBalance = getTargetBalance();
+        uint256 targetBalance = getTargetBalance();
 
-        if (activeBalance <= tagetBalance) return 0;
-        return activeBalance - tagetBalance;
+        if (activeBalance <= targetBalance) return 0;
+        return activeBalance - targetBalance;
     }
 
     function getDeficit() public view returns (uint256 deficit) {
