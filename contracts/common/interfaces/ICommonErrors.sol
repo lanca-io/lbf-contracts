@@ -10,8 +10,7 @@ interface ICommonErrors {
     error InvalidChainSelector();
     error AddressShouldNotBeZero();
     error AmountIsZero();
-    error DepositAmountIsTooLow(uint256 depositAmount, uint32 minDepositAmount);
-    error WithdrawalAmountIsTooLow(uint256 withdrawalAmount, uint32 minWithdrawalAmount);
+    error DepositAmountIsTooLow(uint256 depositAmount, uint64 minDepositAmount);
     error LengthMismatch();
     error EmptyArray();
     error AddressIsZero();

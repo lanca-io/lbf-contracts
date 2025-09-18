@@ -29,8 +29,6 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
 
     uint32 internal constant UPDATE_TARGET_BALANCE_MESSAGE_GAS_LIMIT = 100_000;
     uint32 internal constant CHILD_POOL_SNAPSHOT_EXPIRATION_TIME = 10 minutes;
-    uint32 internal constant MIN_DEPOSIT_AMOUNT = 10e6;
-    uint32 internal constant MIN_WITHDRAWAL_AMOUNT = 9e6;
     uint8 internal constant MAX_QUEUE_LENGTH = 250;
 
     LPToken internal immutable i_lpToken;
@@ -58,12 +56,13 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
     }
 
     function enterDepositQueue(uint256 liquidityTokenAmount) external {
+        s.ParentPool storage s_parentPool = s.parentPool();
+
         require(
-            liquidityTokenAmount >= MIN_DEPOSIT_AMOUNT,
-            ICommonErrors.DepositAmountIsTooLow(liquidityTokenAmount, MIN_DEPOSIT_AMOUNT)
+            liquidityTokenAmount >= s_parentPool.minDepositAmount,
+            ICommonErrors.DepositAmountIsTooLow(liquidityTokenAmount, s_parentPool.minDepositAmount)
         );
 
-        s.ParentPool storage s_parentPool = s.parentPool();
         require(s_parentPool.depositQueueIds.length < MAX_QUEUE_LENGTH, DepositQueueIsFull());
         require(
             s_parentPool.prevTotalPoolsBalance <= s_parentPool.liquidityCap,
@@ -88,10 +87,7 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
     }
 
     function enterWithdrawalQueue(uint256 lpTokenAmount) external {
-        require(
-            lpTokenAmount >= MIN_WITHDRAWAL_AMOUNT,
-            ICommonErrors.WithdrawalAmountIsTooLow(lpTokenAmount, MIN_WITHDRAWAL_AMOUNT)
-        );
+        require(lpTokenAmount > 0, ICommonErrors.AmountIsZero());
 
         s.ParentPool storage s_parentPool = s.parentPool();
 
@@ -292,6 +288,10 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
         return s.parentPool().liquidityCap;
     }
 
+    function getMinDepositAmount() external view returns (uint64) {
+        return s.parentPool().minDepositAmount;
+    }
+
     /*   ADMIN FUNCTIONS   */
 
     function setMinDepositQueueLength(uint16 length) external onlyOwner {
@@ -342,6 +342,10 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
 
     function setLiquidityCap(uint256 newLiqCap) external onlyOwner {
         s.parentPool().liquidityCap = newLiqCap;
+    }
+
+    function setMinDepositAmount(uint64 newMinDepositAmount) external onlyOwner {
+        s.parentPool().minDepositAmount = newMinDepositAmount;
     }
 
     /*   INTERNAL FUNCTIONS   */
