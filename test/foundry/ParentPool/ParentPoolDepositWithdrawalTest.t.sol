@@ -2,7 +2,7 @@
 /* solhint-disable func-name-mixedcase */
 pragma solidity 0.8.28;
 
-import {ParentPoolBase} from "./ParentPoolBase.sol";
+import {IParentPool, ParentPoolBase, console} from "./ParentPoolBase.sol";
 
 contract ParentPoolDepositWithdrawalTest is ParentPoolBase {
     function setUp() public override {
@@ -140,6 +140,35 @@ contract ParentPoolDepositWithdrawalTest is ParentPoolBase {
         assertEq(s_parentPool.getPendingWithdrawalIds().length, 0);
     }
 
+    function test_recalculateTargetBalancesWhenChildPoolCantReceiveSnapshot() public {
+        _baseSetupWithLPMinting();
+
+        address user1 = _getUsers(1)[0];
+        _enterWithdrawalQueue(user1, _takeRebalancerFee(_addDecimals(2_000)));
+        _fillChildPoolSnapshots(_addDecimals(1_000));
+        _triggerDepositWithdrawProcess();
+
+        for (uint24 i = 1; i <= 9; i++) {
+            uint256 childPoolTargetBalance = s_parentPool.exposed_getChildPoolTargetBalance(i);
+            assertEq(childPoolTargetBalance, _addDecimals(800));
+        }
+        assertEq(s_parentPool.getTargetBalance(), _addDecimals(2800));
+
+        // Even if child pool can't receive previous snapshot,
+        // new target balance should be recalculated correctly
+        _enterDepositQueue(user, _addDecimals(1_000));
+        _fillChildPoolSnapshots(_addDecimals(1_000));
+        _fillDeficit(_addDecimals(1_800));
+        _triggerDepositWithdrawProcess();
+
+        for (uint24 i = 1; i <= 9; i++) {
+            uint256 childPoolTargetBalance = s_parentPool.exposed_getChildPoolTargetBalance(i);
+            assertApproxEqRel(childPoolTargetBalance, _addDecimals(900), 1e14);
+        }
+        assertEq(s_parentPool.getDeficit(), 0);
+        assertApproxEqRel(s_parentPool.getTargetBalance(), _addDecimals(900), 1e14);
+    }
+
     /** -- Test LP Token amount calculation -- */
 
     function test_calculateLpTokenAmountInEmptyPool() public {
@@ -269,7 +298,7 @@ contract ParentPoolDepositWithdrawalTest is ParentPoolBase {
         uint256 withdrawalAmount = initialLpBalancePerUser;
         _enterWithdrawalQueue(users[0], withdrawalAmount);
 
-        _fillChildPoolSnapshots(10);
+        _fillChildPoolSnapshots(_addDecimals(1_000));
         _triggerDepositWithdrawProcess();
 
         // Fill part of the deficit (should not affect on LP calculation)
@@ -284,7 +313,7 @@ contract ParentPoolDepositWithdrawalTest is ParentPoolBase {
         _enterDepositQueue(users[1], newDepositAmount);
         _enterDepositQueue(users[2], newDepositAmount);
 
-        _fillChildPoolSnapshots(10);
+        _fillChildPoolSnapshots(_addDecimals(1_000));
         _triggerDepositWithdrawProcess();
 
         // User 0 should lose LP tokens
@@ -338,7 +367,7 @@ contract ParentPoolDepositWithdrawalTest is ParentPoolBase {
         _takeSurplus(_addDecimals(800));
 
         _enterDepositQueue(users[0], withdrawalAmount);
-        _fillChildPoolSnapshots(10);
+        _fillChildPoolSnapshots(_addDecimals(1_000));
         _triggerDepositWithdrawProcess();
 
         // ParentPool should have 0 LP tokens
@@ -395,7 +424,7 @@ contract ParentPoolDepositWithdrawalTest is ParentPoolBase {
         _enterWithdrawalQueue(users[0], withdrawalAmount);
         _enterWithdrawalQueue(users[1], withdrawalAmount);
 
-        _fillChildPoolSnapshots(10);
+        _fillChildPoolSnapshots(_addDecimals(1_000));
         _triggerDepositWithdrawProcess();
 
         // Fill the deficit (should not affect on LP calculation)
@@ -408,7 +437,7 @@ contract ParentPoolDepositWithdrawalTest is ParentPoolBase {
         _mintUsdc(users[2], newDepositAmount);
         _enterDepositQueue(users[2], newDepositAmount);
 
-        _fillChildPoolSnapshots(10);
+        _fillChildPoolSnapshots(_addDecimals(1_000));
         _triggerDepositWithdrawProcess();
 
         // User 0 should lose LP tokens
@@ -464,7 +493,7 @@ contract ParentPoolDepositWithdrawalTest is ParentPoolBase {
 
         // Deposit 1000 USDC for user 0
         _enterDepositQueue(users[0], newDepositAmount);
-        _fillChildPoolSnapshots(10);
+        _fillChildPoolSnapshots(_addDecimals(1_000));
         _triggerDepositWithdrawProcess();
 
         // ParentPool should have 0 LP tokens
@@ -510,7 +539,7 @@ contract ParentPoolDepositWithdrawalTest is ParentPoolBase {
         // -- Enter withdrawal queue 1 --
         _enterWithdrawalQueue(user1, _takeRebalancerFee(_addDecimals(500)));
 
-        _fillChildPoolSnapshots(10);
+        _fillChildPoolSnapshots(_addDecimals(1_000));
         _triggerDepositWithdrawProcess();
 
         // -- Fill deficit --
@@ -526,7 +555,7 @@ contract ParentPoolDepositWithdrawalTest is ParentPoolBase {
         // -- Enter withdrawal queue 2 --
         _enterWithdrawalQueue(user1, _takeRebalancerFee(_addDecimals(1_500)));
 
-        _fillChildPoolSnapshots(10);
+        _fillChildPoolSnapshots(_addDecimals(1_000));
         _triggerDepositWithdrawProcess();
 
         // // -- Deposit for 2 users --
@@ -540,7 +569,7 @@ contract ParentPoolDepositWithdrawalTest is ParentPoolBase {
         _enterDepositQueue(user2, amountToDeposit);
         _enterDepositQueue(user3, amountToDeposit + amountToDepositExtra);
 
-        _fillChildPoolSnapshots(10);
+        _fillChildPoolSnapshots(_addDecimals(1_000));
         _triggerDepositWithdrawProcess();
 
         // Now we have an initial target balance for all pools of about 1_050 USDC
@@ -597,7 +626,7 @@ contract ParentPoolDepositWithdrawalTest is ParentPoolBase {
         // -- Enter withdrawal queue 1 --
         _enterWithdrawalQueue(user1, _takeRebalancerFee(_addDecimals(1_000)));
 
-        _fillChildPoolSnapshots(10);
+        _fillChildPoolSnapshots(_addDecimals(1_000));
         _triggerDepositWithdrawProcess();
 
         // -- Fill deficit --
@@ -613,7 +642,7 @@ contract ParentPoolDepositWithdrawalTest is ParentPoolBase {
         // -- Enter withdrawal queue 2 --
         _enterWithdrawalQueue(user1, _takeRebalancerFee(_addDecimals(1_000)));
 
-        _fillChildPoolSnapshots(10);
+        _fillChildPoolSnapshots(_addDecimals(1_000));
         _triggerDepositWithdrawProcess();
 
         // // -- Deposit for 2 users --
@@ -626,7 +655,7 @@ contract ParentPoolDepositWithdrawalTest is ParentPoolBase {
         _enterDepositQueue(user2, _addDecimals(1_000));
         _enterDepositQueue(user3, _addDecimals(500) + coverFee);
 
-        _fillChildPoolSnapshots(10);
+        _fillChildPoolSnapshots(_addDecimals(1_000));
         _triggerDepositWithdrawProcess();
 
         // Now we have targetBalance for all pools about 950 USDC

@@ -167,13 +167,13 @@ abstract contract ParentPoolBase is LancaTest {
     }
 
     function _setSupportedChildPools(uint256 poolAmount) internal {
-        uint24[] memory childPoolChainSelectors = _getChildPoolsChainSelectors(poolAmount);
+        uint24[] memory childPoolChainSelectors = s_parentPool.getChildPoolChainSelectors();
 
         vm.startPrank(deployer);
-        for (uint256 i = 5; i < childPoolChainSelectors.length; i++) {
+        for (uint24 i = uint24(childPoolChainSelectors.length + 1); i < poolAmount; i++) {
             string memory prefix = "childPool_";
             string memory poolName = string(abi.encodePacked(prefix, Strings.toString(i + 1)));
-            s_parentPool.setDstPool(childPoolChainSelectors[i], makeAddr(poolName));
+            s_parentPool.setDstPool(i, makeAddr(poolName));
         }
         vm.stopPrank();
     }
@@ -205,11 +205,12 @@ abstract contract ParentPoolBase is LancaTest {
     }
 
     function _fillChildPoolSnapshots(uint256 amount) internal {
-        uint24[] memory childPoolChainSelectors = _getChildPoolsChainSelectors(amount);
+        uint24[] memory childPoolChainSelectors = s_parentPool.getChildPoolChainSelectors();
+
         for (uint256 i; i < childPoolChainSelectors.length; i++) {
             s_parentPool.exposed_setChildPoolSnapshot(
                 childPoolChainSelectors[i],
-                _getChildPoolSnapshot(1_000 * LIQ_TOKEN_SCALE_FACTOR, 0, 0)
+                _getChildPoolSnapshot(amount, 0, 0)
             );
         }
     }
@@ -251,15 +252,6 @@ abstract contract ParentPoolBase is LancaTest {
         return childPoolChainSelectors;
     }
 
-    function _getChildPoolsChainSelectors(uint256 amount) internal pure returns (uint24[] memory) {
-        uint24[] memory childPoolChainSelectors = new uint24[](amount);
-        for (uint256 i; i < childPoolChainSelectors.length; i++) {
-            childPoolChainSelectors[i] = uint24(i + 1);
-        }
-
-        return childPoolChainSelectors;
-    }
-
     function _setTargetBalanceCalculationVars() internal {
         vm.startPrank(deployer);
         s_parentPool.setLurScoreSensitivity(uint64(5 * LIQ_TOKEN_SCALE_FACTOR));
@@ -288,7 +280,7 @@ abstract contract ParentPoolBase is LancaTest {
         */
 
         uint256 defaultTargetBalance = 1_000 * LIQ_TOKEN_SCALE_FACTOR;
-        uint24[] memory childPoolChainSelectors = _getChildPoolsChainSelectors(10);
+        uint24[] memory childPoolChainSelectors = s_parentPool.getChildPoolChainSelectors();
 
         for (uint256 i; i < childPoolChainSelectors.length; ++i) {
             s_parentPool.exposed_setChildPoolSnapshot(
@@ -431,6 +423,7 @@ abstract contract ParentPoolBase is LancaTest {
 
         for (uint256 i; i < users.length; i++) {
             _mintLpToken(users[i], initialLpBalancePerUser);
+            lpToken.approve(address(s_parentPool), type(uint256).max);
         }
     }
 }

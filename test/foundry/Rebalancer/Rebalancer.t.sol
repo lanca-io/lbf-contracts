@@ -109,7 +109,7 @@ contract Rebalancer is ParentPoolBase {
         _enterWithdrawalQueue(user1, _takeRebalancerFee(_addDecimals(2_000)));
 
         // Imagine that someone send 1000 USDC from ParentPool to ChildPool
-        _fillChildPoolSnapshots(10);
+        _fillChildPoolSnapshots(_addDecimals(1_000));
         MockERC20(address(usdc)).burn(address(s_parentPool), _addDecimals(1_000));
         s_parentPool.exposed_setChildPoolSnapshot(
             1,
