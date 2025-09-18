@@ -109,38 +109,6 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
         emit WithdrawalQueued(withdrawalId, withdraw.lp, lpTokenAmount);
     }
 
-    function exitDepositQueue(bytes32 depositQueueId) external {
-        s.ParentPool storage s_parentPool = s.parentPool();
-
-        Deposit memory deposit = s_parentPool.depositQueue[depositQueueId];
-        require(deposit.lp == msg.sender, ICommonErrors.UnauthorizedCaller(msg.sender, deposit.lp));
-
-        delete s_parentPool.depositQueue[depositQueueId];
-        s_parentPool.totalDepositAmountInQueue -= deposit.liquidityTokenAmountToDeposit;
-        _removeIdFromArray(depositQueueId, s_parentPool.depositQueueIds);
-
-        IERC20(i_liquidityToken).safeTransfer(deposit.lp, deposit.liquidityTokenAmountToDeposit);
-
-        emit DepositDequeued(depositQueueId);
-    }
-
-    function exitWithdrawalQueue(bytes32 withdrawalId) external {
-        s.ParentPool storage s_parentPool = s.parentPool();
-
-        Withdrawal memory withdrawal = s_parentPool.withdrawalQueue[withdrawalId];
-        require(
-            withdrawal.lp == msg.sender,
-            ICommonErrors.UnauthorizedCaller(msg.sender, withdrawal.lp)
-        );
-
-        delete s_parentPool.withdrawalQueue[withdrawalId];
-        _removeIdFromArray(withdrawalId, s_parentPool.withdrawalQueueIds);
-
-        IERC20(i_lpToken).safeTransfer(withdrawal.lp, withdrawal.lpTokenAmountToWithdraw);
-
-        emit WithdrawalDequeued(withdrawalId);
-    }
-
     function getWithdrawalFee(uint256 amount) public view returns (uint256, uint256) {
         s.ParentPool storage s_parentPool = s.parentPool();
         uint256 pendingWithdrawalCount = s_parentPool.pendingWithdrawalIds.length;
@@ -749,17 +717,5 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
 
     function _handleConceroReceiveUpdateTargetBalance(bytes memory) internal pure override {
         revert ICommonErrors.FunctionNotImplemented();
-    }
-
-    function _removeIdFromArray(bytes32 id, bytes32[] storage ids) internal {
-        uint256 idsLength = ids.length;
-
-        for (uint256 i; i < idsLength; ++i) {
-            if (ids[i] == id) {
-                ids[i] = ids[idsLength - 1];
-                ids.pop();
-                return;
-            }
-        }
     }
 }

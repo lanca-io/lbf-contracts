@@ -37,7 +37,6 @@ interface IParentPool {
     error LiquidityCapReached(uint256 liqCapAmount);
 
     event DepositQueued(bytes32 indexed id, address lp, uint256 amount);
-    event DepositDequeued(bytes32 indexed id);
     event DepositProcessed(
         bytes32 indexed id,
         address lp,
@@ -45,7 +44,6 @@ interface IParentPool {
         uint256 lpTokenAmount
     );
     event WithdrawalQueued(bytes32 indexed withdrawId, address lp, uint256 lpTokenAmount);
-    event WithdrawalDequeued(bytes32 indexed id);
     event WithdrawalProcessed(
         bytes32 indexed id,
         address lp,
