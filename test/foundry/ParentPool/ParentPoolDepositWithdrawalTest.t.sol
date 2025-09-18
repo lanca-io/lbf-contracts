@@ -13,7 +13,10 @@ contract ParentPoolDepositWithdrawalTest is ParentPoolBase {
     /** -- Test Target Balances calculation -- */
 
     function test_initialDepositAndUpdateTargetBalances(uint256 amountToDepositPerUser) public {
-        vm.assume(amountToDepositPerUser > 0 && amountToDepositPerUser < MAX_DEPOSIT_AMOUNT);
+        vm.assume(
+            amountToDepositPerUser > MIN_DEPOSIT_AMOUNT &&
+                amountToDepositPerUser < MAX_DEPOSIT_AMOUNT
+        );
 
         _mintUsdc(user, amountToDepositPerUser * s_parentPool.getMinDepositQueueLength());
 

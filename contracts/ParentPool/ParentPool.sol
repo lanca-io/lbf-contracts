@@ -29,6 +29,8 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
 
     uint32 internal constant UPDATE_TARGET_BALANCE_MESSAGE_GAS_LIMIT = 100_000;
     uint32 internal constant CHILD_POOL_SNAPSHOT_EXPIRATION_TIME = 10 minutes;
+    uint32 internal constant MIN_DEPOSIT_AMOUNT = 10e6;
+    uint32 internal constant MIN_WITHDRAWAL_AMOUNT = 9e6;
     uint8 internal constant MAX_QUEUE_LENGTH = 250;
 
     LPToken internal immutable i_lpToken;
@@ -56,7 +58,10 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
     }
 
     function enterDepositQueue(uint256 liquidityTokenAmount) external {
-        require(liquidityTokenAmount > 0, ICommonErrors.AmountIsZero());
+        require(
+            liquidityTokenAmount >= MIN_DEPOSIT_AMOUNT,
+            ICommonErrors.DepositAmountIsTooLow(liquidityTokenAmount, MIN_DEPOSIT_AMOUNT)
+        );
 
         s.ParentPool storage s_parentPool = s.parentPool();
         require(s_parentPool.depositQueueIds.length < MAX_QUEUE_LENGTH, DepositQueueIsFull());
@@ -83,7 +88,10 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
     }
 
     function enterWithdrawalQueue(uint256 lpTokenAmount) external {
-        require(lpTokenAmount > 0, ICommonErrors.AmountIsZero());
+        require(
+            lpTokenAmount >= MIN_WITHDRAWAL_AMOUNT,
+            ICommonErrors.WithdrawalAmountIsTooLow(lpTokenAmount, MIN_WITHDRAWAL_AMOUNT)
+        );
 
         s.ParentPool storage s_parentPool = s.parentPool();
 
