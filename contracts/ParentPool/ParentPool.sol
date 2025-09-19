@@ -457,8 +457,6 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
                 s_parentPool.remainingWithdrawalAmount = remaining;
                 s_parentPool.targetBalanceFloor = targetBalances[i];
 
-                // TODO: do we need to change remaining to totalRequested?
-                // pbs.base().targetBalance = targetBalances[i] + totalRequested;
                 pbs.base().targetBalance = targetBalances[i] + remaining;
             }
         }
@@ -649,6 +647,14 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
             s_parentPool.remainingWithdrawalAmount -= inflowLiqTokenAmount;
             s_parentPool.totalWithdrawalAmountLocked += inflowLiqTokenAmount;
             pbs.base().targetBalance -= inflowLiqTokenAmount;
+        }
+
+        if (
+            getTargetBalance() == getActiveBalance() && s_parentPool.remainingWithdrawalAmount > 0
+        ) {
+            s_parentPool.totalWithdrawalAmountLocked += s_parentPool.remainingWithdrawalAmount;
+            pbs.base().targetBalance -= s_parentPool.remainingWithdrawalAmount;
+            delete s_parentPool.remainingWithdrawalAmount;
         }
     }
 

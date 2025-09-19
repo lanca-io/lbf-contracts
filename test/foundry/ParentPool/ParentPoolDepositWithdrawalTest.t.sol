@@ -169,6 +169,63 @@ contract ParentPoolDepositWithdrawalTest is ParentPoolBase {
         assertApproxEqRel(s_parentPool.getTargetBalance(), _addDecimals(900), 1e14);
     }
 
+    function test_recalculateTotalWithdrawalAmountLockedWhenActiveBalanceIsEqTargetBalance()
+        public
+    {
+        _baseSetupWithLPMinting();
+
+        address user1 = _getUsers(1)[0];
+        _enterWithdrawalQueue(user1, _takeRebalancerFee(_addDecimals(2_000)));
+        _fillChildPoolSnapshots(_addDecimals(1_000));
+        _triggerDepositWithdrawProcess();
+
+        uint256 deficit = s_parentPool.getDeficit();
+        assertEq(deficit, _addDecimals(1800));
+        _fillDeficit(deficit);
+
+        uint256 parentPoolTargetBalanceBefore = s_parentPool.getTargetBalance();
+        uint256 parentPoolActiveBalanceBefore = s_parentPool.getActiveBalance();
+
+        assertEq(parentPoolTargetBalanceBefore, parentPoolActiveBalanceBefore);
+        assertEq(s_parentPool.getDeficit(), 0);
+        assertEq(s_parentPool.getSurplus(), 0);
+
+        _processPendingWithdrawals();
+
+        uint256 parentPoolTargetBalanceAfter = s_parentPool.getTargetBalance();
+        uint256 parentPoolActiveBalanceAfter = s_parentPool.getActiveBalance();
+        assertEq(parentPoolTargetBalanceAfter, parentPoolTargetBalanceBefore);
+        assertEq(parentPoolActiveBalanceAfter, parentPoolActiveBalanceBefore);
+
+        assertEq(s_parentPool.getDeficit(), 0);
+        assertEq(s_parentPool.getSurplus(), 0);
+    }
+
+    function test_recalculateTargetBalancesWhenFullWithdrawal() public {
+        _baseSetupWithLPMinting();
+
+        address[] memory users = _getUsers(5);
+        uint256 totalLpBalance;
+        for (uint256 i; i < users.length; i++) {
+            uint256 userLpBalance = lpToken.balanceOf(users[i]);
+            _enterWithdrawalQueue(users[i], userLpBalance);
+            totalLpBalance += userLpBalance;
+        }
+
+        assertEq(totalLpBalance, lpToken.totalSupply());
+
+        _fillChildPoolSnapshots(_addDecimals(1_000));
+        _triggerDepositWithdrawProcess();
+
+        _fillDeficit(s_parentPool.getDeficit());
+        _processPendingWithdrawals();
+
+        assertEq(s_parentPool.getDeficit(), 0);
+        assertEq(s_parentPool.getSurplus(), 0);
+        assertEq(usdc.balanceOf(address(s_parentPool)), _addDecimals(1)); // fee
+        assertEq(lpToken.totalSupply(), 0);
+    }
+
     /** -- Test LP Token amount calculation -- */
 
     function test_calculateLpTokenAmountInEmptyPool() public {
