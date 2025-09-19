@@ -169,6 +169,50 @@ contract ParentPoolDepositWithdrawalTest is ParentPoolBase {
         assertApproxEqRel(s_parentPool.getTargetBalance(), _addDecimals(900), 1e14);
     }
 
+    function test_recalculateTargetBalanceWhenAddingNewEmptyPool() public {
+        _setSupportedChildPools(8);
+        _setQueuesLength(0, 0);
+        _mintUsdc(address(s_parentPool), _addDecimals(1_000));
+        _mintLpToken(user, _takeRebalancerFee(_addDecimals(9_000)));
+        _setupParentPoolWithBaseExample();
+
+        uint256 childPoolsLength = s_parentPool.getChildPoolChainSelectors().length;
+        assertEq(childPoolsLength, 8);
+
+        for (uint24 i = 1; i <= childPoolsLength; i++) {
+            uint256 childPoolTargetBalance = s_parentPool.exposed_getChildPoolTargetBalance(i);
+            assertEq(childPoolTargetBalance, _addDecimals(1_000));
+        }
+        assertEq(s_parentPool.getTargetBalance(), _addDecimals(1_000));
+
+        _setSupportedChildPools(9); // Add new empty pool
+        childPoolsLength = s_parentPool.getChildPoolChainSelectors().length;
+        assertEq(childPoolsLength, 9);
+        assertEq(s_parentPool.exposed_getChildPoolTargetBalance(9), 0);
+
+        _enterDepositQueue(user, _addDecimals(1_000));
+
+        uint24[] memory childPoolChainSelectors = s_parentPool.getChildPoolChainSelectors();
+        for (uint256 i; i < childPoolChainSelectors.length - 1; ++i) {
+            s_parentPool.exposed_setChildPoolSnapshot(
+                childPoolChainSelectors[i],
+                _getChildPoolSnapshot(_addDecimals(1_000), _addDecimals(500), _addDecimals(500))
+            );
+        }
+        s_parentPool.exposed_setYesterdayFlow(_addDecimals(5_000), _addDecimals(5_000));
+        s_parentPool.exposed_setChildPoolSnapshot(9, _getChildPoolSnapshot()); // Balance = 0 Inflow = 0 Outflow = 0
+
+        _triggerDepositWithdrawProcess();
+
+        for (uint24 i = 1; i <= childPoolsLength; i++) {
+            uint256 childPoolTargetBalance = s_parentPool.exposed_getChildPoolTargetBalance(i);
+            assertApproxEqRel(childPoolTargetBalance, _addDecimals(1_000), 1e14);
+        }
+        assertApproxEqRel(s_parentPool.getTargetBalance(), _addDecimals(1_000), 1e14);
+    }
+
+    /** -- Test Full Withdrawal -- */
+
     function test_recalculateTotalWithdrawalAmountLockedWhenActiveBalanceIsEqTargetBalance()
         public
     {
@@ -224,6 +268,7 @@ contract ParentPoolDepositWithdrawalTest is ParentPoolBase {
         assertEq(s_parentPool.getSurplus(), 0);
         assertEq(usdc.balanceOf(address(s_parentPool)), _addDecimals(1)); // fee
         assertEq(lpToken.totalSupply(), 0);
+        assertEq(s_parentPool.getTargetBalance(), 0);
     }
 
     /** -- Test LP Token amount calculation -- */
@@ -333,7 +378,7 @@ contract ParentPoolDepositWithdrawalTest is ParentPoolBase {
         s_parentPool.setLiquidityCap(_addDecimals(15_000));
 
         // Base setup
-        _setSupportedChildPools(10);
+        _setSupportedChildPools(9);
         _setQueuesLength(0, 0);
         _mintUsdc(address(s_parentPool), _addDecimals(1_000));
         _setupParentPoolWithBaseExample();
@@ -458,7 +503,7 @@ contract ParentPoolDepositWithdrawalTest is ParentPoolBase {
         s_parentPool.setLiquidityCap(_addDecimals(15_000));
 
         // Base setup
-        _setSupportedChildPools(10);
+        _setSupportedChildPools(9);
         _setQueuesLength(0, 0);
         _mintUsdc(address(s_parentPool), _addDecimals(1_000));
         _setupParentPoolWithBaseExample();
@@ -582,7 +627,7 @@ contract ParentPoolDepositWithdrawalTest is ParentPoolBase {
         vm.prank(deployer);
         s_parentPool.setLiquidityCap(_addDecimals(10_000));
 
-        _setSupportedChildPools(10);
+        _setSupportedChildPools(9);
         _setQueuesLength(0, 0);
         _mintUsdc(address(s_parentPool), _addDecimals(1_000));
         _setupParentPoolWithBaseExample();
@@ -669,7 +714,7 @@ contract ParentPoolDepositWithdrawalTest is ParentPoolBase {
         vm.prank(deployer);
         s_parentPool.setLiquidityCap(_addDecimals(10_000));
 
-        _setSupportedChildPools(10);
+        _setSupportedChildPools(9);
         _setQueuesLength(0, 0);
         _mintUsdc(address(s_parentPool), _addDecimals(1_000));
         _setupParentPoolWithBaseExample();

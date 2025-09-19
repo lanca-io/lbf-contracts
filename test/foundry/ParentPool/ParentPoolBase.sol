@@ -170,9 +170,9 @@ abstract contract ParentPoolBase is LancaTest {
         uint24[] memory childPoolChainSelectors = s_parentPool.getChildPoolChainSelectors();
 
         vm.startPrank(deployer);
-        for (uint24 i = uint24(childPoolChainSelectors.length + 1); i < poolAmount; i++) {
+        for (uint24 i = uint24(childPoolChainSelectors.length + 1); i <= poolAmount; i++) {
             string memory prefix = "childPool_";
-            string memory poolName = string(abi.encodePacked(prefix, Strings.toString(i + 1)));
+            string memory poolName = string(abi.encodePacked(prefix, Strings.toString(i)));
             s_parentPool.setDstPool(i, makeAddr(poolName));
         }
         vm.stopPrank();
@@ -194,7 +194,7 @@ abstract contract ParentPoolBase is LancaTest {
     }
 
     function _fillChildPoolSnapshots() internal {
-        uint24[] memory childPoolChainSelectors = _getChildPoolsChainSelectors();
+        uint24[] memory childPoolChainSelectors = s_parentPool.getChildPoolChainSelectors();
 
         for (uint256 i; i < childPoolChainSelectors.length; ++i) {
             s_parentPool.exposed_setChildPoolSnapshot(
@@ -409,7 +409,7 @@ abstract contract ParentPoolBase is LancaTest {
         vm.prank(deployer);
         s_parentPool.setLiquidityCap(_addDecimals(15_000));
 
-        _setSupportedChildPools(10);
+        _setSupportedChildPools(9);
         _setQueuesLength(0, 0);
         _mintUsdc(address(s_parentPool), _addDecimals(1_000));
         _setupParentPoolWithBaseExample();
