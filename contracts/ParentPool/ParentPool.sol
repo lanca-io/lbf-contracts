@@ -58,9 +58,11 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
     function enterDepositQueue(uint256 liquidityTokenAmount) external {
         s.ParentPool storage s_parentPool = s.parentPool();
 
+        uint64 minDepositAmount = s_parentPool.minDepositAmount;
+        require(minDepositAmount > 0, ICommonErrors.DepositAmountNotSet());
         require(
-            liquidityTokenAmount >= s_parentPool.minDepositAmount,
-            ICommonErrors.DepositAmountIsTooLow(liquidityTokenAmount, s_parentPool.minDepositAmount)
+            liquidityTokenAmount >= minDepositAmount,
+            ICommonErrors.DepositAmountIsTooLow(liquidityTokenAmount, minDepositAmount)
         );
 
         require(s_parentPool.depositQueueIds.length < MAX_QUEUE_LENGTH, DepositQueueIsFull());

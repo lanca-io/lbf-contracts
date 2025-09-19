@@ -15,4 +15,5 @@ interface ICommonErrors {
     error EmptyArray();
     error AddressIsZero();
     error FunctionNotImplemented();
+    error DepositAmountNotSet();
 }

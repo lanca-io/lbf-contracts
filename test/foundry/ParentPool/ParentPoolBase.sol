@@ -75,6 +75,7 @@ abstract contract ParentPoolBase is LancaTest {
         _setSupportedChildPools();
         _setLancaKeeper();
         _setTargetBalanceCalculationVars();
+        _setMinDepositAmount(_addDecimals(100));
     }
 
     /* HELPER FUNCTIONS */
@@ -181,6 +182,11 @@ abstract contract ParentPoolBase is LancaTest {
     function _setLancaKeeper() internal {
         vm.prank(deployer);
         s_parentPool.setLancaKeeper(s_lancaKeeper);
+    }
+
+    function _setMinDepositAmount(uint256 amount) internal {
+        vm.prank(deployer);
+        s_parentPool.setMinDepositAmount(uint64(amount));
     }
 
     function _triggerDepositWithdrawProcess() internal {
