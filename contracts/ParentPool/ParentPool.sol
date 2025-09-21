@@ -452,6 +452,10 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
                         and being used a second time */
                 delete s_parentPool.childPoolSnapshots[chainSelectors[i]].timestamp;
             } else {
+                /* TODO: recalculate new surplus here to understand how much liquidity we
+                 really need to request from other pools and how much we can obtain
+                 from the newly formed (possible) surplus */
+
                 uint256 coveredBySurplus = surplus >= totalRequested ? totalRequested : surplus;
                 uint256 remaining = totalRequested - coveredBySurplus;
 
