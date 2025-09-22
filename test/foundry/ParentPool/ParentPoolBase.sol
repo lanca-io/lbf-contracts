@@ -210,13 +210,13 @@ abstract contract ParentPoolBase is LancaTest {
         }
     }
 
-    function _fillChildPoolSnapshots(uint256 amount) internal {
+    function _fillChildPoolSnapshots(uint256 childPoolBalance) internal {
         uint24[] memory childPoolChainSelectors = s_parentPool.getChildPoolChainSelectors();
 
         for (uint256 i; i < childPoolChainSelectors.length; i++) {
             s_parentPool.exposed_setChildPoolSnapshot(
                 childPoolChainSelectors[i],
-                _getChildPoolSnapshot(amount, 0, 0)
+                _getChildPoolSnapshot(childPoolBalance, 0, 0)
             );
         }
     }

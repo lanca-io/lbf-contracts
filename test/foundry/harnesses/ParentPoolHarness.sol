@@ -94,4 +94,8 @@ contract ParentPoolHarness is ParentPool {
     function exposed_setTotalRebalancerFee(uint256 rebalancerFee) public {
         rs.rebalancer().totalRebalancingFee = rebalancerFee;
     }
+
+    function exposed_setDstPool(uint24 chainSelector, address dstPool) public {
+        pbs.base().dstPools[chainSelector] = dstPool;
+    }
 }

@@ -59,7 +59,7 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
         s.ParentPool storage s_parentPool = s.parentPool();
 
         uint64 minDepositAmount = s_parentPool.minDepositAmount;
-        require(minDepositAmount > 0, ICommonErrors.DepositAmountNotSet());
+        require(minDepositAmount > 0, ICommonErrors.MinDepositAmountNotSet());
         require(
             liquidityTokenAmount >= minDepositAmount,
             ICommonErrors.DepositAmountIsTooLow(liquidityTokenAmount, minDepositAmount)
@@ -109,26 +109,6 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
         s_parentPool.withdrawalQueueIds.push(withdrawalId);
 
         emit WithdrawalQueued(withdrawalId, withdraw.lp, lpTokenAmount);
-    }
-
-    function getWithdrawalFee(uint256 amount) public view returns (uint256, uint256) {
-        s.ParentPool storage s_parentPool = s.parentPool();
-        uint256 pendingWithdrawalCount = s_parentPool.pendingWithdrawalIds.length;
-
-        if (pendingWithdrawalCount == 0) {
-            return (0, getRebalancerFee(amount));
-        }
-
-        /* @dev We multiply this by 4 because we collect the fee from
-                the user upon withdrawal for both deposits
-                and withdrawals, and when depositing or withdrawing,
-                messages are sent twice: first childPools ->
-                parentPool, then parentPool -> childPools */
-        uint256 conceroFee = (s_parentPool.averageConceroMessageFee *
-            getChildPoolChainSelectors().length *
-            4) / pendingWithdrawalCount;
-
-        return (conceroFee, getRebalancerFee(amount));
     }
 
     function triggerDepositWithdrawProcess() external onlyLancaKeeper {
@@ -196,6 +176,26 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
     }
 
     /*   VIEW FUNCTIONS   */
+
+    function getWithdrawalFee(uint256 amount) public view returns (uint256, uint256) {
+        s.ParentPool storage s_parentPool = s.parentPool();
+        uint256 pendingWithdrawalCount = s_parentPool.pendingWithdrawalIds.length;
+
+        if (pendingWithdrawalCount == 0) {
+            return (0, getRebalancerFee(amount));
+        }
+
+        /* @dev We multiply this by 4 because we collect the fee from
+                the user upon withdrawal for both deposits
+                and withdrawals, and when depositing or withdrawing,
+                messages are sent twice: first childPools ->
+                parentPool, then parentPool -> childPools */
+        uint256 conceroFee = (s_parentPool.averageConceroMessageFee *
+            getChildPoolChainSelectors().length *
+            4) / pendingWithdrawalCount;
+
+        return (conceroFee, getRebalancerFee(amount));
+    }
 
     function getChildPoolChainSelectors() public view returns (uint24[] memory) {
         return s.parentPool().supportedChainSelectors;
@@ -434,7 +434,6 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
 
     function _processOutflow(uint256 totalLbfBalance, uint256 totalRequested) internal {
         s.ParentPool storage s_parentPool = s.parentPool();
-        uint256 surplus = getSurplus();
         uint256 activeBalance = getActiveBalance();
 
         (
@@ -453,21 +452,17 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
                         and being used a second time */
                 delete s_parentPool.childPoolSnapshots[chainSelectors[i]].timestamp;
             } else {
-                uint256 extraBalance = activeBalance > targetBalances[i]
+                uint256 updatedSurplus = activeBalance > targetBalances[i]
                     ? activeBalance - targetBalances[i]
                     : 0;
 
-                uint256 coveredByExtraBalance = extraBalance >= totalRequested
+                uint256 coveredBySurplus = updatedSurplus >= totalRequested
                     ? totalRequested
-                    : extraBalance;
-                uint256 coveredBySurplus = surplus >= totalRequested ? totalRequested : surplus;
+                    : updatedSurplus;
 
-                uint256 covered = coveredByExtraBalance > coveredBySurplus
-                    ? coveredByExtraBalance
-                    : coveredBySurplus;
-                uint256 remaining = totalRequested - covered;
+                uint256 remaining = totalRequested - coveredBySurplus;
 
-                s_parentPool.totalWithdrawalAmountLocked += covered;
+                s_parentPool.totalWithdrawalAmountLocked += coveredBySurplus;
                 s_parentPool.remainingWithdrawalAmount = remaining;
                 s_parentPool.targetBalanceFloor = targetBalances[i];
 
