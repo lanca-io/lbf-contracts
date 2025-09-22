@@ -208,4 +208,87 @@ contract ParentPoolTest is ParentPoolBase {
         vm.prank(s_lancaKeeper);
         s_parentPool.processPendingWithdrawals();
     }
+
+    /** -- Test Admin Functions -- */
+
+    function test_triggerDepositWithdrawProcess_RevertsUnauthorizedCaller() public {
+        vm.expectRevert(
+            abi.encodeWithSelector(ICommonErrors.UnauthorizedCaller.selector, user, s_lancaKeeper)
+        );
+
+        vm.prank(user);
+        s_parentPool.triggerDepositWithdrawProcess();
+    }
+
+    function test_processPendingWithdrawals_RevertsUnauthorizedCaller() public {
+        vm.expectRevert(
+            abi.encodeWithSelector(ICommonErrors.UnauthorizedCaller.selector, user, s_lancaKeeper)
+        );
+
+        vm.prank(user);
+        s_parentPool.processPendingWithdrawals();
+    }
+
+    function test_setMinDepositQueueLength_RevertsUnauthorizedCaller() public {
+        vm.expectRevert(
+            abi.encodeWithSelector(ICommonErrors.UnauthorizedCaller.selector, user, deployer)
+        );
+
+        vm.prank(user);
+        s_parentPool.setMinDepositQueueLength(100);
+    }
+
+    function test_setMinWithdrawalQueueLength_RevertsUnauthorizedCaller() public {
+        vm.expectRevert(
+            abi.encodeWithSelector(ICommonErrors.UnauthorizedCaller.selector, user, deployer)
+        );
+
+        vm.prank(user);
+        s_parentPool.setMinWithdrawalQueueLength(100);
+    }
+
+    function test_setDstPool_RevertsUnauthorizedCaller() public {
+        vm.expectRevert(
+            abi.encodeWithSelector(ICommonErrors.UnauthorizedCaller.selector, user, deployer)
+        );
+
+        vm.prank(user);
+        s_parentPool.setDstPool(1, address(0));
+    }
+
+    function test_setLurScoreSensitivity_RevertsUnauthorizedCaller() public {
+        vm.expectRevert(
+            abi.encodeWithSelector(ICommonErrors.UnauthorizedCaller.selector, user, deployer)
+        );
+
+        vm.prank(user);
+        s_parentPool.setLurScoreSensitivity(100);
+    }
+
+    function test_setScoresWeights_RevertsUnauthorizedCaller() public {
+        vm.expectRevert(
+            abi.encodeWithSelector(ICommonErrors.UnauthorizedCaller.selector, user, deployer)
+        );
+
+        vm.prank(user);
+        s_parentPool.setScoresWeights(100, 100);
+    }
+
+    function test_setLiquidityCap_RevertsUnauthorizedCaller() public {
+        vm.expectRevert(
+            abi.encodeWithSelector(ICommonErrors.UnauthorizedCaller.selector, user, deployer)
+        );
+
+        vm.prank(user);
+        s_parentPool.setLiquidityCap(100);
+    }
+
+    function test_setMinDepositAmount_RevertsUnauthorizedCaller() public {
+        vm.expectRevert(
+            abi.encodeWithSelector(ICommonErrors.UnauthorizedCaller.selector, user, deployer)
+        );
+
+        vm.prank(user);
+        s_parentPool.setMinDepositAmount(100);
+    }
 }
