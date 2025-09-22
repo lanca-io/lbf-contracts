@@ -435,6 +435,7 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
     function _processOutflow(uint256 totalLbfBalance, uint256 totalRequested) internal {
         s.ParentPool storage s_parentPool = s.parentPool();
         uint256 surplus = getSurplus();
+        uint256 activeBalance = getActiveBalance();
 
         (
             uint24[] memory chainSelectors,
@@ -452,14 +453,21 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
                         and being used a second time */
                 delete s_parentPool.childPoolSnapshots[chainSelectors[i]].timestamp;
             } else {
-                /* TODO: recalculate new surplus here to understand how much liquidity we
-                 really need to request from other pools and how much we can obtain
-                 from the newly formed (possible) surplus */
+                uint256 extraBalance = activeBalance > targetBalances[i]
+                    ? activeBalance - targetBalances[i]
+                    : 0;
 
+                uint256 coveredByExtraBalance = extraBalance >= totalRequested
+                    ? totalRequested
+                    : extraBalance;
                 uint256 coveredBySurplus = surplus >= totalRequested ? totalRequested : surplus;
-                uint256 remaining = totalRequested - coveredBySurplus;
 
-                s_parentPool.totalWithdrawalAmountLocked += coveredBySurplus;
+                uint256 covered = coveredByExtraBalance > coveredBySurplus
+                    ? coveredByExtraBalance
+                    : coveredBySurplus;
+                uint256 remaining = totalRequested - covered;
+
+                s_parentPool.totalWithdrawalAmountLocked += covered;
                 s_parentPool.remainingWithdrawalAmount = remaining;
                 s_parentPool.targetBalanceFloor = targetBalances[i];
 
@@ -653,14 +661,6 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
             s_parentPool.remainingWithdrawalAmount -= inflowLiqTokenAmount;
             s_parentPool.totalWithdrawalAmountLocked += inflowLiqTokenAmount;
             pbs.base().targetBalance -= inflowLiqTokenAmount;
-        }
-
-        if (
-            getTargetBalance() == getActiveBalance() && s_parentPool.remainingWithdrawalAmount > 0
-        ) {
-            s_parentPool.totalWithdrawalAmountLocked += s_parentPool.remainingWithdrawalAmount;
-            pbs.base().targetBalance -= s_parentPool.remainingWithdrawalAmount;
-            delete s_parentPool.remainingWithdrawalAmount;
         }
     }
 

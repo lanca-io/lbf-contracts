@@ -152,7 +152,7 @@ contract ParentPoolDepositWithdrawalTest is ParentPoolBase {
             uint256 childPoolTargetBalance = s_parentPool.exposed_getChildPoolTargetBalance(i);
             assertEq(childPoolTargetBalance, _addDecimals(800));
         }
-        assertEq(s_parentPool.getTargetBalance(), _addDecimals(2800));
+        assertEq(s_parentPool.getTargetBalance(), _addDecimals(2600));
 
         // Even if child pool can't receive previous snapshot,
         // new target balance should be recalculated correctly
