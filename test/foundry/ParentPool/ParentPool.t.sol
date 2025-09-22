@@ -209,6 +209,27 @@ contract ParentPoolTest is ParentPoolBase {
         s_parentPool.processPendingWithdrawals();
     }
 
+    /** -- Setters -- */
+
+    function test_setAverageConceroMessageFee() public {
+        _baseSetupWithLPMinting();
+
+        vm.prank(deployer);
+        s_parentPool.setAverageConceroMessageFee(uint96(_addDecimals(1)));
+
+        address user1 = _getUsers(1)[0];
+        _enterWithdrawalQueue(user1, _takeRebalancerFee(_addDecimals(2_000)));
+
+        _fillChildPoolSnapshots();
+        _triggerDepositWithdrawProcess();
+
+        (uint256 conceroFee, uint256 rebalanceFee) = s_parentPool.getWithdrawalFee(
+            _addDecimals(2_000)
+        );
+        assertEq(conceroFee, _addDecimals(36));
+        assertEq(rebalanceFee, s_parentPool.getRebalancerFee(_addDecimals(2_000)));
+    }
+
     /** -- Test Admin Functions -- */
 
     function test_triggerDepositWithdrawProcess_RevertsUnauthorizedCaller() public {
@@ -290,5 +311,14 @@ contract ParentPoolTest is ParentPoolBase {
 
         vm.prank(user);
         s_parentPool.setMinDepositAmount(100);
+    }
+
+    function test_setAverageConceroMessageFee_RevertsUnauthorizedCaller() public {
+        vm.expectRevert(
+            abi.encodeWithSelector(ICommonErrors.UnauthorizedCaller.selector, user, deployer)
+        );
+
+        vm.prank(user);
+        s_parentPool.setAverageConceroMessageFee(100);
     }
 }

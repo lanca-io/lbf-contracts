@@ -175,12 +175,12 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
 
     /*   VIEW FUNCTIONS   */
 
-    function getWithdrawalFee(uint256 amount) public view returns (uint256, uint256) {
+    function getWithdrawalFee(uint256 liqTokenAmount) public view returns (uint256, uint256) {
         s.ParentPool storage s_parentPool = s.parentPool();
         uint256 pendingWithdrawalCount = s_parentPool.pendingWithdrawalIds.length;
 
         if (pendingWithdrawalCount == 0) {
-            return (0, getRebalancerFee(amount));
+            return (0, getRebalancerFee(liqTokenAmount));
         }
 
         /* @dev We multiply this by 4 because we collect the fee from
@@ -192,7 +192,7 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
             getChildPoolChainSelectors().length *
             4) / pendingWithdrawalCount;
 
-        return (conceroFee, getRebalancerFee(amount));
+        return (conceroFee, getRebalancerFee(liqTokenAmount));
     }
 
     function getChildPoolChainSelectors() public view returns (uint24[] memory) {
@@ -314,6 +314,10 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
 
     function setMinDepositAmount(uint64 newMinDepositAmount) external onlyOwner {
         s.parentPool().minDepositAmount = newMinDepositAmount;
+    }
+
+    function setAverageConceroMessageFee(uint96 averageConceroMessageFee) external onlyOwner {
+        s.parentPool().averageConceroMessageFee = averageConceroMessageFee;
     }
 
     /*   INTERNAL FUNCTIONS   */
