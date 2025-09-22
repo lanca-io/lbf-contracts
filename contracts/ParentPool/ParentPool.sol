@@ -126,9 +126,7 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
         uint256 newTotalBalance = totalPoolsBalance + deposited;
         uint256 totalRequestedWithdrawals = s_parentPool.remainingWithdrawalAmount + withdrawals;
 
-        (deposited >= totalRequestedWithdrawals)
-            ? _processInflow(newTotalBalance, totalRequestedWithdrawals)
-            : _processOutflow(newTotalBalance, totalRequestedWithdrawals);
+        _processPoolsUpdate(newTotalBalance, totalRequestedWithdrawals);
     }
 
     function processPendingWithdrawals() external onlyLancaKeeper {
@@ -406,35 +404,8 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
         return totalLiqTokenAmountToWithdraw;
     }
 
-    function _processInflow(uint256 totalLbfBalance, uint256 totalRequestedWithdrawals) internal {
+    function _processPoolsUpdate(uint256 totalLbfBalance, uint256 totalRequested) internal {
         s.ParentPool storage s_parentPool = s.parentPool();
-
-        (
-            uint24[] memory chainSelectors,
-            uint256[] memory targetBalances
-        ) = _calculateNewTargetBalances(totalLbfBalance - totalRequestedWithdrawals);
-
-        s_parentPool.totalWithdrawalAmountLocked += totalRequestedWithdrawals;
-        delete s_parentPool.remainingWithdrawalAmount;
-
-        for (uint256 i; i < chainSelectors.length; ++i) {
-            // @dev check if it is child pool chain selector
-            if (chainSelectors[i] != i_chainSelector) {
-                _updateChildPoolTargetBalance(chainSelectors[i], targetBalances[i]);
-                /* @dev we only delete the timestamp because
-                        that is enough to prevent it from passing
-                        _isChildPoolSnapshotTimestampInRange(snapshotTimestamp)
-                        and being used a second time */
-                delete s_parentPool.childPoolSnapshots[chainSelectors[i]].timestamp;
-            } else {
-                pbs.base().targetBalance = targetBalances[i];
-            }
-        }
-    }
-
-    function _processOutflow(uint256 totalLbfBalance, uint256 totalRequested) internal {
-        s.ParentPool storage s_parentPool = s.parentPool();
-        uint256 activeBalance = getActiveBalance();
 
         (
             uint24[] memory chainSelectors,
@@ -452,6 +423,7 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
                         and being used a second time */
                 delete s_parentPool.childPoolSnapshots[chainSelectors[i]].timestamp;
             } else {
+                uint256 activeBalance = getActiveBalance();
                 uint256 updatedSurplus = activeBalance > targetBalances[i]
                     ? activeBalance - targetBalances[i]
                     : 0;
