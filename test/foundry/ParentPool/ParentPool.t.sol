@@ -230,6 +230,147 @@ contract ParentPoolTest is ParentPoolBase {
         assertEq(rebalanceFee, s_parentPool.getRebalancerFee(_addDecimals(2_000)));
     }
 
+    /** -- Getters -- */
+
+    function test_getChildPoolChainSelectors() public view {
+        uint24[] memory childPoolChainSelectors = s_parentPool.getChildPoolChainSelectors();
+
+        assertEq(childPoolChainSelectors.length, 4);
+        assertEq(childPoolChainSelectors[0], childPoolChainSelector_1);
+        assertEq(childPoolChainSelectors[1], childPoolChainSelector_2);
+        assertEq(childPoolChainSelectors[2], childPoolChainSelector_3);
+        assertEq(childPoolChainSelectors[3], childPoolChainSelector_4);
+    }
+
+    function test_isReadyToTriggerDepositWithdrawProcess() public {
+        assertEq(s_parentPool.isReadyToTriggerDepositWithdrawProcess(), false);
+
+        _baseSetup();
+        _enterDepositQueue(user, _addDecimals(100));
+        _fillChildPoolSnapshots();
+
+        assertEq(s_parentPool.isReadyToTriggerDepositWithdrawProcess(), true);
+    }
+
+    function test_areQueuesFull() public {
+        assertEq(s_parentPool.areQueuesFull(), false);
+
+        _baseSetup();
+
+        _setQueuesLength(DEFAULT_TARGET_QUEUE_LENGTH, DEFAULT_TARGET_QUEUE_LENGTH);
+
+        for (uint256 i; i < DEFAULT_TARGET_QUEUE_LENGTH; i++) {
+            _enterDepositQueue(user, _addDecimals(100));
+        }
+
+        assertEq(s_parentPool.areQueuesFull(), false);
+
+        for (uint256 i; i < DEFAULT_TARGET_QUEUE_LENGTH; i++) {
+            _mintLpToken(user, _addDecimals(100));
+            _enterWithdrawalQueue(user, _addDecimals(100));
+        }
+
+        assertEq(s_parentPool.areQueuesFull(), true);
+    }
+
+    function test_isReadyToProcessPendingWithdrawals() public {
+        assertEq(s_parentPool.isReadyToProcessPendingWithdrawals(), false);
+
+        _baseSetupWithLPMinting();
+        address user1 = _getUsers(1)[0];
+
+        _enterWithdrawalQueue(user1, _takeRebalancerFee(_addDecimals(2_000)));
+        _fillChildPoolSnapshots(_addDecimals(1000));
+        _triggerDepositWithdrawProcess();
+
+        _fillDeficit(_addDecimals(1_800));
+
+        assertEq(s_parentPool.isReadyToProcessPendingWithdrawals(), true);
+    }
+
+    function test_getActiveBalance() public {
+        assertEq(s_parentPool.getActiveBalance(), 0);
+
+        _mintUsdc(address(s_parentPool), _addDecimals(1_000));
+        assertEq(s_parentPool.getActiveBalance(), _addDecimals(1_000));
+
+        _enterDepositQueue(user, _addDecimals(100));
+        assertEq(s_parentPool.getActiveBalance(), _addDecimals(1_000));
+
+        _mintLpToken(user, _addDecimals(100));
+        assertEq(s_parentPool.getActiveBalance(), _addDecimals(1_000));
+
+        _enterWithdrawalQueue(user, _addDecimals(100));
+        assertEq(s_parentPool.getActiveBalance(), _addDecimals(1_000));
+    }
+
+    function test_getMinDepositQueueLength() public {
+        assertEq(s_parentPool.getMinDepositQueueLength(), DEFAULT_TARGET_QUEUE_LENGTH);
+
+        _setQueuesLength(100, 0);
+        assertEq(s_parentPool.getMinDepositQueueLength(), 100);
+    }
+
+    function test_getMinWithdrawalQueueLength() public {
+        assertEq(s_parentPool.getMinWithdrawalQueueLength(), DEFAULT_TARGET_QUEUE_LENGTH);
+
+        _setQueuesLength(0, 100);
+        assertEq(s_parentPool.getMinWithdrawalQueueLength(), 100);
+    }
+
+    function test_getPendingWithdrawalIds() public {
+        assertEq(s_parentPool.getPendingWithdrawalIds().length, 0);
+        _setQueuesLength(0, 0);
+
+        _mintLpToken(user, _addDecimals(100));
+        _enterWithdrawalQueue(user, _addDecimals(50));
+        _enterWithdrawalQueue(user, _addDecimals(50));
+        _fillChildPoolSnapshots();
+        _triggerDepositWithdrawProcess();
+
+        assertEq(s_parentPool.getPendingWithdrawalIds().length, 2);
+    }
+
+    function test_getLurScoreSensitivity() public {
+        assertEq(s_parentPool.getLurScoreSensitivity(), uint64(5 * LIQ_TOKEN_SCALE_FACTOR));
+
+        vm.prank(deployer);
+        s_parentPool.setLurScoreSensitivity(uint64(4 * LIQ_TOKEN_SCALE_FACTOR));
+        assertEq(s_parentPool.getLurScoreSensitivity(), uint64(4 * LIQ_TOKEN_SCALE_FACTOR));
+    }
+
+    function test_getScoresWeights() public {
+        (uint64 lurScoreWeight, uint64 ndrScoreWeight) = s_parentPool.getScoresWeights();
+        assertEq(lurScoreWeight, uint64((7 * LIQ_TOKEN_SCALE_FACTOR) / 10));
+        assertEq(ndrScoreWeight, uint64((3 * LIQ_TOKEN_SCALE_FACTOR) / 10));
+
+        vm.prank(deployer);
+        s_parentPool.setScoresWeights(
+            uint64((6 * LIQ_TOKEN_SCALE_FACTOR) / 10),
+            uint64((4 * LIQ_TOKEN_SCALE_FACTOR) / 10)
+        );
+
+        (lurScoreWeight, ndrScoreWeight) = s_parentPool.getScoresWeights();
+        assertEq(lurScoreWeight, uint64((6 * LIQ_TOKEN_SCALE_FACTOR) / 10));
+        assertEq(ndrScoreWeight, uint64((4 * LIQ_TOKEN_SCALE_FACTOR) / 10));
+    }
+
+    function test_getLiquidityCap() public {
+        assertEq(s_parentPool.getLiquidityCap(), 0);
+
+        vm.prank(deployer);
+        s_parentPool.setLiquidityCap(100);
+        assertEq(s_parentPool.getLiquidityCap(), 100);
+    }
+
+    function test_getMinDepositAmount() public {
+        assertEq(s_parentPool.getMinDepositAmount(), _addDecimals(100));
+
+        vm.prank(deployer);
+        s_parentPool.setMinDepositAmount(uint64(_addDecimals(50)));
+        assertEq(s_parentPool.getMinDepositAmount(), _addDecimals(50));
+    }
+
     /** -- Test Admin Functions -- */
 
     function test_triggerDepositWithdrawProcess_RevertsUnauthorizedCaller() public {
