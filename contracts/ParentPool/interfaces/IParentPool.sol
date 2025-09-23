@@ -51,4 +51,5 @@ interface IParentPool {
         uint256 liqTokenAmount
     );
     event WithdrawalCompleted(bytes32 indexed id, uint256 liqTokenAmountReceivedWithFee);
+    event WithdrawalFailed(address lp, uint256 liqTokenAmountToWithdraw);
 }

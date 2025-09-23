@@ -2,7 +2,9 @@
 /* solhint-disable func-name-mixedcase */
 pragma solidity 0.8.28;
 
-import {IParentPool, ParentPoolBase, console} from "./ParentPoolBase.sol";
+import {Vm} from "forge-std/src/Vm.sol";
+
+import {IParentPool, ParentPool, ParentPoolBase, MockERC20, console} from "./ParentPoolBase.sol";
 
 contract ParentPoolDepositWithdrawalTest is ParentPoolBase {
     function setUp() public override {
@@ -846,5 +848,71 @@ contract ParentPoolDepositWithdrawalTest is ParentPoolBase {
         );
 
         assertEq(balanceAfterWithdrawal[0], balanceAfterWithdrawal[1]);
+    }
+
+    /** Test withdrawal process when user in blacklist */
+
+    function test_safeTransferWrapper_RevertsIfNotSelf() public {
+        vm.expectRevert(ParentPool.OnlySelf.selector);
+
+        s_parentPool.safeTransferWrapper(address(usdc), address(this), _addDecimals(1_000));
+    }
+
+    function test_processPendingWithdrawals_WhenTransferFailed() public {
+        _baseSetupWithLPMinting();
+
+        address[] memory users = _getUsers(5);
+        MockERC20(address(usdc)).blacklist(users[4]);
+
+        for (uint256 i; i < users.length; i++) {
+            _enterWithdrawalQueue(users[i], _takeRebalancerFee(_addDecimals(2_000)));
+        }
+
+        _fillChildPoolSnapshots(_addDecimals(1_000));
+        _triggerDepositWithdrawProcess();
+
+        _fillDeficit(_addDecimals(9_000));
+
+        vm.recordLogs();
+        _processPendingWithdrawals();
+        Vm.Log[] memory entries = vm.getRecordedLogs();
+
+        for (uint256 i; i < entries.length; i++) {
+            if (
+                entries[i].topics[0] ==
+                keccak256(abi.encodePacked("WithdrawalFailed(address,uint256)"))
+            ) {
+                (address failedUser, uint256 failedAmount) = abi.decode(
+                    entries[i].data,
+                    (address, uint256)
+                );
+                assertEq(failedUser, users[4]);
+                assertEq(failedAmount, _takeRebalancerFee(_addDecimals(2_000)));
+            } else if (
+                entries[i].topics[0] ==
+                keccak256(abi.encodePacked("WithdrawalCompleted(bytes32,uint256)"))
+            ) {
+                (uint256 completedAmount) = abi.decode(entries[i].data, (uint256));
+
+                assertEq(completedAmount, _takeRebalancerFee(_addDecimals(2_000)));
+            }
+        }
+
+        assertEq(usdc.balanceOf(users[4]), 0);
+        assertEq(s_parentPool.getActiveBalance(), _addDecimals(2_000));
+        assertEq(lpToken.totalSupply(), lpToken.balanceOf(users[4]));
+        assertEq(s_parentPool.getPendingWithdrawalIds().length, 0);
+
+        _mintUsdc(users[0], _addDecimals(2_000));
+        _enterDepositQueue(users[0], _addDecimals(2_000));
+
+        _fillChildPoolSnapshots(_addDecimals(1_000));
+        _triggerDepositWithdrawProcess();
+
+        assertApproxEqRel(
+            lpToken.balanceOf(users[0]),
+            _takeRebalancerFee(_addDecimals(2_000)),
+            1e14
+        );
     }
 }

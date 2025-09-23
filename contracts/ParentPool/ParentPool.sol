@@ -26,6 +26,7 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
     error InvalidLiqTokenDecimals();
     error InvalidScoreWeights();
     error InvalidLurScoreSensitivity();
+    error OnlySelf();
 
     uint32 internal constant UPDATE_TARGET_BALANCE_MESSAGE_GAS_LIMIT = 100_000;
     uint32 internal constant CHILD_POOL_SNAPSHOT_EXPIRATION_TIME = 10 minutes;
@@ -148,7 +149,6 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
         for (uint256 i; i < pendingWithdrawalIds.length; ++i) {
             pendingWithdrawal = s_parentPool.pendingWithdrawals[pendingWithdrawalIds[i]];
             delete s_parentPool.pendingWithdrawals[pendingWithdrawalIds[i]];
-            i_lpToken.burn(pendingWithdrawal.lpTokenAmountToWithdraw);
 
             (uint256 conceroFee, uint256 rebalanceFee) = getWithdrawalFee(
                 pendingWithdrawal.liqTokenAmountToWithdraw
@@ -156,12 +156,33 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
             uint256 amountToWithdrawWithFee = pendingWithdrawal.liqTokenAmountToWithdraw -
                 (conceroFee + rebalanceFee);
 
-            IERC20(i_liquidityToken).safeTransfer(pendingWithdrawal.lp, amountToWithdrawWithFee);
             totalLiquidityTokenAmountToWithdraw += pendingWithdrawal.liqTokenAmountToWithdraw;
-            totalLancaFee += conceroFee;
-            totalRebalanceFee += rebalanceFee;
 
-            emit WithdrawalCompleted(pendingWithdrawalIds[i], amountToWithdrawWithFee);
+            try
+                this.safeTransferWrapper(
+                    i_liquidityToken,
+                    pendingWithdrawal.lp,
+                    amountToWithdrawWithFee
+                )
+            {
+                i_lpToken.burn(pendingWithdrawal.lpTokenAmountToWithdraw);
+                totalLancaFee += conceroFee;
+                totalRebalanceFee += rebalanceFee;
+
+                emit WithdrawalCompleted(pendingWithdrawalIds[i], amountToWithdrawWithFee);
+            } catch {
+                IERC20(i_lpToken).safeTransfer(
+                    pendingWithdrawal.lp,
+                    pendingWithdrawal.lpTokenAmountToWithdraw
+                );
+
+                emit WithdrawalFailed(
+                    pendingWithdrawal.lp,
+                    pendingWithdrawal.lpTokenAmountToWithdraw
+                );
+
+                continue;
+            }
         }
 
         /* @dev do not clear this array before a loop because
@@ -171,6 +192,11 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
         s_parentPool.totalWithdrawalAmountLocked -= totalLiquidityTokenAmountToWithdraw;
         s_parentPool.totalLancaFeeInLiqToken += totalLancaFee;
         rs.rebalancer().totalRebalancingFee += totalRebalanceFee;
+    }
+
+    function safeTransferWrapper(address token, address to, uint256 amount) external {
+        require(msg.sender == address(this), OnlySelf());
+        IERC20(token).safeTransfer(to, amount);
     }
 
     /*   VIEW FUNCTIONS   */
