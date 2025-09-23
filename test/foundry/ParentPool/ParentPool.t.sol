@@ -4,13 +4,13 @@ pragma solidity 0.8.28;
 
 import {ICommonErrors} from "contracts/common/interfaces/ICommonErrors.sol";
 import {ILancaKeeper} from "contracts/ParentPool/interfaces/ILancaKeeper.sol";
+import {IBase} from "contracts/Base/interfaces/IBase.sol";
 import {
     ParentPool,
     IParentPool,
     ParentPoolBase,
     LPToken,
-    DeployLPToken,
-    console
+    DeployLPToken
 } from "./ParentPoolBase.sol";
 
 contract ParentPoolTest is ParentPoolBase {
@@ -248,7 +248,7 @@ contract ParentPoolTest is ParentPoolBase {
         vm.prank(deployer);
         s_parentPool.setLurScoreSensitivity(0);
 
-		// Should be from 1.1 * LIQ_TOKEN_SCALE_FACTOR to 9.9 * LIQ_TOKEN_SCALE_FACTOR
+        // Should be from 1.1 * LIQ_TOKEN_SCALE_FACTOR to 9.9 * LIQ_TOKEN_SCALE_FACTOR
 
         vm.expectRevert(ParentPool.InvalidLurScoreSensitivity.selector);
 
@@ -261,24 +261,24 @@ contract ParentPoolTest is ParentPoolBase {
         s_parentPool.setLurScoreSensitivity(uint64(_addDecimals(10)));
     }
 
-	function test_setScoresWeights_RevertsInvalidScoresWeights() public {
-		vm.expectRevert(ParentPool.InvalidScoreWeights.selector);
-		
-		vm.prank(deployer);
-		s_parentPool.setScoresWeights(0, 0);
+    function test_setScoresWeights_RevertsInvalidScoresWeights() public {
+        vm.expectRevert(ParentPool.InvalidScoreWeights.selector);
 
-		// Total weight should be 100% (1 * LIQ_TOKEN_SCALE_FACTOR)
+        vm.prank(deployer);
+        s_parentPool.setScoresWeights(0, 0);
 
-		vm.expectRevert(ParentPool.InvalidScoreWeights.selector);
+        // Total weight should be 100% (1 * LIQ_TOKEN_SCALE_FACTOR)
 
-		vm.prank(deployer);
-		s_parentPool.setScoresWeights(1, 1);
+        vm.expectRevert(ParentPool.InvalidScoreWeights.selector);
 
-		vm.expectRevert(ParentPool.InvalidScoreWeights.selector);
+        vm.prank(deployer);
+        s_parentPool.setScoresWeights(1, 1);
 
-		vm.prank(deployer);
-		s_parentPool.setScoresWeights(uint64(_addDecimals(1)), 1);
-	}
+        vm.expectRevert(ParentPool.InvalidScoreWeights.selector);
+
+        vm.prank(deployer);
+        s_parentPool.setScoresWeights(uint64(_addDecimals(1)), 1);
+    }
 
     /** -- Getters -- */
 
@@ -511,5 +511,19 @@ contract ParentPoolTest is ParentPoolBase {
 
         vm.prank(user);
         s_parentPool.setAverageConceroMessageFee(100);
+    }
+
+    /** -- Concero receive functions -- */
+
+    function test_handleConceroReceiveUpdateTargetBalance_RevertsFunctionNotImplemented() public {
+        vm.expectRevert(ICommonErrors.FunctionNotImplemented.selector);
+
+        vm.prank(conceroRouter);
+        s_parentPool.conceroReceive(
+            bytes32(uint256(1)),
+            PARENT_POOL_CHAIN_SELECTOR,
+            abi.encode(address(0)),
+            abi.encode(IBase.ConceroMessageType.UPDATE_TARGET_BALANCE, abi.encode("0"))
+        );
     }
 }
