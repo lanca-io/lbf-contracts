@@ -4,12 +4,37 @@ pragma solidity 0.8.28;
 
 import {Vm} from "forge-std/src/Vm.sol";
 
+import {ICommonErrors} from "contracts/common/interfaces/ICommonErrors.sol";
 import {IParentPool, ParentPool, ParentPoolBase, MockERC20, console} from "./ParentPoolBase.sol";
 
 contract ParentPoolDepositWithdrawalTest is ParentPoolBase {
     function setUp() public override {
         super.setUp();
         vm.warp(NOW_TIMESTAMP);
+    }
+
+    function test_inflationAttackNotPossible() public {
+        // We have this check on enterDepositQueue:
+        // 		require(minDepositAmount > 0, ICommonErrors.MinDepositAmountNotSet());
+        // it means that minDepositAmount will be set after initialization
+        // and hacker can't frontrun this transaction
+        // because deposit is possible only after triggerDepositWithdrawProcess
+        //
+        // it also means that cost of this attack will be too high,
+        // but flash loan attack is not possible (2 tx: enterDepositQueue and triggerDepositWithdrawProcess)
+
+        // Example of attack:
+        _setQueuesLength(0, 0);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                ICommonErrors.DepositAmountIsTooLow.selector,
+                1,
+                _addDecimals(100)
+            )
+        );
+        vm.prank(user);
+        s_parentPool.enterDepositQueue(1);
     }
 
     /** -- Test Target Balances calculation -- */
