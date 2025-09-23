@@ -230,6 +230,56 @@ contract ParentPoolTest is ParentPoolBase {
         assertEq(rebalanceFee, s_parentPool.getRebalancerFee(_addDecimals(2_000)));
     }
 
+    function test_setDstPool_ReversInvalidChainSelector() public {
+        vm.expectRevert(ICommonErrors.AddressShouldNotBeZero.selector);
+
+        vm.prank(deployer);
+        s_parentPool.setDstPool(1, address(0));
+
+        vm.expectRevert(ICommonErrors.InvalidChainSelector.selector);
+
+        vm.prank(deployer);
+        s_parentPool.setDstPool(1, address(1));
+    }
+
+    function test_setLurScoreSensitivity_RevertsInvalidLurScoreSensitivity() public {
+        vm.expectRevert(ParentPool.InvalidLurScoreSensitivity.selector);
+
+        vm.prank(deployer);
+        s_parentPool.setLurScoreSensitivity(0);
+
+		// Should be from 1.1 * LIQ_TOKEN_SCALE_FACTOR to 9.9 * LIQ_TOKEN_SCALE_FACTOR
+
+        vm.expectRevert(ParentPool.InvalidLurScoreSensitivity.selector);
+
+        vm.prank(deployer);
+        s_parentPool.setLurScoreSensitivity(uint64(_addDecimals(1)));
+
+        vm.expectRevert(ParentPool.InvalidLurScoreSensitivity.selector);
+
+        vm.prank(deployer);
+        s_parentPool.setLurScoreSensitivity(uint64(_addDecimals(10)));
+    }
+
+	function test_setScoresWeights_RevertsInvalidScoresWeights() public {
+		vm.expectRevert(ParentPool.InvalidScoreWeights.selector);
+		
+		vm.prank(deployer);
+		s_parentPool.setScoresWeights(0, 0);
+
+		// Total weight should be 100% (1 * LIQ_TOKEN_SCALE_FACTOR)
+
+		vm.expectRevert(ParentPool.InvalidScoreWeights.selector);
+
+		vm.prank(deployer);
+		s_parentPool.setScoresWeights(1, 1);
+
+		vm.expectRevert(ParentPool.InvalidScoreWeights.selector);
+
+		vm.prank(deployer);
+		s_parentPool.setScoresWeights(uint64(_addDecimals(1)), 1);
+	}
+
     /** -- Getters -- */
 
     function test_getChildPoolChainSelectors() public view {
@@ -371,7 +421,7 @@ contract ParentPoolTest is ParentPoolBase {
         assertEq(s_parentPool.getMinDepositAmount(), _addDecimals(50));
     }
 
-    /** -- Test Admin Functions -- */
+    /** -- Test Admin Functions Unauthorized Caller -- */
 
     function test_triggerDepositWithdrawProcess_RevertsUnauthorizedCaller() public {
         vm.expectRevert(
