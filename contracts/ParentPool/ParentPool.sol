@@ -123,8 +123,8 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
         s_parentPool.prevTotalPoolsBalance = totalPoolsBalance;
 
         uint256 deposited = _processDepositsQueue(totalPoolsBalance);
-        uint256 withdrawals = _processWithdrawalsQueue(totalPoolsBalance);
         uint256 newTotalBalance = totalPoolsBalance + deposited;
+        uint256 withdrawals = _processWithdrawalsQueue(newTotalBalance);
         uint256 totalRequestedWithdrawals = s_parentPool.remainingWithdrawalAmount + withdrawals;
 
         _processPoolsUpdate(newTotalBalance, totalRequestedWithdrawals);
