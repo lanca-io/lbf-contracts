@@ -1064,4 +1064,208 @@ contract ParentPoolDepositWithdrawalTest is ParentPoolBase {
             "User 3 should spend correct LP amount"
         );
     }
+
+    /** -- Test fuzz for deposit/withdrawal with surplus and deficit -- */
+
+    function testFuzz_depositWithdrawalWithSurplus(
+        uint256 depositAmountUser1,
+        uint256 depositAmountUser2,
+        uint256 withdrawalAmountLP,
+        uint256 dailyInflow,
+        uint256 dailyOutflow
+    ) public {
+        depositAmountUser1 = bound(depositAmountUser1, _addDecimals(100), _addDecimals(10_000));
+        depositAmountUser2 = bound(depositAmountUser2, _addDecimals(100), _addDecimals(5_000));
+        withdrawalAmountLP = bound(
+            withdrawalAmountLP,
+            _takeRebalancerFee(_addDecimals(1)),
+            _takeRebalancerFee(_addDecimals(7_000))
+        );
+        uint256 childPoolBalance = _addDecimals(1_000);
+        dailyInflow = bound(dailyInflow, 0, _addDecimals(5_000));
+        dailyOutflow = bound(dailyOutflow, 0, _addDecimals(5_000));
+
+        _baseSetupWithLPMinting();
+
+        address[] memory users = _getUsers(3);
+        uint256 lpBalanceBefore = lpToken.balanceOf(users[0]);
+
+        uint256 totalDepositAfterFee = _takeRebalancerFee(depositAmountUser1) +
+            _takeRebalancerFee(depositAmountUser2);
+        vm.assume(withdrawalAmountLP <= lpBalanceBefore);
+        vm.assume(totalDepositAfterFee > withdrawalAmountLP);
+
+        uint256 expectedBalanceIncrease = totalDepositAfterFee - withdrawalAmountLP;
+
+        uint256 initialParentPoolBalance = s_parentPool.getActiveBalance();
+
+        _mintUsdc(users[0], depositAmountUser1);
+        _mintUsdc(users[1], depositAmountUser2);
+
+        _enterDepositQueue(users[0], depositAmountUser1);
+        _enterDepositQueue(users[1], depositAmountUser2);
+        _enterWithdrawalQueue(users[2], withdrawalAmountLP);
+
+        _fillChildPoolSnapshots(childPoolBalance, dailyInflow, dailyOutflow);
+        s_parentPool.exposed_setYesterdayFlow(dailyInflow, dailyOutflow);
+
+        _triggerDepositWithdrawProcess();
+
+        uint256 currentBalance = s_parentPool.getActiveBalance();
+
+        assertApproxEqRel(
+            currentBalance,
+            initialParentPoolBalance + expectedBalanceIncrease,
+            1e15,
+            "ParentPool balance should increase by deposit amount after fees"
+        );
+
+        assertTrue(s_parentPool.getSurplus() > 0, "Surplus should be positive");
+
+        uint256 activeBalance = s_parentPool.getActiveBalance();
+        uint256 newTargetBalance = s_parentPool.getTargetBalance();
+        uint256 expectedSurplus = activeBalance - newTargetBalance;
+
+        assertEq(
+            s_parentPool.getSurplus(),
+            expectedSurplus,
+            "Surplus should equal activeBalance - targetBalance when positive"
+        );
+
+        assertEq(
+            s_parentPool.exposed_getRemainingWithdrawalAmount(),
+            0,
+            "Remaining withdrawal amount should be 0 when surplus covers all withdrawals"
+        );
+
+        assertGt(newTargetBalance, 0, "Target balance should be positive");
+
+        assertGt(
+            lpToken.balanceOf(users[0]),
+            lpBalanceBefore,
+            "User 0 should receive new LP tokens"
+        );
+        assertGt(
+            lpToken.balanceOf(users[1]),
+            lpBalanceBefore,
+            "User 1 should receive new LP tokens"
+        );
+        assertEq(
+            lpToken.balanceOf(users[2]),
+            lpBalanceBefore - withdrawalAmountLP,
+            "User 2 should lose LP tokens"
+        );
+
+        uint256 user2UsdcBefore = usdc.balanceOf(users[2]);
+        _processPendingWithdrawals();
+
+        assertEq(
+            lpToken.balanceOf(address(s_parentPool)),
+            0,
+            "All withdrawn LP tokens should be burned"
+        );
+
+        uint256 user2UsdcAfter = usdc.balanceOf(users[2]);
+        assertGt(user2UsdcAfter, user2UsdcBefore, "User should receive USDC from withdrawal");
+    }
+
+    function testFuzz_depositWithdrawalWithDeficit(
+        uint256 depositAmountUser1,
+        uint256 withdrawalAmountLPUser2,
+        uint256 withdrawalAmountLPUser3,
+        uint256 dailyInflow,
+        uint256 dailyOutflow
+    ) public {
+        _baseSetupWithLPMinting();
+        address[] memory users = _getUsers(3);
+
+        depositAmountUser1 = bound(depositAmountUser1, _addDecimals(100), _addDecimals(4_000));
+        withdrawalAmountLPUser2 = bound(
+            withdrawalAmountLPUser2,
+            _addDecimals(100),
+            lpToken.balanceOf(users[1])
+        );
+        withdrawalAmountLPUser3 = bound(
+            withdrawalAmountLPUser3,
+            _addDecimals(100),
+            lpToken.balanceOf(users[2])
+        );
+        uint256 childPoolBalance = _addDecimals(1_000);
+        dailyInflow = bound(dailyInflow, 0, _addDecimals(5_000));
+        dailyOutflow = bound(dailyOutflow, 0, _addDecimals(5_000));
+
+        uint256 totalDepositAfterFee = _takeRebalancerFee(depositAmountUser1);
+        vm.assume(totalDepositAfterFee < withdrawalAmountLPUser2 + withdrawalAmountLPUser3);
+
+        uint256 initialParentPoolBalance = s_parentPool.getActiveBalance();
+
+        _mintUsdc(users[0], depositAmountUser1);
+
+        _enterDepositQueue(users[0], depositAmountUser1);
+        _enterWithdrawalQueue(users[1], withdrawalAmountLPUser2);
+        _enterWithdrawalQueue(users[2], withdrawalAmountLPUser3);
+
+        _fillChildPoolSnapshots(childPoolBalance, dailyInflow, dailyOutflow);
+        s_parentPool.exposed_setYesterdayFlow(dailyInflow, dailyOutflow);
+
+        uint256 currentBalance = s_parentPool.getActiveBalance();
+        _triggerDepositWithdrawProcess();
+
+        uint256 deficit = s_parentPool.getDeficit();
+        assertTrue(deficit > 0, "Deficit should be positive");
+
+        assertEq(
+            currentBalance,
+            initialParentPoolBalance,
+            "ParentPool balance should be equal to initial parent pool balance when deficit is positive"
+        );
+
+        uint256 activeBalance = s_parentPool.getActiveBalance();
+        uint256 newTargetBalance = s_parentPool.getTargetBalance();
+        uint256 expectedDeficit = newTargetBalance - activeBalance;
+
+        assertEq(
+            deficit,
+            expectedDeficit,
+            "Deficit should equal targetBalance - activeBalance when deficit is positive"
+        );
+
+        assertEq(
+            s_parentPool.exposed_getRemainingWithdrawalAmount(),
+            deficit,
+            "Remaining withdrawal should be equal to deficit"
+        );
+
+        _fillDeficit(s_parentPool.getDeficit());
+
+        activeBalance = s_parentPool.getActiveBalance();
+        newTargetBalance = s_parentPool.getTargetBalance();
+        assertEq(
+            activeBalance,
+            newTargetBalance,
+            "After fillDeficit, ParentPool balance should be equal to targetBalance"
+        );
+
+        uint256 user2UsdcBefore = usdc.balanceOf(users[1]);
+        uint256 user3UsdcBefore = usdc.balanceOf(users[2]);
+
+        _processPendingWithdrawals();
+
+        assertEq(
+            lpToken.balanceOf(address(s_parentPool)),
+            0,
+            "All withdrawn LP tokens should be burned"
+        );
+
+        assertGt(
+            usdc.balanceOf(users[1]),
+            user2UsdcBefore,
+            "User 2 should receive USDC from withdrawal"
+        );
+        assertGt(
+            usdc.balanceOf(users[2]),
+            user3UsdcBefore,
+            "User 3 should receive USDC from withdrawal"
+        );
+    }
 }
