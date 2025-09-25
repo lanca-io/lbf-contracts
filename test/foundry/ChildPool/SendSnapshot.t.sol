@@ -7,6 +7,7 @@ import {IOUToken} from "contracts/Rebalancer/IOUToken.sol";
 import {IParentPool} from "contracts/ParentPool/interfaces/IParentPool.sol";
 import {IBase} from "contracts/Base/interfaces/IBase.sol";
 import {ChildPoolWrapper} from "contracts/test-helpers/ChildPoolWrapper.sol";
+import {ICommonErrors} from "contracts/common/interfaces/ICommonErrors.sol";
 
 import {ChildPoolBase} from "./ChildPoolBase.sol";
 
@@ -73,7 +74,7 @@ contract SendSnapshot is ChildPoolBase {
             totalLiqTokenSent: 0
         });
 
-        bytes32 messageId = keccak256(
+        keccak256(
             abi.encode(
                 block.number,
                 PARENT_POOL_CHAIN_SELECTOR,
@@ -85,5 +86,34 @@ contract SendSnapshot is ChildPoolBase {
 
         vm.prank(s_lancaKeeper);
         childPool.sendSnapshotToParentPool{value: messageFee}();
+    }
+
+    function test_sendSnapshotToParentPool_InvalidDstChainSelector() public {
+        vm.startPrank(deployer);
+        childPool = new ChildPoolWrapper(
+            conceroRouter,
+            address(iouToken),
+            address(usdc),
+            6,
+            CHILD_POOL_CHAIN_SELECTOR,
+            PARENT_POOL_CHAIN_SELECTOR
+        );
+
+        childPool.setLancaKeeper(s_lancaKeeper);
+        vm.stopPrank();
+
+        vm.prank(s_lancaKeeper);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                ICommonErrors.InvalidDstChainSelector.selector,
+                PARENT_POOL_CHAIN_SELECTOR
+            )
+        );
+        childPool.sendSnapshotToParentPool{value: 0}();
+    }
+
+    function test_getSnapshotMessageFee() public view {
+        uint256 messageFee = childPool.getSnapshotMessageFee();
+        assertEq(messageFee, 0.0001 ether);
     }
 }
