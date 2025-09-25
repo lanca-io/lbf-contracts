@@ -44,11 +44,7 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
         uint24 chainSelector,
         address iouToken,
         uint256 minTargetBalance
-    )
-        Base(liquidityToken, conceroRouter, iouToken, liquidityTokenDecimals, chainSelector)
-        Rebalancer()
-        LancaBridge()
-    {
+    ) Base(liquidityToken, conceroRouter, iouToken, liquidityTokenDecimals, chainSelector) {
         i_lpToken = LPToken(lpToken);
         require(i_lpToken.decimals() == liquidityTokenDecimals, InvalidLiqTokenDecimals());
 
@@ -274,7 +270,11 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
         return s.parentPool().lurScoreSensitivity;
     }
 
-    function getScoresWeights() external view returns (uint64 lurScoreWeight, uint64 ndrScoreWeight) {
+    function getScoresWeights()
+        external
+        view
+        returns (uint64 lurScoreWeight, uint64 ndrScoreWeight)
+    {
         return (s.parentPool().lurScoreWeight, s.parentPool().ndrScoreWeight);
     }
 
