@@ -35,6 +35,11 @@ interface IParentPool {
     error WithdrawalQueueIsFull();
     error QueuesAreNotFull();
     error LiquidityCapReached(uint256 liqCapAmount);
+    error ChildPoolSnapshotsAreNotReady();
+    error InvalidLiqTokenDecimals();
+    error InvalidScoreWeights();
+    error InvalidLurScoreSensitivity();
+    error OnlySelf();
 
     event DepositQueued(bytes32 indexed id, address lp, uint256 amount);
     event DepositProcessed(

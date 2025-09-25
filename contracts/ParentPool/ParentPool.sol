@@ -22,12 +22,6 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
     using pbs for pbs.Base;
     using SafeERC20 for IERC20;
 
-    error ChildPoolSnapshotsAreNotReady();
-    error InvalidLiqTokenDecimals();
-    error InvalidScoreWeights();
-    error InvalidLurScoreSensitivity();
-    error OnlySelf();
-
     uint32 internal constant UPDATE_TARGET_BALANCE_MESSAGE_GAS_LIMIT = 100_000;
     uint32 internal constant CHILD_POOL_SNAPSHOT_EXPIRATION_TIME = 10 minutes;
     uint8 internal constant MAX_QUEUE_LENGTH = 250;

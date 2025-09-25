@@ -878,7 +878,7 @@ contract ParentPoolDepositWithdrawalTest is ParentPoolBase {
     /** Test withdrawal process when user in blacklist */
 
     function test_safeTransferWrapper_RevertsIfNotSelf() public {
-        vm.expectRevert(ParentPool.OnlySelf.selector);
+        vm.expectRevert(IParentPool.OnlySelf.selector);
 
         s_parentPool.safeTransferWrapper(address(usdc), address(this), _addDecimals(1_000));
     }

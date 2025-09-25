@@ -138,7 +138,7 @@ contract ReceiveSnapshot is ParentPoolBase {
 
         vm.warp(NOW_TIMESTAMP + 10 minutes + 1);
 
-        vm.expectRevert(ParentPool.ChildPoolSnapshotsAreNotReady.selector);
+        vm.expectRevert(IParentPool.ChildPoolSnapshotsAreNotReady.selector);
         _triggerDepositWithdrawProcess();
     }
 }
