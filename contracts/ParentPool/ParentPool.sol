@@ -258,27 +258,27 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
             s_parentPool.totalWithdrawalAmountLocked;
     }
 
-    function getMinDepositQueueLength() public view returns (uint16) {
+    function getMinDepositQueueLength() external view returns (uint16) {
         return s.parentPool().minDepositQueueLength;
     }
 
-    function getMinWithdrawalQueueLength() public view returns (uint16) {
+    function getMinWithdrawalQueueLength() external view returns (uint16) {
         return s.parentPool().minWithdrawalQueueLength;
     }
 
-    function getPendingWithdrawalIds() public view returns (bytes32[] memory) {
+    function getPendingWithdrawalIds() external view returns (bytes32[] memory) {
         return s.parentPool().pendingWithdrawalIds;
     }
 
-    function getLurScoreSensitivity() public view returns (uint64) {
+    function getLurScoreSensitivity() external view returns (uint64) {
         return s.parentPool().lurScoreSensitivity;
     }
 
-    function getScoresWeights() public view returns (uint64 lurScoreWeight, uint64 ndrScoreWeight) {
+    function getScoresWeights() external view returns (uint64 lurScoreWeight, uint64 ndrScoreWeight) {
         return (s.parentPool().lurScoreWeight, s.parentPool().ndrScoreWeight);
     }
 
-    function getLiquidityCap() public view returns (uint256) {
+    function getLiquidityCap() external view returns (uint256) {
         return s.parentPool().liquidityCap;
     }
 
