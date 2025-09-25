@@ -2,11 +2,12 @@
 /* solhint-disable func-name-mixedcase */
 pragma solidity 0.8.28;
 
-import {ParentPoolBase} from "../ParentPool/ParentPoolBase.sol";
-import {IBase} from "../../../contracts/Base/interfaces/IBase.sol";
-import {MockERC20} from "../scripts/deploy/DeployMockERC20.s.sol";
+import {IBase} from "contracts/Base/interfaces/IBase.sol";
+import {ICommonErrors} from "contracts/common/interfaces/ICommonErrors.sol";
+import {IRebalancer} from "contracts/Rebalancer/interfaces/IRebalancer.sol";
 
-import "forge-std/src/console.sol";
+import {MockERC20} from "../scripts/deploy/DeployMockERC20.s.sol";
+import {ParentPoolBase} from "../ParentPool/ParentPoolBase.sol";
 
 contract Rebalancer is ParentPoolBase {
     function setUp() public override {
@@ -148,5 +149,67 @@ contract Rebalancer is ParentPoolBase {
             usdc.balanceOf(user1),
             usdcBalanceBefore + _takeRebalancerFee(_addDecimals(2_000))
         );
+    }
+
+    function test_fillDeficit_RevertsIfAmountIsZero() public {
+        vm.expectRevert(ICommonErrors.AmountIsZero.selector);
+        s_parentPool.fillDeficit(0);
+    }
+
+    function test_fillDeficit_RevertsIfAmountExceedsDeficit() public {
+        vm.expectRevert(abi.encodeWithSelector(IRebalancer.AmountExceedsDeficit.selector, 0, 1));
+
+        s_parentPool.fillDeficit(1);
+    }
+
+    function test_takeSurplus_RevertsIfAmountIsZero() public {
+        vm.expectRevert(ICommonErrors.AmountIsZero.selector);
+        s_parentPool.takeSurplus(0);
+    }
+
+    function test_takeSurplus_RevertsIfAmountExceedsSurplus() public {
+        vm.expectRevert(abi.encodeWithSelector(IRebalancer.AmountExceedsSurplus.selector, 0, 1));
+        s_parentPool.takeSurplus(1);
+    }
+
+    function test_takeSurplus_RevertsIfInsufficientRebalancingFee() public {
+        _baseSetupWithLPMinting();
+
+        uint256 amountToRebalance = _addDecimals(900);
+        uint256 rebalancerFee = s_parentPool.getRebalancerFee(amountToRebalance);
+
+        s_parentPool.exposed_setTargetBalance(_addDecimals(100));
+        assertEq(s_parentPool.getSurplus(), amountToRebalance);
+
+        vm.prank(address(s_parentPool));
+        iouToken.mint(user, amountToRebalance);
+
+        vm.startPrank(user);
+        iouToken.approve(address(s_parentPool), amountToRebalance);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IRebalancer.InsufficientRebalancingFee.selector,
+                0,
+                rebalancerFee
+            )
+        );
+
+        s_parentPool.takeSurplus(_addDecimals(900));
+        vm.stopPrank();
+    }
+
+    function test_bridgeIOU_RevertsIfAmountIsZero() public {
+        vm.expectRevert(ICommonErrors.AmountIsZero.selector);
+        s_parentPool.bridgeIOU(0, 1);
+    }
+
+    function test_bridgeIOU_RevertsIfInvalidDestinationChain() public {
+        vm.expectRevert(IRebalancer.InvalidDestinationChain.selector);
+        s_parentPool.bridgeIOU(1, 5);
+    }
+
+    function test_getIouToken() public view {
+        assertEq(s_parentPool.getIOUToken(), address(iouToken));
     }
 }
