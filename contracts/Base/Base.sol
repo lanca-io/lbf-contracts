@@ -125,34 +125,6 @@ abstract contract Base is IBase, ConceroClient, ConceroOwnable {
         s.base().lancaKeeper = lancaKeeper;
     }
 
-    //    function addDstPools(
-    //        uint24[] calldata dstChainSelectors,
-    //        address[] calldata dstPools
-    //    ) external onlyOwner {
-    //        require(dstChainSelectors.length > 0, ICommonErrors.EmptyArray());
-    //        require(dstChainSelectors.length == dstPools.length, ICommonErrors.LengthMismatch());
-    //
-    //        s.Base storage s_base = s.base();
-    //
-    //        for (uint256 i = 0; i < dstChainSelectors.length; i++) {
-    //            require(
-    //                s_base.dstPools[dstChainSelectors[i]] == address(0),
-    //                PoolAlreadyExists(dstChainSelectors[i])
-    //            );
-    //            s_base.dstPools[dstChainSelectors[i]] = dstPools[i];
-    //        }
-    //    }
-    //
-    //    function removeDstPools(uint24[] calldata dstChainSelectors) external onlyOwner {
-    //        require(dstChainSelectors.length > 0, ICommonErrors.EmptyArray());
-    //
-    //        s.Base storage s_base = s.base();
-    //
-    //        for (uint256 i = 0; i < dstChainSelectors.length; i++) {
-    //            s_base.dstPools[dstChainSelectors[i]] = address(0);
-    //        }
-    //    }
-
     /*   INTERNAL FUNCTIONS   */
 
     function _conceroReceive(
