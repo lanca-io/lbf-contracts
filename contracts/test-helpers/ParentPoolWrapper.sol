@@ -2,8 +2,6 @@
 pragma solidity ^0.8.28;
 
 import {ParentPool} from "../ParentPool/ParentPool.sol";
-import {LPToken} from "../ParentPool/LPToken.sol";
-import {IParentPool} from "../ParentPool/interfaces/IParentPool.sol";
 import {Storage as s} from "../Base/libraries/Storage.sol";
 import {Storage as pps} from "../ParentPool/libraries/Storage.sol";
 

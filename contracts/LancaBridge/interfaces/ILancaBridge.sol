@@ -13,7 +13,6 @@ interface ILancaBridge {
     event BridgeDelivered(bytes32 indexed messageId, uint256 tokenAmountAfterFee);
     event SrcBridgeReorged(uint24 indexed sourceChainSelector, uint256 oldAmount);
 
-    error InvalidToken();
     error InvalidDstChainSelector();
     error InvalidDstGasLimitOrCallData();
     error InvalidConceroMessage();

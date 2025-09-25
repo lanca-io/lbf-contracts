@@ -15,5 +15,4 @@ interface IBase {
     }
 
     error InvalidConceroMessageType();
-    error PoolAlreadyExists(uint24 chainSelector);
 }

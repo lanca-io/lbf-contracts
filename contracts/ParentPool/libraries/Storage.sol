@@ -1,6 +1,6 @@
+// SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.28;
 
-import {IBase} from "../../Base/interfaces/IBase.sol";
 import {IParentPool} from "../interfaces/IParentPool.sol";
 
 library Namespaces {

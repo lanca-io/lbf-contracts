@@ -20,9 +20,6 @@ interface IRebalancer {
     error AmountExceedsDeficit(uint256 expected, uint256 received);
     error AmountExceedsSurplus(uint256 expected, uint256 received);
     error InvalidDestinationChain();
-    error ConceroSendFailed();
-    error UnauthorizedSender();
-    error GetMessageFeeFailed();
     error InsufficientRebalancingFee(uint256 totalRebalancingFee, uint256 rebalancerFee);
 
     /**

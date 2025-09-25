@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.28;
 
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-
 /**
  * @title KeeperChildPoolWrapper
  * @dev Simplified mock contract for testing keeper functionality
