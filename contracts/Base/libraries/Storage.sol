@@ -18,6 +18,9 @@ library Storage {
         mapping(uint24 chainSelector => address dstPool) dstPools;
         uint256 totalLiqTokenSent;
         uint256 totalLiqTokenReceived;
+        uint16 lpPremiumBps;
+        uint16 rebalancerPremiumBps;
+        uint16 lancaBridgePremiumBps;
     }
 
     /* SLOT-BASED STORAGE ACCESS */

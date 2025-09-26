@@ -229,6 +229,59 @@ contract BaseTest is LancaTest {
 
         assertEq(base.getWithdrawableLancaFee(), 0);
         assertEq(IERC20(address(usdc)).balanceOf(address(base)), 0);
-		assertEq(IERC20(address(usdc)).balanceOf(address(this)), 100e6);
+        assertEq(IERC20(address(usdc)).balanceOf(address(this)), 100e6);
+    }
+
+    /* --- Fee management --- */
+
+    function test_setLpPremiumBps_RevertsIfNotOwner() public {
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                ICommonErrors.UnauthorizedCaller.selector,
+                address(1),
+                address(this)
+            )
+        );
+        vm.prank(address(1));
+        base.setLpPremiumBps(100);
+    }
+
+    function test_setLpPremiumBps_Success() public {
+        base.setLpPremiumBps(100);
+        assertEq(base.getLpPremiumBps(), 100);
+    }
+
+    function test_setRebalancerPremiumBps_RevertsIfNotOwner() public {
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                ICommonErrors.UnauthorizedCaller.selector,
+                address(1),
+                address(this)
+            )
+        );
+        vm.prank(address(1));
+        base.setRebalancerPremiumBps(100);
+    }
+
+    function test_setRebalancerPremiumBps_Success() public {
+        base.setRebalancerPremiumBps(100);
+        assertEq(base.getRebalancerPremiumBps(), 100);
+    }
+
+    function test_setLancaBridgePremiumBps_RevertsIfNotOwner() public {
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                ICommonErrors.UnauthorizedCaller.selector,
+                address(1),
+                address(this)
+            )
+        );
+        vm.prank(address(1));
+        base.setLancaBridgePremiumBps(100);
+    }
+
+    function test_setLancaBridgePremiumBps_Success() public {
+        base.setLancaBridgePremiumBps(100);
+        assertEq(base.getLancaBridgePremiumBps(), 100);
     }
 }

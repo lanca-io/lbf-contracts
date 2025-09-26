@@ -109,27 +109,50 @@ abstract contract Base is IBase, ConceroClient, ConceroOwnable {
         return getTodayStartTimestamp() - 1;
     }
 
-    function getLpFee(uint256 amount) public pure returns (uint256) {
-        return (amount * CommonConstants.LP_PREMIUM_BPS) / CommonConstants.BPS_DENOMINATOR;
+    function getLpFee(uint256 amount) public view returns (uint256) {
+        return (amount * uint256(s.base().lpPremiumBps)) / CommonConstants.BPS_DENOMINATOR;
     }
 
-    function getLancaFee(uint256 amount) public pure returns (uint256) {
-        return
-            (amount * (CommonConstants.LANCA_BRIDGE_PREMIUM_BPS)) / CommonConstants.BPS_DENOMINATOR;
+    function getLancaFee(uint256 amount) public view returns (uint256) {
+        return (amount * uint256(s.base().lancaBridgePremiumBps)) / CommonConstants.BPS_DENOMINATOR;
     }
 
-    function getRebalancerFee(uint256 amount) public pure returns (uint256) {
-        return (amount * CommonConstants.REBALANCER_PREMIUM_BPS) / CommonConstants.BPS_DENOMINATOR;
+    function getRebalancerFee(uint256 amount) public view returns (uint256) {
+        return (amount * uint256(s.base().rebalancerPremiumBps)) / CommonConstants.BPS_DENOMINATOR;
     }
 
     function getWithdrawableLancaFee() external view returns (uint256) {
         return s.base().totalLancaFeeInLiqToken;
     }
 
+    function getLpPremiumBps() external view returns (uint16) {
+        return s.base().lpPremiumBps;
+    }
+
+    function getRebalancerPremiumBps() external view returns (uint16) {
+        return s.base().rebalancerPremiumBps;
+    }
+
+    function getLancaBridgePremiumBps() external view returns (uint16) {
+        return s.base().lancaBridgePremiumBps;
+    }
+
     /*   ADMIN FUNCTIONS   */
 
     function setLancaKeeper(address lancaKeeper) external onlyOwner {
         s.base().lancaKeeper = lancaKeeper;
+    }
+
+    function setLpPremiumBps(uint16 lpPremiumBps) external onlyOwner {
+        s.base().lpPremiumBps = lpPremiumBps;
+    }
+
+    function setRebalancerPremiumBps(uint16 rebalancerPremiumBps) external onlyOwner {
+        s.base().rebalancerPremiumBps = rebalancerPremiumBps;
+    }
+
+    function setLancaBridgePremiumBps(uint16 lancaBridgePremiumBps) external onlyOwner {
+        s.base().lancaBridgePremiumBps = lancaBridgePremiumBps;
     }
 
     function withdrawLancaFee(uint256 amount) external onlyOwner {
