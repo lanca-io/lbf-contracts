@@ -16,4 +16,6 @@ interface IBase {
 
     error InvalidConceroMessageType();
     error PoolAlreadyExists(uint24 chainSelector);
+
+    event LancaFeeWithdrawn(uint256 amount);
 }

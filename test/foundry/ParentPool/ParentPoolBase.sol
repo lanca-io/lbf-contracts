@@ -72,6 +72,7 @@ abstract contract ParentPoolBase is LancaTest {
         _setSupportedChildPools();
         _setLancaKeeper();
         _setTargetBalanceCalculationVars();
+        _setFees();
     }
 
     /* HELPER FUNCTIONS */
@@ -157,6 +158,14 @@ abstract contract ParentPoolBase is LancaTest {
     function _setLancaKeeper() internal {
         vm.prank(deployer);
         s_parentPool.setLancaKeeper(s_lancaKeeper);
+    }
+
+    function _setFees() internal {
+        vm.startPrank(deployer);
+        s_parentPool.setLpPremiumBps(1);
+        s_parentPool.setRebalancerPremiumBps(1);
+        s_parentPool.setLancaBridgePremiumBps(5);
+        vm.stopPrank();
     }
 
     function _fillChildPoolSnapshots() internal {
