@@ -25,7 +25,7 @@ library Storage {
         mapping(bytes32 id => IParentPool.PendingWithdrawal pendingWithdrawal) pendingWithdrawals;
         uint256 totalWithdrawalAmountLocked;
         uint256 remainingWithdrawalAmount;
-        uint256 totalLancaFeeInLiqToken;
+        uint256 totalLancaFeeInLiqToken; // unused variable
         uint256 targetBalanceFloor;
         uint256 prevTotaPoolsBalance;
         uint256 liquidityCap;

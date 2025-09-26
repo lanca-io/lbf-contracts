@@ -217,7 +217,7 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
         delete s_parentPool.pendingWithdrawalIds;
 
         s_parentPool.totalWithdrawalAmountLocked -= totalLiquidityTokenAmountToWithdraw;
-        s_parentPool.totalLancaFeeInLiqToken += totalLancaFee;
+        pbs.base().totalLancaFeeInLiqToken += totalLancaFee;
         rs.rebalancer().totalRebalancingFee += totalRebalanceFee;
     }
 

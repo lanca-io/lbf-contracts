@@ -5,6 +5,7 @@ import {IRebalancer} from "../Rebalancer/interfaces/IRebalancer.sol";
 import {ICommonErrors} from "../common/interfaces/ICommonErrors.sol";
 import {ConceroClient} from "@concero/v2-contracts/contracts/ConceroClient/ConceroClient.sol";
 import {ConceroOwnable} from "../common/ConceroOwnable.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IOUToken} from "../Rebalancer/IOUToken.sol";
 import {IBase} from "./interfaces/IBase.sol";
@@ -15,6 +16,7 @@ import {Storage as s} from "./libraries/Storage.sol";
 abstract contract Base is IBase, ConceroClient, ConceroOwnable {
     using s for s.Base;
     using s for rs.Rebalancer;
+    using SafeERC20 for IERC20;
 
     uint32 private constant SECONDS_IN_DAY = 86400;
 
@@ -120,10 +122,26 @@ abstract contract Base is IBase, ConceroClient, ConceroOwnable {
         return (amount * CommonConstants.REBALANCER_PREMIUM_BPS) / CommonConstants.BPS_DENOMINATOR;
     }
 
+    function getWithdrawableLancaFee() external view returns (uint256) {
+        return s.base().totalLancaFeeInLiqToken;
+    }
+
     /*   ADMIN FUNCTIONS   */
 
     function setLancaKeeper(address lancaKeeper) external onlyOwner {
         s.base().lancaKeeper = lancaKeeper;
+    }
+
+    function withdrawLancaFee(uint256 amount) external onlyOwner {
+        require(amount > 0, ICommonErrors.AmountIsZero());
+
+        s.Base storage s_base = s.base();
+        require(s_base.totalLancaFeeInLiqToken >= amount, ICommonErrors.InvalidFeeAmount());
+
+        s_base.totalLancaFeeInLiqToken -= amount;
+        IERC20(i_liquidityToken).safeTransfer(msg.sender, amount);
+
+        emit LancaFeeWithdrawn(amount);
     }
 
     //    function addDstPools(
