@@ -172,7 +172,6 @@ abstract contract LancaBridge is ILancaBridge, Base, ReentrancyGuard {
         uint256 totalLancaFee = getLpFee(tokenAmount) + bridgeFee + rebalancerFee;
 
         s.base().totalLancaFeeInLiqToken += bridgeFee;
-        rs.rebalancer().totalRebalancingFee += rebalancerFee;
 
         return tokenAmount - totalLancaFee;
     }

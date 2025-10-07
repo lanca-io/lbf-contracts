@@ -50,10 +50,7 @@ abstract contract Base is IBase, ConceroClient, ConceroOwnable {
     /*   VIEW FUNCTIONS   */
 
     function getActiveBalance() public view virtual returns (uint256) {
-        return
-            IERC20(i_liquidityToken).balanceOf(address(this)) -
-            rs.rebalancer().totalRebalancingFee -
-            s.base().totalLancaFeeInLiqToken;
+        return IERC20(i_liquidityToken).balanceOf(address(this)) - s.base().totalLancaFeeInLiqToken;
     }
 
     function getSurplus() public view returns (uint256) {

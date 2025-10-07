@@ -134,7 +134,6 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
         PendingWithdrawal memory pendingWithdrawal;
         uint256 totalLiquidityTokenAmountToWithdraw;
         uint256 totalLancaFee;
-        uint256 totalRebalanceFee;
 
         for (uint256 i; i < pendingWithdrawalIds.length; ++i) {
             pendingWithdrawal = s_parentPool.pendingWithdrawals[pendingWithdrawalIds[i]];
@@ -157,7 +156,6 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
             {
                 i_lpToken.burn(pendingWithdrawal.lpTokenAmountToWithdraw);
                 totalLancaFee += conceroFee;
-                totalRebalanceFee += rebalanceFee;
 
                 emit WithdrawalCompleted(pendingWithdrawalIds[i], amountToWithdrawWithFee);
             } catch {
@@ -181,7 +179,6 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
 
         s_parentPool.totalWithdrawalAmountLocked -= totalLiquidityTokenAmountToWithdraw;
         s_parentPool.totalLancaFeeInLiqToken += totalLancaFee;
-        rs.rebalancer().totalRebalancingFee += totalRebalanceFee;
     }
 
     function safeTransferWrapper(address token, address to, uint256 amount) external {
@@ -351,7 +348,6 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
         uint256 totalDepositedLiqTokenAmount;
         uint256 amountToDepositWithFee;
         uint256 depositFee;
-        uint256 totalDepositFee;
 
         for (uint256 i; i < depositQueueIds.length; ++i) {
             Deposit memory deposit = s_parentPool.depositQueue[depositQueueIds[i]];
@@ -360,7 +356,6 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
 
             depositFee = getRebalancerFee(deposit.liquidityTokenAmountToDeposit);
             amountToDepositWithFee = deposit.liquidityTokenAmountToDeposit - depositFee;
-            totalDepositFee += depositFee;
 
             uint256 lpTokenAmountToMint = _calculateLpTokenAmountToMint(
                 totalPoolBalanceWithLockedWithdrawals + totalDepositedLiqTokenAmount,
@@ -381,7 +376,6 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
         }
 
         delete s_parentPool.depositQueueIds;
-        rs.rebalancer().totalRebalancingFee += totalDepositFee;
 
         return totalDepositedLiqTokenAmount;
     }

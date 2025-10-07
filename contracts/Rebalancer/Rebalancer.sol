@@ -46,20 +46,16 @@ abstract contract Rebalancer is IRebalancer, Base {
             AmountExceedsSurplus(getSurplus(), iouTokensToBurn)
         );
 
-        i_iouToken.burnFrom(msg.sender, iouTokensToBurn);
-
         uint256 rebalancerFee = getRebalancerFee(iouTokensToBurn);
-        s.Rebalancer storage s_rebalancer = s.rebalancer();
-
-        require(
-            s_rebalancer.totalRebalancingFee >= rebalancerFee,
-            InsufficientRebalancingFee(s_rebalancer.totalRebalancingFee, rebalancerFee)
-        );
-
-        s_rebalancer.totalRebalancingFee -= rebalancerFee;
-
         uint256 liquidityTokensToReceive = iouTokensToBurn + rebalancerFee;
 
+        if (liquidityTokensToReceive > getActiveBalance()) {
+            iouTokensToBurn = (iouTokensToBurn * getActiveBalance()) / liquidityTokensToReceive;
+            rebalancerFee = getRebalancerFee(iouTokensToBurn);
+            liquidityTokensToReceive = iouTokensToBurn + rebalancerFee;
+        }
+
+        i_iouToken.burnFrom(msg.sender, iouTokensToBurn);
         IERC20(i_liquidityToken).safeTransfer(msg.sender, liquidityTokensToReceive);
 
         emit SurplusTaken(msg.sender, liquidityTokensToReceive, iouTokensToBurn);
