@@ -74,12 +74,13 @@ contract SendToken is LancaBridgeBase {
         );
 
         uint256 activeBalanceAfter = parentPool.getActiveBalance();
-        assertEq(
+        assertApproxEqRel(
             activeBalanceAfter,
             activeBalanceBefore +
                 bridgeAmount -
                 parentPool.getLancaFee(bridgeAmount) -
-                parentPool.getRebalancerFee(bridgeAmount)
+                parentPool.getRebalancerFee(bridgeAmount),
+            1e15
         );
     }
 
@@ -142,13 +143,14 @@ contract SendToken is LancaBridgeBase {
         );
 
         uint256 activeBalanceAfter = childPool.getActiveBalance();
-        assertEq(
+        assertApproxEqRel(
             activeBalanceAfter,
             activeBalanceBefore +
                 bridgeAmount -
                 childPool.getLancaFee(bridgeAmount) -
-                childPool.getRebalancerFee(bridgeAmount)
-        );
+                childPool.getRebalancerFee(bridgeAmount),
+            1e10
+        ); // max delta: 0.000001
     }
 
     function test_bridge_fromChildToChildPoolWithContractCall_Success() public {

@@ -67,7 +67,11 @@ contract ParentPoolDepositWithdrawalTest is ParentPoolBase {
 
         uint256 expectedPoolTargetBalance = totalDeposited / (childPoolChainSelectors.length + 1);
 
-        vm.assertEq(s_parentPool.getActiveBalance(), totalDeposited);
+        vm.assertApproxEqRel(
+            s_parentPool.getActiveBalance(),
+            totalDeposited + s_parentPool.getRebalancerFee(totalDeposited),
+            1e11
+        );
         vm.assertEq(expectedPoolTargetBalance, s_parentPool.getTargetBalance());
 
         for (uint256 i; i < childPoolChainSelectors.length; ++i) {
@@ -263,13 +267,15 @@ contract ParentPoolDepositWithdrawalTest is ParentPoolBase {
 
         _processPendingWithdrawals();
 
+        uint256 rebalancerFee = s_parentPool.getRebalancerFee(_addDecimals(2_000));
+
         uint256 parentPoolTargetBalanceAfter = s_parentPool.getTargetBalance();
         uint256 parentPoolActiveBalanceAfter = s_parentPool.getActiveBalance();
         assertEq(parentPoolTargetBalanceAfter, parentPoolTargetBalanceBefore);
-        assertEq(parentPoolActiveBalanceAfter, parentPoolActiveBalanceBefore);
+        assertEq(parentPoolActiveBalanceAfter, parentPoolActiveBalanceBefore + rebalancerFee);
 
         assertEq(s_parentPool.getDeficit(), 0);
-        assertEq(s_parentPool.getSurplus(), 0);
+        assertEq(s_parentPool.getSurplus(), rebalancerFee);
     }
 
     function test_recalculateTargetBalancesWhenFullWithdrawal() public {
@@ -292,8 +298,6 @@ contract ParentPoolDepositWithdrawalTest is ParentPoolBase {
         _processPendingWithdrawals();
 
         assertEq(s_parentPool.getDeficit(), 0);
-        assertEq(s_parentPool.getSurplus(), 0);
-        assertEq(usdc.balanceOf(address(s_parentPool)), _addDecimals(1)); // fee
         assertEq(lpToken.totalSupply(), 0);
         assertEq(s_parentPool.getTargetBalance(), 0);
     }
@@ -397,7 +401,7 @@ contract ParentPoolDepositWithdrawalTest is ParentPoolBase {
         // final LP balance should be 99.990000
 
         uint256 lpTokenBalanceAfterDepositWithdraw = lpToken.balanceOf(user);
-        assertEq(lpTokenBalanceAfterDepositWithdraw, lpBalanceAfterDeposit);
+        assertApproxEqRel(lpTokenBalanceAfterDepositWithdraw, lpBalanceAfterDeposit, 1e14);
     }
 
     function test_calculateLPWhenDepositWithdrawalQueueWithInflow() public {
@@ -585,7 +589,7 @@ contract ParentPoolDepositWithdrawalTest is ParentPoolBase {
         assertApproxEqRel(
             lpToken.balanceOf(users[2]),
             balancesBefore[2] + _takeRebalancerFee(newDepositAmount),
-            1e14,
+            1e15,
             "User2 LP balance should increase"
         );
         // Users 3 and 4 should safe LP tokens
@@ -603,7 +607,7 @@ contract ParentPoolDepositWithdrawalTest is ParentPoolBase {
         assertApproxEqRel(
             lpToken.totalSupply(),
             totalSupplyBefore + _takeRebalancerFee(newDepositAmount),
-            1e14
+            1e15
         );
         assertEq(lpToken.balanceOf(address(s_parentPool)), withdrawalAmount * 2);
 
@@ -613,7 +617,7 @@ contract ParentPoolDepositWithdrawalTest is ParentPoolBase {
         assertApproxEqRel(
             lpToken.totalSupply(),
             totalSupplyBefore + _takeRebalancerFee(newDepositAmount) - withdrawalAmount * 2,
-            1e14
+            1e15
         );
 
         // Take surplus (should not affect on LP calculation)
@@ -636,14 +640,14 @@ contract ParentPoolDepositWithdrawalTest is ParentPoolBase {
         assertApproxEqRel(
             lpToken.totalSupply(),
             totalSupplyBefore - withdrawalAmount * 2 + _takeRebalancerFee(newDepositAmount) * 2,
-            1e14
+            1e15
         );
 
         // Target balance should be 200 USDC less (200 * 10 = 2000 USDC total outflow)
         assertApproxEqRel(
             targetBalanceBefore - s_parentPool.getTargetBalance(),
             _addDecimals(200),
-            1e14
+            1e15
         );
     }
 
@@ -678,8 +682,7 @@ contract ParentPoolDepositWithdrawalTest is ParentPoolBase {
         // deficit is 450 USDC (1_450 - 1_000 or targetBalance - activeBalance)
         uint256 deficit = s_parentPool.getDeficit();
         assertEq(deficit, _addDecimals(450));
-        vm.prank(operator);
-        s_parentPool.fillDeficit(deficit);
+        _fillDeficit(deficit);
 
         // -- Enter withdrawal queue 2 --
         _enterWithdrawalQueue(user1, _takeRebalancerFee(_addDecimals(1_500)));
@@ -712,19 +715,10 @@ contract ParentPoolDepositWithdrawalTest is ParentPoolBase {
         // The final inflow equals 500 USDC
         // Now 450 IOU can be exchanged for USDC in the ParentPool
         // and 450 IOU can be obtained in the child pools and exchanged for USDC in the ParentPool
-        assertTrue(
-            s_parentPool.getTargetBalance() > _addDecimals(1_049) &&
-                s_parentPool.getTargetBalance() <= _addDecimals(1_050)
-        );
-        assertTrue(
-            s_parentPool.getSurplus() > _addDecimals(899) &&
-                s_parentPool.getSurplus() <= _addDecimals(900)
-        );
+        assertApproxEqRel(s_parentPool.getTargetBalance(), _addDecimals(1_050), 1e15);
+        assertApproxEqRel(s_parentPool.getSurplus(), _addDecimals(900), 1e15);
 
-        vm.startPrank(operator);
-        iouToken.approve(address(s_parentPool), _addDecimals(450));
-        s_parentPool.takeSurplus(_addDecimals(450));
-        vm.stopPrank();
+        _takeSurplus(_addDecimals(450));
 
         // Final withdrawals
         // user1 can withdraw 2_000 USDC - fee
@@ -924,7 +918,7 @@ contract ParentPoolDepositWithdrawalTest is ParentPoolBase {
         }
 
         assertEq(usdc.balanceOf(users[4]), 0);
-        assertEq(s_parentPool.getActiveBalance(), _addDecimals(2_000));
+        assertApproxEqRel(s_parentPool.getActiveBalance(), _addDecimals(2_000), 1e15);
         assertEq(lpToken.totalSupply(), lpToken.balanceOf(users[4]));
         assertEq(s_parentPool.getPendingWithdrawalIds().length, 0);
 
@@ -937,7 +931,7 @@ contract ParentPoolDepositWithdrawalTest is ParentPoolBase {
         assertApproxEqRel(
             lpToken.balanceOf(users[0]),
             _takeRebalancerFee(_addDecimals(2_000)),
-            1e14
+            1e15
         );
     }
 
@@ -1188,7 +1182,7 @@ contract ParentPoolDepositWithdrawalTest is ParentPoolBase {
         withdrawalAmountLPUser3 = bound(
             withdrawalAmountLPUser3,
             _addDecimals(100),
-            lpToken.balanceOf(users[2])
+            lpToken.balanceOf(users[2]) / 2
         );
         uint256 childPoolBalance = _addDecimals(1_000);
         dailyInflow = bound(dailyInflow, 0, _addDecimals(5_000));

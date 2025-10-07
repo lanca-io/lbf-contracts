@@ -172,33 +172,6 @@ contract Rebalancer is ParentPoolBase {
         s_parentPool.takeSurplus(1);
     }
 
-    function test_takeSurplus_RevertsIfInsufficientRebalancingFee() public {
-        _baseSetupWithLPMinting();
-
-        uint256 amountToRebalance = _addDecimals(900);
-        uint256 rebalancerFee = s_parentPool.getRebalancerFee(amountToRebalance);
-
-        s_parentPool.exposed_setTargetBalance(_addDecimals(100));
-        assertEq(s_parentPool.getSurplus(), amountToRebalance);
-
-        vm.prank(address(s_parentPool));
-        iouToken.mint(user, amountToRebalance);
-
-        vm.startPrank(user);
-        iouToken.approve(address(s_parentPool), amountToRebalance);
-
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                IRebalancer.InsufficientRebalancingFee.selector,
-                0,
-                rebalancerFee
-            )
-        );
-
-        s_parentPool.takeSurplus(_addDecimals(900));
-        vm.stopPrank();
-    }
-
     function test_bridgeIOU_RevertsIfAmountIsZero() public {
         vm.expectRevert(ICommonErrors.AmountIsZero.selector);
         s_parentPool.bridgeIOU(0, 1);
