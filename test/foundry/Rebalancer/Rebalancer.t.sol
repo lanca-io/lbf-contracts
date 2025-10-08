@@ -176,6 +176,77 @@ contract Rebalancer is RebalancerBase {
         assertApproxEqRel(usdcBalanceAfter - usdcBalanceBefore, rebalancerFee, 1e13);
     }
 
+    function test_RebalancerFee_ParentPoolRemaining() public {
+        _setSupportedChildPools(9); // 9 child pools
+        _setQueuesLength(0, 0);
+        _enterDepositQueue(user, _addDecimals(1_000_000));
+        _fillChildPoolSnapshots();
+        _triggerDepositWithdrawProcess();
+
+        assertEq(s_parentPool.getTargetBalance(), _takeRebalancerFee(_addDecimals(100_000)));
+        assertEq(s_childPool_5.getTargetBalance(), _takeRebalancerFee(_addDecimals(100_000)));
+        assertEq(s_childPool_9.getTargetBalance(), _takeRebalancerFee(_addDecimals(100_000)));
+        uint256 balanceBefore = usdc.balanceOf(operator);
+
+        vm.startPrank(operator);
+        usdc.approve(address(s_childPool_1), type(uint256).max);
+        usdc.approve(address(s_childPool_2), type(uint256).max);
+        usdc.approve(address(s_childPool_3), type(uint256).max);
+        usdc.approve(address(s_childPool_4), type(uint256).max);
+        usdc.approve(address(s_childPool_5), type(uint256).max);
+        usdc.approve(address(s_childPool_6), type(uint256).max);
+        usdc.approve(address(s_childPool_7), type(uint256).max);
+        usdc.approve(address(s_childPool_8), type(uint256).max);
+        usdc.approve(address(s_childPool_9), type(uint256).max);
+
+        s_childPool_1.fillDeficit(s_childPool_1.getDeficit());
+        s_childPool_2.fillDeficit(s_childPool_2.getDeficit());
+        s_childPool_3.fillDeficit(s_childPool_3.getDeficit());
+        s_childPool_4.fillDeficit(s_childPool_4.getDeficit());
+        s_childPool_5.fillDeficit(s_childPool_5.getDeficit());
+        s_childPool_6.fillDeficit(s_childPool_6.getDeficit());
+        s_childPool_7.fillDeficit(s_childPool_7.getDeficit());
+        s_childPool_8.fillDeficit(s_childPool_8.getDeficit());
+        s_childPool_9.fillDeficit(s_childPool_9.getDeficit());
+        vm.stopPrank();
+
+        _takeSurplus(iouToken.balanceOf(operator));
+        _enterWithdrawalQueue(user, lpToken.balanceOf(user));
+        _fillChildPoolSnapshots();
+        _triggerDepositWithdrawProcess();
+
+        _fillDeficit(s_parentPool.getDeficit());
+        _processPendingWithdrawals();
+
+        vm.startPrank(operator);
+        iouToken.approve(address(s_childPool_1), type(uint256).max);
+        iouToken.approve(address(s_childPool_2), type(uint256).max);
+        iouToken.approve(address(s_childPool_3), type(uint256).max);
+        iouToken.approve(address(s_childPool_4), type(uint256).max);
+        iouToken.approve(address(s_childPool_5), type(uint256).max);
+        iouToken.approve(address(s_childPool_6), type(uint256).max);
+        iouToken.approve(address(s_childPool_7), type(uint256).max);
+        iouToken.approve(address(s_childPool_8), type(uint256).max);
+        iouToken.approve(address(s_childPool_9), type(uint256).max);
+
+        s_childPool_1.takeSurplus(s_childPool_1.getSurplus());
+        s_childPool_2.takeSurplus(s_childPool_2.getSurplus());
+        s_childPool_3.takeSurplus(s_childPool_3.getSurplus());
+        s_childPool_4.takeSurplus(s_childPool_4.getSurplus());
+        s_childPool_5.takeSurplus(s_childPool_5.getSurplus());
+        s_childPool_6.takeSurplus(s_childPool_6.getSurplus());
+        s_childPool_7.takeSurplus(s_childPool_7.getSurplus());
+        s_childPool_8.takeSurplus(s_childPool_8.getSurplus());
+        s_childPool_9.takeSurplus(s_childPool_9.getSurplus());
+        vm.stopPrank();
+
+        _takeSurplus(iouToken.balanceOf(operator));
+
+        // 10 USDC is accrued to LP because the calculation is based on the balance of the entire pool
+        // 10 USDC is remaining in the ParentPool
+        assertApproxEqRel(usdc.balanceOf(address(s_parentPool)), _addDecimals(10), 1e12); // 0.0001%
+    }
+
     /* -- Post inflow rebalance -- */
 
     /*
