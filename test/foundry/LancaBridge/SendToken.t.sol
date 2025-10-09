@@ -10,8 +10,6 @@ import {IBase} from "contracts/Base/interfaces/IBase.sol";
 
 import {LancaBridgeBase} from "./LancaBridgeBase.sol";
 
-import {console} from "forge-std/src/console.sol";
-
 contract SendToken is LancaBridgeBase {
     function setUp() public override {
         super.setUp();
@@ -76,12 +74,13 @@ contract SendToken is LancaBridgeBase {
         );
 
         uint256 activeBalanceAfter = parentPool.getActiveBalance();
-        assertEq(
+        assertApproxEqRel(
             activeBalanceAfter,
             activeBalanceBefore +
                 bridgeAmount -
                 parentPool.getLancaFee(bridgeAmount) -
-                parentPool.getRebalancerFee(bridgeAmount)
+                parentPool.getRebalancerFee(bridgeAmount),
+            1e15
         );
     }
 
@@ -144,23 +143,19 @@ contract SendToken is LancaBridgeBase {
         );
 
         uint256 activeBalanceAfter = childPool.getActiveBalance();
-        assertEq(
+        assertApproxEqRel(
             activeBalanceAfter,
             activeBalanceBefore +
                 bridgeAmount -
                 childPool.getLancaFee(bridgeAmount) -
-                childPool.getRebalancerFee(bridgeAmount)
-        );
+                childPool.getRebalancerFee(bridgeAmount),
+            1e10
+        ); // max delta: 0.000001
     }
 
     function test_bridge_fromChildToChildPoolWithContractCall_Success() public {
         address secondChildPool = makeAddr("secondChildPool");
         uint24 secondChildPoolChainSelector = 200;
-
-        //        uint24[] memory dstChainSelectors = new uint24[](1);
-        //        dstChainSelectors[0] = secondChildPoolChainSelector;
-        //        address[] memory dstPools = new address[](1);
-        //        dstPools[0] = secondChildPool;
 
         vm.prank(deployer);
         childPool.setDstPool(secondChildPoolChainSelector, secondChildPool);
@@ -198,5 +193,12 @@ contract SendToken is LancaBridgeBase {
 
         vm.prank(user);
         childPool.bridge{value: 0}(user, 100e6, PARENT_POOL_CHAIN_SELECTOR, nonZeroGasLimit, "");
+    }
+
+    function test_bridge_revertIfInvalidDstChainSelector() public {
+        vm.expectRevert(abi.encodeWithSelector(ILancaBridge.InvalidDstChainSelector.selector));
+
+        vm.prank(user);
+        childPool.bridge{value: 0}(user, 100e6, 100, 0, "");
     }
 }

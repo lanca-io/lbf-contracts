@@ -6,6 +6,7 @@ import {DeployIOUToken} from "../scripts/deploy/DeployIOUToken.s.sol";
 import {DeployLPToken} from "../scripts/deploy/DeployLPToken.s.sol";
 import {DeployMockERC20, MockERC20} from "../scripts/deploy/DeployMockERC20.s.sol";
 import {DeployParentPool} from "../scripts/deploy/DeployParentPool.s.sol";
+import {DeployChildPool} from "../scripts/deploy/DeployChildPool.s.sol";
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
@@ -13,35 +14,44 @@ import {IOUToken} from "../../../contracts/Rebalancer/IOUToken.sol";
 import {LPToken} from "../../../contracts/ParentPool/LPToken.sol";
 import {LancaTest} from "../LancaTest.sol";
 import {ParentPool} from "../../../contracts/ParentPool/ParentPool.sol";
+import {ChildPool} from "../../../contracts/ChildPool/ChildPool.sol";
 import {IParentPool} from "../../../contracts/ParentPool/interfaces/IParentPool.sol";
 import {Vm} from "forge-std/src/Vm.sol";
 import {IBase} from "../../../contracts/Base/interfaces/IBase.sol";
+import {ConceroRouterMockWithCall} from "../mocks/ConceroRouterMockWithCall.sol";
 
 import {console} from "forge-std/src/console.sol";
 
-abstract contract ParentPoolBase is LancaTest {
+abstract contract RebalancerBase is LancaTest {
     uint16 internal constant DEFAULT_TARGET_QUEUE_LENGTH = 5;
     uint32 internal constant NOW_TIMESTAMP = 1754300013;
     uint256 internal constant MAX_DEPOSIT_AMOUNT = 1_000_000_000e6;
-
-    address internal s_childPool_1;
-    address internal s_childPool_2;
-    address internal s_childPool_3;
-    address internal s_childPool_4;
 
     uint24 internal constant childPoolChainSelector_1 = 1;
     uint24 internal constant childPoolChainSelector_2 = 2;
     uint24 internal constant childPoolChainSelector_3 = 3;
     uint24 internal constant childPoolChainSelector_4 = 4;
+    uint24 internal constant childPoolChainSelector_5 = 5;
+    uint24 internal constant childPoolChainSelector_6 = 6;
+    uint24 internal constant childPoolChainSelector_7 = 7;
+    uint24 internal constant childPoolChainSelector_8 = 8;
+    uint24 internal constant childPoolChainSelector_9 = 9;
 
     ParentPoolHarness public s_parentPool;
     LPToken public lpToken;
+    address public conceroRouterWithCall;
+    ChildPool public s_childPool_1;
+    ChildPool public s_childPool_2;
+    ChildPool public s_childPool_3;
+    ChildPool public s_childPool_4;
+    ChildPool public s_childPool_5;
+    ChildPool public s_childPool_6;
+    ChildPool public s_childPool_7;
+    ChildPool public s_childPool_8;
+    ChildPool public s_childPool_9;
 
     function setUp() public virtual {
-        s_childPool_1 = makeAddr("childPool_1");
-        s_childPool_2 = makeAddr("childPool_2");
-        s_childPool_3 = makeAddr("childPool_3");
-        s_childPool_4 = makeAddr("childPool_4");
+        conceroRouterWithCall = address(new ConceroRouterMockWithCall());
 
         DeployMockERC20 deployMockERC20 = new DeployMockERC20();
         usdc = IERC20(deployMockERC20.deployERC20("USD Coin", "USDC", 6));
@@ -59,7 +69,7 @@ abstract contract ParentPoolBase is LancaTest {
                     address(usdc),
                     6,
                     address(lpToken),
-                    conceroRouter,
+                    conceroRouterWithCall,
                     PARENT_POOL_CHAIN_SELECTOR,
                     address(iouToken),
                     MIN_TARGET_BALANCE
@@ -67,18 +77,144 @@ abstract contract ParentPoolBase is LancaTest {
             )
         );
 
+        _deployChildPools();
+
         lpToken.grantRole(lpToken.MINTER_ROLE(), address(s_parentPool));
         iouToken.grantRole(iouToken.MINTER_ROLE(), address(s_parentPool));
         _fundTestAddresses();
         _approveUSDCForAll();
         _setQueuesLength();
-        _setSupportedChildPools();
         _setLancaKeeper();
         _setTargetBalanceCalculationVars();
         _setMinDepositAmount(_addDecimals(100));
     }
 
     /* HELPER FUNCTIONS */
+
+    function _deployChildPools() internal {
+        DeployChildPool deployChildPool = new DeployChildPool();
+        s_childPool_1 = ChildPool(
+            payable(
+                deployChildPool.deployChildPool(
+                    address(usdc),
+                    6,
+                    childPoolChainSelector_1,
+                    address(iouToken),
+                    conceroRouterWithCall
+                )
+            )
+        );
+        s_childPool_2 = ChildPool(
+            payable(
+                deployChildPool.deployChildPool(
+                    address(usdc),
+                    6,
+                    childPoolChainSelector_2,
+                    address(iouToken),
+                    conceroRouterWithCall
+                )
+            )
+        );
+        s_childPool_3 = ChildPool(
+            payable(
+                deployChildPool.deployChildPool(
+                    address(usdc),
+                    6,
+                    childPoolChainSelector_3,
+                    address(iouToken),
+                    conceroRouterWithCall
+                )
+            )
+        );
+        s_childPool_4 = ChildPool(
+            payable(
+                deployChildPool.deployChildPool(
+                    address(usdc),
+                    6,
+                    childPoolChainSelector_4,
+                    address(iouToken),
+                    conceroRouterWithCall
+                )
+            )
+        );
+        s_childPool_5 = ChildPool(
+            payable(
+                deployChildPool.deployChildPool(
+                    address(usdc),
+                    6,
+                    childPoolChainSelector_5,
+                    address(iouToken),
+                    conceroRouterWithCall
+                )
+            )
+        );
+        s_childPool_6 = ChildPool(
+            payable(
+                deployChildPool.deployChildPool(
+                    address(usdc),
+                    6,
+                    childPoolChainSelector_6,
+                    address(iouToken),
+                    conceroRouterWithCall
+                )
+            )
+        );
+        s_childPool_7 = ChildPool(
+            payable(
+                deployChildPool.deployChildPool(
+                    address(usdc),
+                    6,
+                    childPoolChainSelector_7,
+                    address(iouToken),
+                    conceroRouterWithCall
+                )
+            )
+        );
+        s_childPool_8 = ChildPool(
+            payable(
+                deployChildPool.deployChildPool(
+                    address(usdc),
+                    6,
+                    childPoolChainSelector_8,
+                    address(iouToken),
+                    conceroRouterWithCall
+                )
+            )
+        );
+        s_childPool_9 = ChildPool(
+            payable(
+                deployChildPool.deployChildPool(
+                    address(usdc),
+                    6,
+                    childPoolChainSelector_9,
+                    address(iouToken),
+                    conceroRouterWithCall
+                )
+            )
+        );
+
+        vm.startPrank(deployer);
+        s_childPool_1.setDstPool(PARENT_POOL_CHAIN_SELECTOR, address(s_parentPool));
+        s_childPool_2.setDstPool(PARENT_POOL_CHAIN_SELECTOR, address(s_parentPool));
+        s_childPool_3.setDstPool(PARENT_POOL_CHAIN_SELECTOR, address(s_parentPool));
+        s_childPool_4.setDstPool(PARENT_POOL_CHAIN_SELECTOR, address(s_parentPool));
+        s_childPool_5.setDstPool(PARENT_POOL_CHAIN_SELECTOR, address(s_parentPool));
+        s_childPool_6.setDstPool(PARENT_POOL_CHAIN_SELECTOR, address(s_parentPool));
+        s_childPool_7.setDstPool(PARENT_POOL_CHAIN_SELECTOR, address(s_parentPool));
+        s_childPool_8.setDstPool(PARENT_POOL_CHAIN_SELECTOR, address(s_parentPool));
+        s_childPool_9.setDstPool(PARENT_POOL_CHAIN_SELECTOR, address(s_parentPool));
+        vm.stopPrank();
+
+        iouToken.grantRole(iouToken.MINTER_ROLE(), address(s_childPool_1));
+        iouToken.grantRole(iouToken.MINTER_ROLE(), address(s_childPool_2));
+        iouToken.grantRole(iouToken.MINTER_ROLE(), address(s_childPool_3));
+        iouToken.grantRole(iouToken.MINTER_ROLE(), address(s_childPool_4));
+        iouToken.grantRole(iouToken.MINTER_ROLE(), address(s_childPool_5));
+        iouToken.grantRole(iouToken.MINTER_ROLE(), address(s_childPool_6));
+        iouToken.grantRole(iouToken.MINTER_ROLE(), address(s_childPool_7));
+        iouToken.grantRole(iouToken.MINTER_ROLE(), address(s_childPool_8));
+        iouToken.grantRole(iouToken.MINTER_ROLE(), address(s_childPool_9));
+    }
 
     function _fundTestAddresses() internal {
         vm.deal(user, 100 ether);
@@ -158,23 +294,29 @@ abstract contract ParentPoolBase is LancaTest {
         return (totalDeposited, totalWithdraw);
     }
 
-    function _setSupportedChildPools() internal {
-        vm.startPrank(deployer);
-        s_parentPool.setDstPool(childPoolChainSelector_1, s_childPool_1);
-        s_parentPool.setDstPool(childPoolChainSelector_2, s_childPool_2);
-        s_parentPool.setDstPool(childPoolChainSelector_3, s_childPool_3);
-        s_parentPool.setDstPool(childPoolChainSelector_4, s_childPool_4);
-        vm.stopPrank();
-    }
-
-    function _setSupportedChildPools(uint256 poolAmount) internal {
-        uint24[] memory childPoolChainSelectors = s_parentPool.getChildPoolChainSelectors();
+    function _setSupportedChildPools(uint256 amount) internal {
+        /* solhint-disable gas-custom-errors */
+        require(amount == 2 || amount == 4 || amount == 9, "Invalid supported child pools amount");
 
         vm.startPrank(deployer);
-        for (uint24 i = uint24(childPoolChainSelectors.length + 1); i <= poolAmount; i++) {
-            string memory prefix = "childPool_";
-            string memory poolName = string(abi.encodePacked(prefix, Strings.toString(i)));
-            s_parentPool.setDstPool(i, makeAddr(poolName));
+        if (amount == 2) {
+            s_parentPool.setDstPool(childPoolChainSelector_1, address(s_childPool_1));
+            s_parentPool.setDstPool(childPoolChainSelector_2, address(s_childPool_2));
+        } else if (amount == 4) {
+            s_parentPool.setDstPool(childPoolChainSelector_1, address(s_childPool_1));
+            s_parentPool.setDstPool(childPoolChainSelector_2, address(s_childPool_2));
+            s_parentPool.setDstPool(childPoolChainSelector_3, address(s_childPool_3));
+            s_parentPool.setDstPool(childPoolChainSelector_4, address(s_childPool_4));
+        } else if (amount == 9) {
+            s_parentPool.setDstPool(childPoolChainSelector_1, address(s_childPool_1));
+            s_parentPool.setDstPool(childPoolChainSelector_2, address(s_childPool_2));
+            s_parentPool.setDstPool(childPoolChainSelector_3, address(s_childPool_3));
+            s_parentPool.setDstPool(childPoolChainSelector_4, address(s_childPool_4));
+            s_parentPool.setDstPool(childPoolChainSelector_5, address(s_childPool_5));
+            s_parentPool.setDstPool(childPoolChainSelector_6, address(s_childPool_6));
+            s_parentPool.setDstPool(childPoolChainSelector_7, address(s_childPool_7));
+            s_parentPool.setDstPool(childPoolChainSelector_8, address(s_childPool_8));
+            s_parentPool.setDstPool(childPoolChainSelector_9, address(s_childPool_9));
         }
         vm.stopPrank();
     }
@@ -202,10 +344,14 @@ abstract contract ParentPoolBase is LancaTest {
     function _fillChildPoolSnapshots() internal {
         uint24[] memory childPoolChainSelectors = s_parentPool.getChildPoolChainSelectors();
 
-        for (uint256 i; i < childPoolChainSelectors.length; ++i) {
+        for (uint256 i; i < childPoolChainSelectors.length; i++) {
+            uint256 balance = s_childPool_1.getTargetBalance();
+            uint256 dailyInflow = s_childPool_1.getYesterdayFlow().inflow;
+            uint256 dailyOutflow = s_childPool_1.getYesterdayFlow().outflow;
+
             s_parentPool.exposed_setChildPoolSnapshot(
                 childPoolChainSelectors[i],
-                _getChildPoolSnapshot()
+                _getChildPoolSnapshot(balance, dailyInflow, dailyOutflow)
             );
         }
     }

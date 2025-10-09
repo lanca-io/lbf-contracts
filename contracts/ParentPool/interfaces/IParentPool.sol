@@ -35,9 +35,13 @@ interface IParentPool {
     error WithdrawalQueueIsFull();
     error QueuesAreNotFull();
     error LiquidityCapReached(uint256 liqCapAmount);
+    error ChildPoolSnapshotsAreNotReady();
+    error InvalidLiqTokenDecimals();
+    error InvalidScoreWeights();
+    error InvalidLurScoreSensitivity();
+    error OnlySelf();
 
     event DepositQueued(bytes32 indexed id, address lp, uint256 amount);
-    event DepositDequeued(bytes32 indexed id);
     event DepositProcessed(
         bytes32 indexed id,
         address lp,
@@ -45,7 +49,6 @@ interface IParentPool {
         uint256 lpTokenAmount
     );
     event WithdrawalQueued(bytes32 indexed withdrawId, address lp, uint256 lpTokenAmount);
-    event WithdrawalDequeued(bytes32 indexed id);
     event WithdrawalProcessed(
         bytes32 indexed id,
         address lp,
@@ -53,4 +56,5 @@ interface IParentPool {
         uint256 liqTokenAmount
     );
     event WithdrawalCompleted(bytes32 indexed id, uint256 liqTokenAmountReceivedWithFee);
+    event WithdrawalFailed(address lp, uint256 liqTokenAmountToWithdraw);
 }

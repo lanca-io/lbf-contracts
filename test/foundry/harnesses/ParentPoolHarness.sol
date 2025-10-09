@@ -61,6 +61,14 @@ contract ParentPoolHarness is ParentPool {
         return bs.bridge().receivedBridges[srcChainSelector][nonce];
     }
 
+    function exposed_getTotalWithdrawalAmountLocked() public view returns (uint256) {
+        return s.parentPool().totalWithdrawalAmountLocked;
+    }
+
+    function exposed_getRemainingWithdrawalAmount() public view returns (uint256) {
+        return s.parentPool().remainingWithdrawalAmount;
+    }
+
     /* SETTERS */
 
     function exposed_setChildPoolSnapshot(
@@ -89,5 +97,9 @@ contract ParentPoolHarness is ParentPool {
 
     function exposed_setTotalRebalancerFee(uint256 rebalancerFee) public {
         rs.rebalancer().totalRebalancingFee = rebalancerFee;
+    }
+
+    function exposed_setDstPool(uint24 chainSelector, address dstPool) public {
+        pbs.base().dstPools[chainSelector] = dstPool;
     }
 }

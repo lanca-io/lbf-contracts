@@ -1,6 +1,6 @@
+// SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.28;
 
-import {IBase} from "../../Base/interfaces/IBase.sol";
 import {IParentPool} from "../interfaces/IParentPool.sol";
 
 library Namespaces {
@@ -27,7 +27,7 @@ library Storage {
         uint256 remainingWithdrawalAmount;
         uint256 totalLancaFeeInLiqToken;
         uint256 targetBalanceFloor;
-        uint256 prevTotaPoolsBalance;
+        uint256 prevTotalPoolsBalance;
         uint256 liquidityCap;
         uint16 minWithdrawalQueueLength;
         uint16 minDepositQueueLength;
@@ -35,6 +35,7 @@ library Storage {
         uint64 lurScoreSensitivity; // has the scale i_liquidityTokenDecimals
         uint64 lurScoreWeight; // has the scale i_liquidityTokenDecimals
         uint64 ndrScoreWeight; // has the scale i_liquidityTokenDecimals
+        uint64 minDepositAmount;
     }
 
     /* SLOT-BASED STORAGE ACCESS */

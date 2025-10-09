@@ -23,7 +23,7 @@ contract LPToken is ERC20, ERC20Burnable, AccessControl, ERC20Permit {
         _grantRole(MINTER_ROLE, minter);
     }
 
-    function mint(address to, uint256 amount) public onlyRole(MINTER_ROLE) {
+    function mint(address to, uint256 amount) external onlyRole(MINTER_ROLE) {
         _mint(to, amount);
     }
 

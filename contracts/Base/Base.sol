@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.28;
 
-import {IRebalancer} from "../Rebalancer/interfaces/IRebalancer.sol";
 import {ICommonErrors} from "../common/interfaces/ICommonErrors.sol";
 import {ConceroClient} from "@concero/v2-contracts/contracts/ConceroClient/ConceroClient.sol";
 import {ConceroOwnable} from "../common/ConceroOwnable.sol";
@@ -51,18 +50,15 @@ abstract contract Base is IBase, ConceroClient, ConceroOwnable {
     /*   VIEW FUNCTIONS   */
 
     function getActiveBalance() public view virtual returns (uint256) {
-        return
-            IERC20(i_liquidityToken).balanceOf(address(this)) -
-            rs.rebalancer().totalRebalancingFee -
-            s.base().totalLancaFeeInLiqToken;
+        return IERC20(i_liquidityToken).balanceOf(address(this)) - s.base().totalLancaFeeInLiqToken;
     }
 
     function getSurplus() public view returns (uint256) {
         uint256 activeBalance = getActiveBalance();
-        uint256 tagetBalance = getTargetBalance();
+        uint256 targetBalance = getTargetBalance();
 
-        if (activeBalance <= tagetBalance) return 0;
-        return activeBalance - tagetBalance;
+        if (activeBalance <= targetBalance) return 0;
+        return activeBalance - targetBalance;
     }
 
     function getDeficit() public view returns (uint256 deficit) {
@@ -125,34 +121,6 @@ abstract contract Base is IBase, ConceroClient, ConceroOwnable {
     function setLancaKeeper(address lancaKeeper) external onlyOwner {
         s.base().lancaKeeper = lancaKeeper;
     }
-
-    //    function addDstPools(
-    //        uint24[] calldata dstChainSelectors,
-    //        address[] calldata dstPools
-    //    ) external onlyOwner {
-    //        require(dstChainSelectors.length > 0, ICommonErrors.EmptyArray());
-    //        require(dstChainSelectors.length == dstPools.length, ICommonErrors.LengthMismatch());
-    //
-    //        s.Base storage s_base = s.base();
-    //
-    //        for (uint256 i = 0; i < dstChainSelectors.length; i++) {
-    //            require(
-    //                s_base.dstPools[dstChainSelectors[i]] == address(0),
-    //                PoolAlreadyExists(dstChainSelectors[i])
-    //            );
-    //            s_base.dstPools[dstChainSelectors[i]] = dstPools[i];
-    //        }
-    //    }
-    //
-    //    function removeDstPools(uint24[] calldata dstChainSelectors) external onlyOwner {
-    //        require(dstChainSelectors.length > 0, ICommonErrors.EmptyArray());
-    //
-    //        s.Base storage s_base = s.base();
-    //
-    //        for (uint256 i = 0; i < dstChainSelectors.length; i++) {
-    //            s_base.dstPools[dstChainSelectors[i]] = address(0);
-    //        }
-    //    }
 
     /*   INTERNAL FUNCTIONS   */
 

@@ -8,10 +8,10 @@ import {DeployIOUToken} from "../scripts/deploy/DeployIOUToken.s.sol";
 import {DeployChildPool} from "../scripts/deploy/DeployChildPool.s.sol";
 import {DeployParentPool} from "../scripts/deploy/DeployParentPool.s.sol";
 
-import {ChildPool} from "../../../contracts/ChildPool/ChildPool.sol";
-import {ParentPool} from "../../../contracts/ParentPool/ParentPool.sol";
-import {LPToken} from "../../../contracts/ParentPool/LPToken.sol";
-import {IOUToken} from "../../../contracts/Rebalancer/IOUToken.sol";
+import {ChildPool} from "contracts/ChildPool/ChildPool.sol";
+import {ParentPool} from "contracts/ParentPool/ParentPool.sol";
+import {LPToken} from "contracts/ParentPool/LPToken.sol";
+import {IOUToken} from "contracts/Rebalancer/IOUToken.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 abstract contract LancaBridgeBase is LancaTest {
@@ -67,18 +67,7 @@ abstract contract LancaBridgeBase is LancaTest {
 
     function _addDstPools() internal {
         vm.startPrank(deployer);
-        //        uint24[] memory dstChainSelectorsForChildPool = new uint24[](1);
-        //        address[] memory dstPoolsForChildPool = new address[](1);
-
-        //        dstChainSelectorsForChildPool[0] = PARENT_POOL_CHAIN_SELECTOR;
-        //        dstPoolsForChildPool[0] = address(parentPool);
         childPool.setDstPool(PARENT_POOL_CHAIN_SELECTOR, address(parentPool));
-
-        //        uint24[] memory dstChainSelectorsForParentPool = new uint24[](1);
-        //        address[] memory dstPoolsForParentPool = new address[](1);
-
-        //        dstChainSelectorsForParentPool[0] = CHILD_POOL_CHAIN_SELECTOR;
-        //        dstPoolsForParentPool[0] = address(childPool);
         parentPool.setDstPool(CHILD_POOL_CHAIN_SELECTOR, address(childPool));
         vm.stopPrank();
     }
