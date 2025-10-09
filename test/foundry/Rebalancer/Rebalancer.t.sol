@@ -75,7 +75,6 @@ contract Rebalancer is RebalancerBase {
         );
         _mintUsdc(user, surplusToTake);
         s_parentPool.exposed_setTargetBalance(parentPoolBaseBalance - surplusToTake);
-        s_parentPool.exposed_setTotalRebalancerFee(s_parentPool.getRebalancerFee(surplusToTake));
 
         uint256 iouBalanceBefore = iouToken.balanceOf(user);
 

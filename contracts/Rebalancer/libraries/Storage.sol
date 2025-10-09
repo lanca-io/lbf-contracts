@@ -10,7 +10,7 @@ library Namespaces {
 
 library Storage {
     struct Rebalancer {
-        uint256 totalRebalancingFee;
+        uint256 DEPRECATED_totalRebalancingFee;
         uint256 totalIouSent;
         uint256 totalIouReceived;
     }
