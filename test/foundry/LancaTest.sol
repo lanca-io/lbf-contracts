@@ -54,7 +54,7 @@ abstract contract LancaTest is LancaBaseScript {
 
     function _setRelayerLib(uint24 dstChainSelector, address client) internal {
         vm.prank(deployer);
-        Base(payable(client)).setRelayerLib(dstChainSelector, relayerLib, new bytes(1), true);
+        Base(payable(client)).setRelayerLib(dstChainSelector, relayerLib, true);
     }
 
     function _setValidatorLibs(uint24 dstChainSelector, address client) internal {

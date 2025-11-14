@@ -127,7 +127,6 @@ abstract contract Base is IBase, ConceroClient, ConceroOwnable {
     function setRelayerLib(
         uint24 dstChainSelector,
         address relayerLib,
-        bytes calldata relayerConfig,
         bool isAllowed
     ) external onlyOwner {
         s.Base storage s_base = s.base();
