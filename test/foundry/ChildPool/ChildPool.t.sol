@@ -2,29 +2,15 @@
 /* solhint-disable func-name-mixedcase */
 pragma solidity 0.8.28;
 
+import {IConceroRouter} from "@concero/v2-contracts/contracts/interfaces/IConceroRouter.sol";
+import {MessageCodec} from "@concero/v2-contracts/contracts/common/libraries/MessageCodec.sol";
+
 import {ICommonErrors} from "contracts/common/interfaces/ICommonErrors.sol";
 import {IBase} from "contracts/Base/interfaces/IBase.sol";
-import {ChildPoolWrapper} from "contracts/test-helpers/ChildPoolWrapper.sol";
 import {ChildPoolBase} from "./ChildPoolBase.sol";
 
 contract ChildPoolTest is ChildPoolBase {
-    ChildPoolWrapper public childPoolWrapper;
-
-    function setUp() public override {
-        super.setUp();
-
-        childPoolWrapper = new ChildPoolWrapper(
-            conceroRouter,
-            address(iouToken),
-            address(usdc),
-            6,
-            CHILD_POOL_CHAIN_SELECTOR,
-            PARENT_POOL_CHAIN_SELECTOR
-        );
-
-        vm.prank(deployer);
-        childPoolWrapper.exposed_setDstPool(PARENT_POOL_CHAIN_SELECTOR, makeAddr("parentPool"));
-    }
+    using MessageCodec for IConceroRouter.MessageRequest;
 
     /** -- Test Concero Receive Functions -- */
 
@@ -36,15 +22,21 @@ contract ChildPoolTest is ChildPoolBase {
             abi.encode(newTargetBalance)
         );
 
-        vm.prank(conceroRouter);
-        childPoolWrapper.conceroReceive(
-            DEFAULT_MESSAGE_ID,
-            PARENT_POOL_CHAIN_SELECTOR,
-            abi.encode(makeAddr("parentPool")),
-            messagePayload
+        IConceroRouter.MessageRequest memory messageRequest = _buildMessageRequest(
+            messagePayload,
+            CHILD_POOL_CHAIN_SELECTOR,
+            address(childPool)
         );
 
-        assertEq(childPoolWrapper.getTargetBalance(), newTargetBalance);
+        vm.prank(conceroRouter);
+        childPool.conceroReceive(
+            messageRequest.toMessageReceiptBytes(PARENT_POOL_CHAIN_SELECTOR, mockParentPool, NONCE),
+            validationChecks,
+            validatorLibs,
+            relayerLib
+        );
+
+        assertEq(childPool.getTargetBalance(), newTargetBalance);
     }
 
     function test_handleConceroReceiveSnapshot_RevertsFunctionNotImplemented() public {
@@ -54,14 +46,20 @@ contract ChildPoolTest is ChildPoolBase {
             snapshotData
         );
 
+        IConceroRouter.MessageRequest memory messageRequest = _buildMessageRequest(
+            messagePayload,
+            CHILD_POOL_CHAIN_SELECTOR,
+            address(childPool)
+        );
+
         vm.expectRevert(ICommonErrors.FunctionNotImplemented.selector);
 
         vm.prank(conceroRouter);
-        childPoolWrapper.conceroReceive(
-            DEFAULT_MESSAGE_ID,
-            PARENT_POOL_CHAIN_SELECTOR,
-            abi.encode(makeAddr("parentPool")),
-            messagePayload
+        childPool.conceroReceive(
+            messageRequest.toMessageReceiptBytes(PARENT_POOL_CHAIN_SELECTOR, mockParentPool, NONCE),
+            validationChecks,
+            validatorLibs,
+            relayerLib
         );
     }
 
@@ -74,6 +72,12 @@ contract ChildPoolTest is ChildPoolBase {
             abi.encode(newTargetBalance)
         );
 
+        IConceroRouter.MessageRequest memory messageRequest = _buildMessageRequest(
+            messagePayload,
+            CHILD_POOL_CHAIN_SELECTOR,
+            address(childPool)
+        );
+
         vm.expectRevert(
             abi.encodeWithSelector(
                 ICommonErrors.UnauthorizedSender.selector,
@@ -83,11 +87,15 @@ contract ChildPoolTest is ChildPoolBase {
         );
 
         vm.prank(conceroRouter);
-        childPoolWrapper.conceroReceive(
-            DEFAULT_MESSAGE_ID,
-            PARENT_POOL_CHAIN_SELECTOR,
-            abi.encode(unauthorizedSender),
-            messagePayload
+        childPool.conceroReceive(
+            messageRequest.toMessageReceiptBytes(
+                PARENT_POOL_CHAIN_SELECTOR,
+                unauthorizedSender,
+                NONCE
+            ),
+            validationChecks,
+            validatorLibs,
+            relayerLib
         );
     }
 }

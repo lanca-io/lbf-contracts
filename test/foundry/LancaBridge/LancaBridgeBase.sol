@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.28;
 
+import {IConceroRouter} from "@concero/v2-contracts/contracts/interfaces/IConceroRouter.sol";
+import {MessageCodec} from "@concero/v2-contracts/contracts/common/libraries/MessageCodec.sol";
+
 import {LancaTest} from "../LancaTest.sol";
 import {DeployMockERC20, MockERC20} from "../scripts/deploy/DeployMockERC20.s.sol";
 import {DeployLPToken} from "../scripts/deploy/DeployLPToken.s.sol";
@@ -8,6 +11,7 @@ import {DeployIOUToken} from "../scripts/deploy/DeployIOUToken.s.sol";
 import {DeployChildPool} from "../scripts/deploy/DeployChildPool.s.sol";
 import {DeployParentPool} from "../scripts/deploy/DeployParentPool.s.sol";
 
+import {IBase} from "contracts/Base/interfaces/IBase.sol";
 import {ChildPool} from "contracts/ChildPool/ChildPool.sol";
 import {ParentPool} from "contracts/ParentPool/ParentPool.sol";
 import {LPToken} from "contracts/ParentPool/LPToken.sol";
@@ -60,6 +64,7 @@ abstract contract LancaBridgeBase is LancaTest {
         _addDstPools();
         _fundTestAddresses();
         _approveUSDCForAll();
+        _setLibs();
 
         // For correct getYesterdayFlow calculation
         vm.warp(block.timestamp + 1 days * 365);
@@ -105,15 +110,10 @@ abstract contract LancaBridgeBase is LancaTest {
         IERC20(usdc).approve(address(parentPool), type(uint256).max);
     }
 
-    function _getMessageId(
-        uint24 dstChainSelector,
-        bool shouldFinaliseSrc,
-        address feeToken,
-        bytes memory message
-    ) internal view returns (bytes32) {
-        return
-            keccak256(
-                abi.encode(block.number, dstChainSelector, shouldFinaliseSrc, feeToken, message)
-            );
+    function _setLibs() internal {
+        _setRelayerLib(CHILD_POOL_CHAIN_SELECTOR, address(parentPool));
+        _setValidatorLibs(CHILD_POOL_CHAIN_SELECTOR, address(parentPool));
+        _setRelayerLib(PARENT_POOL_CHAIN_SELECTOR, address(childPool));
+        _setValidatorLibs(PARENT_POOL_CHAIN_SELECTOR, address(childPool));
     }
 }

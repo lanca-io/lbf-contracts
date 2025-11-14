@@ -2,6 +2,9 @@
 /* solhint-disable func-name-mixedcase */
 pragma solidity 0.8.28;
 
+import {IConceroRouter} from "@concero/v2-contracts/contracts/interfaces/IConceroRouter.sol";
+import {MessageCodec} from "@concero/v2-contracts/contracts/common/libraries/MessageCodec.sol";
+
 import {IBase} from "contracts/Base/interfaces/IBase.sol";
 import {ICommonErrors} from "contracts/common/interfaces/ICommonErrors.sol";
 import {IRebalancer} from "contracts/Rebalancer/interfaces/IRebalancer.sol";
@@ -11,6 +14,8 @@ import {MockERC20} from "../scripts/deploy/DeployMockERC20.s.sol";
 import {RebalancerBase} from "../Rebalancer/RebalancerBase.sol";
 
 contract Rebalancer is RebalancerBase {
+    using MessageCodec for IConceroRouter.MessageRequest;
+
     function setUp() public override {
         super.setUp();
         vm.warp(NOW_TIMESTAMP);
@@ -78,12 +83,22 @@ contract Rebalancer is RebalancerBase {
 
         uint256 iouBalanceBefore = iouToken.balanceOf(user);
 
+        IConceroRouter.MessageRequest memory messageRequest = _buildMessageRequest(
+            abi.encode(IBase.ConceroMessageType.BRIDGE_IOU, abi.encode(surplusToTake, user)),
+            PARENT_POOL_CHAIN_SELECTOR,
+            address(s_parentPool)
+        );
+
         vm.prank(s_parentPool.exposed_getConceroRouter());
         s_parentPool.conceroReceive(
-            keccak256("conceroMessageId"),
-            childPoolChainSelector_1,
-            abi.encode(s_childPool_1),
-            abi.encode(IBase.ConceroMessageType.BRIDGE_IOU, abi.encode(surplusToTake, user))
+            messageRequest.toMessageReceiptBytes(
+                childPoolChainSelector_1,
+                address(s_childPool_1),
+                NONCE
+            ),
+            validationChecks,
+            validatorLibs,
+            relayerLib
         );
 
         uint256 iouBalanceAfter = iouToken.balanceOf(user);
@@ -103,7 +118,7 @@ contract Rebalancer is RebalancerBase {
         );
     }
 
-    /* -- Rebalancer fee -- */
+    // /* -- Rebalancer fee -- */
 
     function test_RebalancerFee_CalculatesCorrectlyWhenDepositToEmptyPool() public {
         _setSupportedChildPools(2); // 2 child pools
@@ -307,7 +322,7 @@ contract Rebalancer is RebalancerBase {
         assertApproxEqRel(rebalancerExtraProfit, _addDecimals(10), 4e16);
     }
 
-    /* -- Post inflow rebalance -- */
+    // /* -- Post inflow rebalance -- */
 
     /*
      * @dev totalWithdrawalAmountLocked should be 0 when active balance

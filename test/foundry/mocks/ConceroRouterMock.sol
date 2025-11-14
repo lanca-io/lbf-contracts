@@ -14,7 +14,9 @@ contract ConceroRouterMock is IConceroRouter {
         return keccak256(abi.encode(messageRequest));
     }
 
-    function getMessageFee(MessageRequest calldata messageRequest) external view returns (uint256) {
+    function getMessageFee(
+        MessageRequest calldata /** messageRequest */
+    ) external view returns (uint256) {
         return _getFee();
     }
 

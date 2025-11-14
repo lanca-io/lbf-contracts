@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.28;
 
+import {IConceroRouter} from "@concero/v2-contracts/contracts/interfaces/IConceroRouter.sol";
+import {MessageCodec} from "@concero/v2-contracts/contracts/common/libraries/MessageCodec.sol";
+
 import {ParentPoolHarness} from "../harnesses/ParentPoolHarness.sol";
 import {DeployIOUToken} from "../scripts/deploy/DeployIOUToken.s.sol";
 import {DeployLPToken} from "../scripts/deploy/DeployLPToken.s.sol";
@@ -19,6 +22,7 @@ import {IParentPool} from "../../../contracts/ParentPool/interfaces/IParentPool.
 import {Vm} from "forge-std/src/Vm.sol";
 import {IBase} from "../../../contracts/Base/interfaces/IBase.sol";
 import {ConceroRouterMockWithCall} from "../mocks/ConceroRouterMockWithCall.sol";
+import {Base} from "../../../contracts/Base/Base.sol";
 
 import {console} from "forge-std/src/console.sol";
 
@@ -87,6 +91,7 @@ abstract contract RebalancerBase is LancaTest {
         _setLancaKeeper();
         _setTargetBalanceCalculationVars();
         _setMinDepositAmount(_addDecimals(100));
+        _setLibs();
     }
 
     /* HELPER FUNCTIONS */
@@ -203,7 +208,35 @@ abstract contract RebalancerBase is LancaTest {
         s_childPool_7.setDstPool(PARENT_POOL_CHAIN_SELECTOR, address(s_parentPool));
         s_childPool_8.setDstPool(PARENT_POOL_CHAIN_SELECTOR, address(s_parentPool));
         s_childPool_9.setDstPool(PARENT_POOL_CHAIN_SELECTOR, address(s_parentPool));
+
         vm.stopPrank();
+
+        _setRelayerLib(PARENT_POOL_CHAIN_SELECTOR, address(s_childPool_1));
+        _setValidatorLibs(PARENT_POOL_CHAIN_SELECTOR, address(s_childPool_1));
+
+        _setRelayerLib(PARENT_POOL_CHAIN_SELECTOR, address(s_childPool_2));
+        _setValidatorLibs(PARENT_POOL_CHAIN_SELECTOR, address(s_childPool_2));
+
+        _setRelayerLib(PARENT_POOL_CHAIN_SELECTOR, address(s_childPool_3));
+        _setValidatorLibs(PARENT_POOL_CHAIN_SELECTOR, address(s_childPool_3));
+
+        _setRelayerLib(PARENT_POOL_CHAIN_SELECTOR, address(s_childPool_4));
+        _setValidatorLibs(PARENT_POOL_CHAIN_SELECTOR, address(s_childPool_4));
+
+        _setRelayerLib(PARENT_POOL_CHAIN_SELECTOR, address(s_childPool_5));
+        _setValidatorLibs(PARENT_POOL_CHAIN_SELECTOR, address(s_childPool_5));
+
+        _setRelayerLib(PARENT_POOL_CHAIN_SELECTOR, address(s_childPool_6));
+        _setValidatorLibs(PARENT_POOL_CHAIN_SELECTOR, address(s_childPool_6));
+
+        _setRelayerLib(PARENT_POOL_CHAIN_SELECTOR, address(s_childPool_7));
+        _setValidatorLibs(PARENT_POOL_CHAIN_SELECTOR, address(s_childPool_7));
+
+        _setRelayerLib(PARENT_POOL_CHAIN_SELECTOR, address(s_childPool_8));
+        _setValidatorLibs(PARENT_POOL_CHAIN_SELECTOR, address(s_childPool_8));
+
+        _setRelayerLib(PARENT_POOL_CHAIN_SELECTOR, address(s_childPool_9));
+        _setValidatorLibs(PARENT_POOL_CHAIN_SELECTOR, address(s_childPool_9));
 
         iouToken.grantRole(iouToken.MINTER_ROLE(), address(s_childPool_1));
         iouToken.grantRole(iouToken.MINTER_ROLE(), address(s_childPool_2));
@@ -592,5 +625,10 @@ abstract contract RebalancerBase is LancaTest {
             _mintLpToken(users[i], initialLpBalancePerUser);
             lpToken.approve(address(s_parentPool), type(uint256).max);
         }
+    }
+
+    function _setLibs() internal {
+        _setRelayerLib(CHILD_POOL_CHAIN_SELECTOR, address(s_parentPool));
+        _setValidatorLibs(CHILD_POOL_CHAIN_SELECTOR, address(s_parentPool));
     }
 }

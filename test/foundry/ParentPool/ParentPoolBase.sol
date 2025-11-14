@@ -76,6 +76,7 @@ abstract contract ParentPoolBase is LancaTest {
         _setLancaKeeper();
         _setTargetBalanceCalculationVars();
         _setMinDepositAmount(_addDecimals(100));
+        _setLibs();
     }
 
     /* HELPER FUNCTIONS */
@@ -446,5 +447,10 @@ abstract contract ParentPoolBase is LancaTest {
             _mintLpToken(users[i], initialLpBalancePerUser);
             lpToken.approve(address(s_parentPool), type(uint256).max);
         }
+    }
+
+    function _setLibs() internal {
+        _setRelayerLib(CHILD_POOL_CHAIN_SELECTOR, address(s_parentPool));
+        _setValidatorLibs(CHILD_POOL_CHAIN_SELECTOR, address(s_parentPool));
     }
 }

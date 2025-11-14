@@ -2,6 +2,9 @@
 /* solhint-disable func-name-mixedcase */
 pragma solidity 0.8.28;
 
+import {IConceroRouter} from "@concero/v2-contracts/contracts/interfaces/IConceroRouter.sol";
+import {MessageCodec} from "@concero/v2-contracts/contracts/common/libraries/MessageCodec.sol";
+
 import {ICommonErrors} from "contracts/common/interfaces/ICommonErrors.sol";
 import {ILancaKeeper} from "contracts/ParentPool/interfaces/ILancaKeeper.sol";
 import {IBase} from "contracts/Base/interfaces/IBase.sol";
@@ -14,6 +17,8 @@ import {
 } from "./ParentPoolBase.sol";
 
 contract ParentPoolTest is ParentPoolBase {
+    using MessageCodec for IConceroRouter.MessageRequest;
+
     function setUp() public override {
         super.setUp();
         vm.warp(NOW_TIMESTAMP);
@@ -516,14 +521,23 @@ contract ParentPoolTest is ParentPoolBase {
     /** -- Concero receive functions -- */
 
     function test_handleConceroReceiveUpdateTargetBalance_RevertsFunctionNotImplemented() public {
+        IConceroRouter.MessageRequest memory messageRequest = _buildMessageRequest(
+            abi.encode(IBase.ConceroMessageType.UPDATE_TARGET_BALANCE, abi.encode("0")),
+            PARENT_POOL_CHAIN_SELECTOR,
+            address(s_parentPool)
+        );
+
+        _setRelayerLib(CHILD_POOL_CHAIN_SELECTOR, address(s_parentPool));
+        _setValidatorLibs(CHILD_POOL_CHAIN_SELECTOR, address(s_parentPool));
+
         vm.expectRevert(ICommonErrors.FunctionNotImplemented.selector);
 
         vm.prank(conceroRouter);
         s_parentPool.conceroReceive(
-            bytes32(uint256(1)),
-            PARENT_POOL_CHAIN_SELECTOR,
-            abi.encode(address(0)),
-            abi.encode(IBase.ConceroMessageType.UPDATE_TARGET_BALANCE, abi.encode("0"))
+            messageRequest.toMessageReceiptBytes(CHILD_POOL_CHAIN_SELECTOR, address(0), NONCE),
+            validationChecks,
+            validatorLibs,
+            relayerLib
         );
     }
 }

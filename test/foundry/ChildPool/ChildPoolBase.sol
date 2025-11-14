@@ -1,11 +1,15 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.28;
 
+import {IConceroRouter} from "@concero/v2-contracts/contracts/interfaces/IConceroRouter.sol";
+import {MessageCodec} from "@concero/v2-contracts/contracts/common/libraries/MessageCodec.sol";
+
 import {LancaTest} from "../LancaTest.sol";
 import {DeployMockERC20, MockERC20} from "../scripts/deploy/DeployMockERC20.s.sol";
 import {DeployIOUToken} from "../scripts/deploy/DeployIOUToken.s.sol";
 import {DeployChildPool} from "../scripts/deploy/DeployChildPool.s.sol";
 
+import {IBase} from "../../../contracts/Base/interfaces/IBase.sol";
 import {ChildPool} from "../../../contracts/ChildPool/ChildPool.sol";
 import {IOUToken} from "../../../contracts/Rebalancer/IOUToken.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -33,14 +37,16 @@ abstract contract ChildPoolBase is LancaTest {
             )
         );
 
-        fundTestAddresses();
-        approveUSDCForAll();
+        _fundTestAddresses();
+        _approveUSDCForAll();
+        _setLibs();
+        _setDstPool();
 
         // For correct getYesterdayFlow calculation
         vm.warp(block.timestamp + 1 days);
     }
 
-    function fundTestAddresses() internal {
+    function _fundTestAddresses() internal {
         vm.deal(user, 100 ether);
         vm.deal(liquidityProvider, 100 ether);
         vm.deal(operator, 100 ether);
@@ -53,7 +59,7 @@ abstract contract ChildPoolBase is LancaTest {
         vm.stopPrank();
     }
 
-    function approveUSDCForAll() internal {
+    function _approveUSDCForAll() internal {
         vm.prank(user);
         IERC20(usdc).approve(address(childPool), type(uint256).max);
 
@@ -62,5 +68,15 @@ abstract contract ChildPoolBase is LancaTest {
 
         vm.prank(operator);
         IERC20(usdc).approve(address(childPool), type(uint256).max);
+    }
+
+    function _setLibs() internal {
+        _setRelayerLib(PARENT_POOL_CHAIN_SELECTOR, address(childPool));
+        _setValidatorLibs(PARENT_POOL_CHAIN_SELECTOR, address(childPool));
+    }
+
+    function _setDstPool() internal {
+        vm.prank(deployer);
+        childPool.setDstPool(PARENT_POOL_CHAIN_SELECTOR, mockParentPool);
     }
 }

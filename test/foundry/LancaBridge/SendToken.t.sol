@@ -4,7 +4,7 @@ pragma solidity 0.8.28;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-import {MockConceroRouter} from "contracts/MockConceroRouter/MockConceroRouter.sol";
+import {ConceroRouterMock} from "../mocks/ConceroRouterMock.sol";
 import {ILancaBridge} from "contracts/LancaBridge/interfaces/ILancaBridge.sol";
 import {IBase} from "contracts/Base/interfaces/IBase.sol";
 
@@ -33,18 +33,9 @@ contract SendToken is LancaBridgeBase {
             parentPool.getLancaFee(bridgeAmount) +
             parentPool.getRebalancerFee(bridgeAmount);
 
-        bytes memory messageData = abi.encode(user, user, bridgeAmount - totalLancaFee, 0, 0, "");
-
-        bytes32 messageId = _getMessageId(
-            CHILD_POOL_CHAIN_SELECTOR,
-            false,
-            address(0),
-            abi.encode(IBase.ConceroMessageType.BRIDGE, messageData)
-        );
-
-        vm.expectEmit(true, true, true, true);
+        vm.expectEmit(false, true, true, true);
         emit ILancaBridge.BridgeSent(
-            messageId,
+            DEFAULT_MESSAGE_ID,
             CHILD_POOL_CHAIN_SELECTOR,
             user,
             user,
@@ -85,7 +76,7 @@ contract SendToken is LancaBridgeBase {
     }
 
     function test_bridge_fromChildPoolToParentPool_Success() public {
-        uint256 messageFee = parentPool.getBridgeNativeFee(PARENT_POOL_CHAIN_SELECTOR, GAS_LIMIT);
+        uint256 messageFee = childPool.getBridgeNativeFee(PARENT_POOL_CHAIN_SELECTOR, GAS_LIMIT);
 
         uint256 bridgeAmount = 100e6;
 
@@ -102,18 +93,9 @@ contract SendToken is LancaBridgeBase {
             childPool.getLancaFee(bridgeAmount) +
             childPool.getRebalancerFee(bridgeAmount);
 
-        bytes memory messageData = abi.encode(user, user, bridgeAmount - totalLancaFee, 0, 0, "");
-
-        bytes32 messageId = _getMessageId(
-            PARENT_POOL_CHAIN_SELECTOR,
-            false,
-            address(0),
-            abi.encode(IBase.ConceroMessageType.BRIDGE, messageData)
-        );
-
-        vm.expectEmit(true, true, true, true);
+        vm.expectEmit(false, true, true, true);
         emit ILancaBridge.BridgeSent(
-            messageId,
+            DEFAULT_MESSAGE_ID,
             PARENT_POOL_CHAIN_SELECTOR,
             user,
             user,

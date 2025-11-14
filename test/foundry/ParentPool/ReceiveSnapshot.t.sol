@@ -2,6 +2,9 @@
 /* solhint-disable func-name-mixedcase */
 pragma solidity 0.8.28;
 
+import {IConceroRouter} from "@concero/v2-contracts/contracts/interfaces/IConceroRouter.sol";
+import {MessageCodec} from "@concero/v2-contracts/contracts/common/libraries/MessageCodec.sol";
+
 import {IBase} from "contracts/Base/interfaces/IBase.sol";
 import {ParentPool} from "contracts/ParentPool/ParentPool.sol";
 import {IParentPool} from "contracts/ParentPool/interfaces/IParentPool.sol";
@@ -10,6 +13,8 @@ import {ICommonErrors} from "contracts/common/interfaces/ICommonErrors.sol";
 import {ParentPoolBase} from "../ParentPool/ParentPoolBase.sol";
 
 contract ReceiveSnapshot is ParentPoolBase {
+    using MessageCodec for IConceroRouter.MessageRequest;
+
     function setUp() public override {
         super.setUp();
         vm.warp(NOW_TIMESTAMP);
@@ -40,22 +45,22 @@ contract ReceiveSnapshot is ParentPoolBase {
             totalLiqTokenReceived: 0
         });
 
-        bytes32 messageId = keccak256(
-            abi.encode(
-                block.number,
-                childPoolChainSelector_1,
-                false,
-                address(0),
-                abi.encode(IBase.ConceroMessageType.SEND_SNAPSHOT, snapshot)
-            )
+        IConceroRouter.MessageRequest memory messageRequest = _buildMessageRequest(
+            abi.encode(IBase.ConceroMessageType.SEND_SNAPSHOT, abi.encode(snapshot)),
+            PARENT_POOL_CHAIN_SELECTOR,
+            address(s_parentPool)
         );
 
         vm.prank(conceroRouter);
         s_parentPool.conceroReceive(
-            messageId,
-            childPoolChainSelector_1,
-            abi.encode(s_childPool_1),
-            abi.encode(IBase.ConceroMessageType.SEND_SNAPSHOT, abi.encode(snapshot))
+            messageRequest.toMessageReceiptBytes(
+                childPoolChainSelector_1,
+                address(s_childPool_1),
+                NONCE
+            ),
+            validationChecks,
+            validatorLibs,
+            relayerLib
         );
 
         IParentPool.ChildPoolSnapshot memory receivedSnapshot = s_parentPool
@@ -101,17 +106,13 @@ contract ReceiveSnapshot is ParentPoolBase {
             childPoolChainSelector_1
         );
 
-        bytes32 messageId = keccak256(
-            abi.encode(
-                block.number,
-                childPoolChainSelector_1,
-                false,
-                address(0),
-                abi.encode(IBase.ConceroMessageType.SEND_SNAPSHOT, snapshot)
-            )
-        );
-
         address invalidSender = address(0x123);
+
+        IConceroRouter.MessageRequest memory messageRequest = _buildMessageRequest(
+            abi.encode(IBase.ConceroMessageType.SEND_SNAPSHOT, abi.encode(snapshot)),
+            PARENT_POOL_CHAIN_SELECTOR,
+            address(s_parentPool)
+        );
 
         vm.expectRevert(
             abi.encodeWithSelector(
@@ -123,10 +124,10 @@ contract ReceiveSnapshot is ParentPoolBase {
 
         vm.prank(conceroRouter);
         s_parentPool.conceroReceive(
-            messageId,
-            childPoolChainSelector_1,
-            abi.encode(invalidSender),
-            abi.encode(IBase.ConceroMessageType.SEND_SNAPSHOT, abi.encode(snapshot))
+            messageRequest.toMessageReceiptBytes(childPoolChainSelector_1, invalidSender, NONCE),
+            validationChecks,
+            validatorLibs,
+            relayerLib
         );
     }
 

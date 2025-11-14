@@ -27,10 +27,6 @@ contract ChildPoolWrapper is ChildPool {
         )
     {}
 
-    function exposed_setDstPool(uint24 chainSelector, address dstPool) public {
-        s.base().dstPools[chainSelector] = dstPool;
-    }
-
     // Expose internal functions for testing
     function setTargetBalance(uint256 newTargetBalance) external {
         s.base().targetBalance = newTargetBalance;
