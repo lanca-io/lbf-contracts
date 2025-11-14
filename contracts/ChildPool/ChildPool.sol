@@ -1,10 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.28;
 
-import {
-    ConceroTypes,
-    IConceroRouter
-} from "@concero/v2-contracts/contracts/interfaces/IConceroRouter.sol";
+import {IConceroRouter} from "@concero/v2-contracts/contracts/interfaces/IConceroRouter.sol";
+import {MessageCodec} from "@concero/v2-contracts/contracts/common/libraries/MessageCodec.sol";
 
 import {Rebalancer} from "../Rebalancer/Rebalancer.sol";
 import {LancaBridge} from "../LancaBridge/LancaBridge.sol";
@@ -55,41 +53,61 @@ contract ChildPool is Rebalancer, LancaBridge {
             ICommonErrors.InvalidDstChainSelector(i_parentPoolChainSelector)
         );
 
-        ConceroTypes.EvmDstChainData memory dstChainData = ConceroTypes.EvmDstChainData({
-            gasLimit: SEND_SNAPSHOT_MESSAGE_GAS_LIMIT,
-            receiver: parentPool
-        });
-
-        uint256 messageFee = IConceroRouter(i_conceroRouter).getMessageFee(
-            i_parentPoolChainSelector,
-            false,
-            address(0),
-            dstChainData
-        );
-
         bytes memory messagePayload = abi.encode(
             ConceroMessageType.SEND_SNAPSHOT,
             abi.encode(snapshot)
         );
 
-        IConceroRouter(i_conceroRouter).conceroSend{value: messageFee}(
-            i_parentPoolChainSelector,
-            false,
-            address(0),
-            dstChainData,
-            messagePayload
-        );
+        IConceroRouter.MessageRequest memory messageRequest = IConceroRouter.MessageRequest({
+            dstChainSelector: i_parentPoolChainSelector,
+            srcBlockConfirmations: 0,
+            feeToken: address(0),
+            dstChainData: MessageCodec.encodeEvmDstChainData(
+                parentPool,
+                SEND_SNAPSHOT_MESSAGE_GAS_LIMIT
+            ),
+            validatorLibs: s_base.validatorLibs[i_parentPoolChainSelector],
+            relayerLib: s_base.relayerLibs[i_parentPoolChainSelector],
+            validatorConfigs: new bytes[](1), // TODO: or validatorLibs.length?
+            relayerConfig: new bytes(0),
+            payload: messagePayload
+        });
+
+        uint256 messageFee = IConceroRouter(i_conceroRouter).getMessageFee(messageRequest);
+
+        IConceroRouter(i_conceroRouter).conceroSend{value: messageFee}(messageRequest);
     }
 
     function getSnapshotMessageFee() external view returns (uint256) {
+        pbs.Base storage s_base = pbs.base();
+        rs.Rebalancer storage s_rebalancer = rs.rebalancer();
+
+        IParentPool.ChildPoolSnapshot memory snapshot = IParentPool.ChildPoolSnapshot({
+            balance: getActiveBalance(),
+            dailyFlow: getYesterdayFlow(),
+            iouTotalSent: s_rebalancer.totalIouSent,
+            iouTotalReceived: s_rebalancer.totalIouReceived,
+            iouTotalSupply: i_iouToken.totalSupply(),
+            timestamp: uint32(block.timestamp),
+            totalLiqTokenReceived: s_base.totalLiqTokenSent,
+            totalLiqTokenSent: s_base.totalLiqTokenReceived
+        });
+
         return
             IConceroRouter(i_conceroRouter).getMessageFee(
-                i_parentPoolChainSelector,
-                false,
-                address(0),
-                ConceroTypes.EvmDstChainData({
-                    receiver: pbs.base().dstPools[i_parentPoolChainSelector],
-                    gasLimit: SEND_SNAPSHOT_MESSAGE_GAS_LIMIT
+                IConceroRouter.MessageRequest({
+                    dstChainSelector: i_parentPoolChainSelector,
+                    srcBlockConfirmations: 0,
+                    feeToken: address(0),
+                    dstChainData: MessageCodec.encodeEvmDstChainData(
+                        s_base.dstPools[i_parentPoolChainSelector],
+                        SEND_SNAPSHOT_MESSAGE_GAS_LIMIT
+                    ),
+                    validatorLibs: s_base.validatorLibs[i_parentPoolChainSelector],
+                    relayerLib: s_base.relayerLibs[i_parentPoolChainSelector],
+                    validatorConfigs: new bytes[](1), // TODO: or validatorLibs.length?
+                    relayerConfig: new bytes(0),
+                    payload: abi.encode(ConceroMessageType.SEND_SNAPSHOT, abi.encode(snapshot))
                 })
             );
     }

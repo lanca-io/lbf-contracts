@@ -3,6 +3,7 @@ pragma solidity ^0.8.28;
 
 import {ICommonErrors} from "../common/interfaces/ICommonErrors.sol";
 import {ConceroClient} from "@concero/v2-contracts/contracts/ConceroClient/ConceroClient.sol";
+import {MessageCodec} from "@concero/v2-contracts/contracts/common/libraries/MessageCodec.sol";
 import {ConceroOwnable} from "../common/ConceroOwnable.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IOUToken} from "../Rebalancer/IOUToken.sol";
@@ -14,6 +15,7 @@ import {Storage as s} from "./libraries/Storage.sol";
 abstract contract Base is IBase, ConceroClient, ConceroOwnable {
     using s for s.Base;
     using s for rs.Rebalancer;
+    using MessageCodec for bytes;
 
     uint32 private constant SECONDS_IN_DAY = 86400;
 
@@ -72,13 +74,6 @@ abstract contract Base is IBase, ConceroClient, ConceroOwnable {
         surplus = getSurplus();
     }
 
-    function setDstPool(uint24 chainSelector, address dstPool) public virtual onlyOwner {
-        require(chainSelector != i_chainSelector, ICommonErrors.InvalidChainSelector());
-        require(dstPool != address(0), ICommonErrors.AddressShouldNotBeZero());
-
-        s.base().dstPools[chainSelector] = dstPool;
-    }
-
     function getDstPool(uint24 chainSelector) public view returns (address) {
         return s.base().dstPools[chainSelector];
     }
@@ -118,27 +113,66 @@ abstract contract Base is IBase, ConceroClient, ConceroOwnable {
 
     /*   ADMIN FUNCTIONS   */
 
+    function setDstPool(uint24 chainSelector, address dstPool) public virtual onlyOwner {
+        require(chainSelector != i_chainSelector, ICommonErrors.InvalidChainSelector());
+        require(dstPool != address(0), ICommonErrors.AddressShouldNotBeZero());
+
+        s.base().dstPools[chainSelector] = dstPool;
+    }
+
     function setLancaKeeper(address lancaKeeper) external onlyOwner {
         s.base().lancaKeeper = lancaKeeper;
     }
 
-    /*   INTERNAL FUNCTIONS   */
-
-    function _conceroReceive(
-        bytes32 messageId,
-        uint24 sourceChainSelector,
-        bytes calldata sender,
-        bytes calldata message
-    ) internal override {
+    function setRelayerLib(
+        uint24 dstChainSelector,
+        address relayerLib,
+        bytes calldata relayerConfig,
+        bool isAllowed
+    ) external onlyOwner {
         s.Base storage s_base = s.base();
 
+        s_base.relayerLibs[dstChainSelector] = relayerLib;
+        _setIsRelayerAllowed(relayerLib, isAllowed);
+    }
+
+    function setValidatorLibs(
+        uint24[] calldata dstChainSelectors,
+        ValidatorLibs[] memory validatorLibs
+    ) external onlyOwner {
+        require(dstChainSelectors.length == validatorLibs.length, ICommonErrors.LengthMismatch());
+
+        s.Base storage s_base = s.base();
+
+        for (uint256 i = 0; i < dstChainSelectors.length; i++) {
+            s_base.validatorLibs[dstChainSelectors[i]] = validatorLibs[i].validatorLibs;
+
+            _setRequiredValidatorsCount(validatorLibs[i].requiredValidatorsCount);
+
+            for (uint256 j = 0; j < validatorLibs[i].validatorLibs.length; j++) {
+                _setIsValidatorAllowed(
+                    validatorLibs[i].validatorLibs[j],
+                    validatorLibs[i].isAllowed[j]
+                );
+            }
+        }
+    }
+
+    /*   INTERNAL FUNCTIONS   */
+
+    function _conceroReceive(bytes calldata messageReceipt) internal override {
+        s.Base storage s_base = s.base();
+
+        (address sender, ) = messageReceipt.evmSrcChainData();
+        uint24 sourceChainSelector = messageReceipt.srcChainSelector();
+
         require(
-            s_base.dstPools[sourceChainSelector] == abi.decode(sender, (address)),
-            ICommonErrors.UnauthorizedSender(
-                abi.decode(sender, (address)),
-                s_base.dstPools[sourceChainSelector]
-            )
+            s_base.dstPools[sourceChainSelector] == sender,
+            ICommonErrors.UnauthorizedSender(sender, s_base.dstPools[sourceChainSelector])
         );
+
+        bytes memory message = messageReceipt.payload();
+        bytes32 messageId = keccak256(messageReceipt);
 
         (ConceroMessageType messageType, bytes memory messageData) = abi.decode(
             message,

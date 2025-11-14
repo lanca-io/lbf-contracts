@@ -2,7 +2,6 @@
 pragma solidity 0.8.28;
 
 import {IConceroRouter} from "@concero/v2-contracts/contracts/interfaces/IConceroRouter.sol";
-import {ConceroTypes} from "@concero/v2-contracts/contracts/ConceroClient/ConceroTypes.sol";
 
 import {ConceroClient} from "@concero/v2-contracts/contracts/ConceroClient/ConceroClient.sol";
 
@@ -12,34 +11,23 @@ contract ConceroRouterMockWithCall is IConceroRouter {
     error InvalidFeeValue();
 
     function conceroSend(
-        uint24 dstChainSelector,
-        bool shouldFinaliseSrc,
-        address feeToken,
-        ConceroTypes.EvmDstChainData memory dstChainData,
-        bytes memory message
-    ) external payable returns (bytes32) {
+        MessageRequest calldata messageRequest
+    ) external payable returns (bytes32 messageId) {
         require(msg.value == _getFee(), InvalidFeeValue());
 
-        bytes32 messageId = keccak256(
-            abi.encode(block.number, dstChainSelector, shouldFinaliseSrc, feeToken, message)
-        );
+        messageId = keccak256(abi.encode(messageRequest));
 
-        ConceroClient(dstChainData.receiver).conceroReceive(
-            messageId,
-            PARENT_POOL_CHAIN_SELECTOR,
-            abi.encode(msg.sender),
-            message
-        );
+        // ConceroClient(dstChainData.receiver).conceroReceive(
+        //     messageId,
+        //     PARENT_POOL_CHAIN_SELECTOR,
+        //     abi.encode(msg.sender),
+        //     message
+        // );
 
         return messageId;
     }
 
-    function getMessageFee(
-        uint24,
-        bool,
-        address,
-        ConceroTypes.EvmDstChainData memory
-    ) external pure returns (uint256) {
+    function getMessageFee(MessageRequest calldata messageRequest) external view returns (uint256) {
         return _getFee();
     }
 

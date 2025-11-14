@@ -14,5 +14,11 @@ interface IBase {
         uint256 outflow;
     }
 
+    struct ValidatorLibs {
+        address[] validatorLibs;
+        bool[] isAllowed;
+        uint256 requiredValidatorsCount;
+    }
+
     error InvalidConceroMessageType();
 }

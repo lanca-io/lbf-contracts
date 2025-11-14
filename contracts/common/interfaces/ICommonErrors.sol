@@ -12,4 +12,5 @@ interface ICommonErrors {
     error DepositAmountIsTooLow(uint256 depositAmount, uint64 minDepositAmount);
     error FunctionNotImplemented();
     error MinDepositAmountNotSet();
+    error LengthMismatch();
 }

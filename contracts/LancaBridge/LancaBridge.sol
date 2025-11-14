@@ -5,10 +5,8 @@ import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol
 import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
-import {
-    ConceroTypes,
-    IConceroRouter
-} from "@concero/v2-contracts/contracts/interfaces/IConceroRouter.sol";
+import {IConceroRouter} from "@concero/v2-contracts/contracts/interfaces/IConceroRouter.sol";
+import {MessageCodec} from "@concero/v2-contracts/contracts/common/libraries/MessageCodec.sol";
 
 import {ILancaBridge} from "./interfaces/ILancaBridge.sol";
 import {Base, IERC20} from "../Base/Base.sol";
@@ -82,6 +80,8 @@ abstract contract LancaBridge is ILancaBridge, Base, ReentrancyGuard {
             InvalidDstGasLimitOrCallData()
         );
 
+        s.Base storage s_base = s.base();
+
         bytes memory messageData = abi.encode(
             msg.sender,
             tokenReceiver,
@@ -91,16 +91,22 @@ abstract contract LancaBridge is ILancaBridge, Base, ReentrancyGuard {
             dstCallData
         );
 
-        messageId = IConceroRouter(i_conceroRouter).conceroSend{value: msg.value}(
-            dstChainSelector,
-            false,
-            address(0),
-            ConceroTypes.EvmDstChainData({
-                receiver: dstPool,
-                gasLimit: BRIDGE_GAS_OVERHEAD + dstGasLimit
-            }),
-            abi.encode(ConceroMessageType.BRIDGE, messageData)
-        );
+        IConceroRouter.MessageRequest memory messageRequest = IConceroRouter.MessageRequest({
+            dstChainSelector: dstChainSelector,
+            srcBlockConfirmations: 0,
+            feeToken: address(0),
+            dstChainData: MessageCodec.encodeEvmDstChainData(
+                dstPool,
+                uint32(BRIDGE_GAS_OVERHEAD + dstGasLimit)
+            ),
+            validatorLibs: s_base.validatorLibs[dstChainSelector],
+            relayerLib: s_base.relayerLibs[dstChainSelector],
+            validatorConfigs: new bytes[](1), // TODO: or validatorLibs.length?
+            relayerConfig: new bytes(0),
+            payload: abi.encode(ConceroMessageType.BRIDGE, messageData)
+        });
+
+        messageId = IConceroRouter(i_conceroRouter).conceroSend{value: msg.value}(messageRequest);
     }
 
     function _handleConceroReceiveBridgeLiquidity(
@@ -182,14 +188,26 @@ abstract contract LancaBridge is ILancaBridge, Base, ReentrancyGuard {
         uint24 dstChainSelector,
         uint256 dstGasLimit
     ) external view returns (uint256) {
+        s.Base storage s_base = s.base();
+        address dstPool = s_base.dstPools[dstChainSelector];
+
+        bytes memory messageData = abi.encode(msg.sender, msg.sender, 1e18, dstGasLimit, 1, "");
+
         return
             IConceroRouter(i_conceroRouter).getMessageFee(
-                dstChainSelector,
-                false, // shouldFinaliseSrc
-                address(0), // feeToken (native)
-                ConceroTypes.EvmDstChainData({
-                    receiver: s.base().dstPools[dstChainSelector],
-                    gasLimit: BRIDGE_GAS_OVERHEAD + dstGasLimit
+                IConceroRouter.MessageRequest({
+                    dstChainSelector: dstChainSelector,
+                    srcBlockConfirmations: 0,
+                    feeToken: address(0),
+                    dstChainData: MessageCodec.encodeEvmDstChainData(
+                        dstPool,
+                        uint32(BRIDGE_GAS_OVERHEAD + dstGasLimit)
+                    ),
+                    validatorLibs: s_base.validatorLibs[dstChainSelector],
+                    relayerLib: s_base.relayerLibs[dstChainSelector],
+                    validatorConfigs: new bytes[](1), // TODO: or validatorLibs.length?
+                    relayerConfig: new bytes(0),
+                    payload: abi.encode(ConceroMessageType.BRIDGE, messageData)
                 })
             );
     }

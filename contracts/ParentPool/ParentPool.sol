@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.28;
 
-import {ConceroTypes} from "@concero/v2-contracts/contracts/ConceroClient/ConceroTypes.sol";
 import {ICommonErrors} from "../common/interfaces/ICommonErrors.sol";
 import {IConceroRouter} from "@concero/v2-contracts/contracts/interfaces/IConceroRouter.sol";
+import {MessageCodec} from "@concero/v2-contracts/contracts/common/libraries/MessageCodec.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {ILancaKeeper} from "./interfaces/ILancaKeeper.sol";
 import {IParentPool} from "./interfaces/IParentPool.sol";
@@ -596,37 +596,37 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
         uint256 newTargetBalance
     ) internal {
         s.ParentPool storage s_parentPool = s.parentPool();
+        pbs.Base storage s_base = pbs.base();
 
         if (s_parentPool.childPoolTargetBalances[dstChainSelector] == newTargetBalance) return;
         s_parentPool.childPoolTargetBalances[dstChainSelector] = newTargetBalance;
 
-        address childPool = pbs.base().dstPools[dstChainSelector];
+        address childPool = s_base.dstPools[dstChainSelector];
         require(childPool != address(0), ICommonErrors.InvalidDstChainSelector(dstChainSelector));
-
-        ConceroTypes.EvmDstChainData memory dstChainData = ConceroTypes.EvmDstChainData({
-            gasLimit: UPDATE_TARGET_BALANCE_MESSAGE_GAS_LIMIT,
-            receiver: childPool
-        });
-
-        uint256 messageFee = IConceroRouter(i_conceroRouter).getMessageFee(
-            dstChainSelector,
-            false,
-            address(0),
-            dstChainData
-        );
 
         bytes memory messagePayload = abi.encode(
             ConceroMessageType.UPDATE_TARGET_BALANCE,
             abi.encode(newTargetBalance)
         );
 
-        IConceroRouter(i_conceroRouter).conceroSend{value: messageFee}(
-            dstChainSelector,
-            false,
-            address(0),
-            dstChainData,
-            messagePayload
-        );
+        IConceroRouter.MessageRequest memory messageRequest = IConceroRouter.MessageRequest({
+            dstChainSelector: dstChainSelector,
+            srcBlockConfirmations: 0,
+            feeToken: address(0),
+            dstChainData: MessageCodec.encodeEvmDstChainData(
+                childPool,
+                UPDATE_TARGET_BALANCE_MESSAGE_GAS_LIMIT
+            ),
+            validatorLibs: s_base.validatorLibs[dstChainSelector],
+            relayerLib: s_base.relayerLibs[dstChainSelector],
+            validatorConfigs: new bytes[](1), // TODO: or validatorLibs.length?
+            relayerConfig: new bytes(0),
+            payload: messagePayload
+        });
+
+        uint256 messageFee = IConceroRouter(i_conceroRouter).getMessageFee(messageRequest);
+
+        IConceroRouter(i_conceroRouter).conceroSend{value: messageFee}(messageRequest);
     }
 
     function _postInflowRebalance(uint256 inflowLiqTokenAmount) internal override {

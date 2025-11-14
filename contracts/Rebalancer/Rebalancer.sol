@@ -5,8 +5,8 @@ import {IRebalancer} from "./interfaces/IRebalancer.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Base} from "../Base/Base.sol";
-import {ConceroTypes} from "@concero/v2-contracts/contracts/ConceroClient/ConceroTypes.sol";
 import {IConceroRouter} from "@concero/v2-contracts/contracts/interfaces/IConceroRouter.sol";
+import {MessageCodec} from "@concero/v2-contracts/contracts/common/libraries/MessageCodec.sol";
 import {ICommonErrors} from "../common/interfaces/ICommonErrors.sol";
 import {Storage as s} from "./libraries/Storage.sol";
 import {Storage as bs} from "../Base/libraries/Storage.sol";
@@ -20,7 +20,7 @@ abstract contract Rebalancer is IRebalancer, Base {
     using bs for bs.Base;
     using SafeERC20 for IERC20;
 
-    uint256 private constant DEFAULT_GAS_LIMIT = 300_000;
+    uint32 private constant DEFAULT_GAS_LIMIT = 300_000;
 
     function fillDeficit(uint256 liquidityAmountToFill) external {
         require(liquidityAmountToFill > 0, ICommonErrors.AmountIsZero());
@@ -69,9 +69,10 @@ abstract contract Rebalancer is IRebalancer, Base {
         require(iouTokenAmount > 0, ICommonErrors.AmountIsZero());
 
         s.Rebalancer storage s_rebalancer = s.rebalancer();
+        bs.Base storage s_base = bs.base();
 
         // Validate destination pool exists
-        address destinationPoolAddress = bs.base().dstPools[destinationChainSelector];
+        address destinationPoolAddress = s_base.dstPools[destinationChainSelector];
         require(destinationPoolAddress != address(0), InvalidDestinationChain());
 
         // Burn IOU tokens from sender first (fail early if insufficient balance)
@@ -81,20 +82,23 @@ abstract contract Rebalancer is IRebalancer, Base {
         bytes memory messageData = abi.encode(iouTokenAmount, msg.sender);
         bytes memory crossChainMessage = abi.encode(ConceroMessageType.BRIDGE_IOU, messageData);
 
-        // Prepare destination chain data
-        ConceroTypes.EvmDstChainData memory destinationChainData = ConceroTypes.EvmDstChainData({
-            receiver: destinationPoolAddress,
-            gasLimit: DEFAULT_GAS_LIMIT
+        IConceroRouter.MessageRequest memory messageRequest = IConceroRouter.MessageRequest({
+            dstChainSelector: destinationChainSelector,
+            srcBlockConfirmations: type(uint64).max,
+            feeToken: address(0),
+            dstChainData: MessageCodec.encodeEvmDstChainData(
+                destinationPoolAddress,
+                DEFAULT_GAS_LIMIT
+            ),
+            validatorLibs: s_base.validatorLibs[destinationChainSelector],
+            relayerLib: s_base.relayerLibs[destinationChainSelector],
+            validatorConfigs: new bytes[](1), // TODO: or validatorLibs.length?
+            relayerConfig: new bytes(0),
+            payload: crossChainMessage
         });
 
-        // Call conceroSend on router
-        messageId = IConceroRouter(i_conceroRouter).conceroSend{value: msg.value}(
-            destinationChainSelector,
-            false, // shouldFinaliseSrc
-            address(0), // feeToken (native)
-            destinationChainData,
-            crossChainMessage
-        );
+        uint256 messageFee = IConceroRouter(i_conceroRouter).getMessageFee(messageRequest);
+        messageId = IConceroRouter(i_conceroRouter).conceroSend{value: messageFee}(messageRequest);
 
         s_rebalancer.totalIouSent += iouTokenAmount;
 
@@ -111,12 +115,25 @@ abstract contract Rebalancer is IRebalancer, Base {
     function getBridgeIouNativeFee(
         uint24 destinationChainSelector
     ) external view returns (uint256) {
+        bs.Base storage s_base = bs.base();
+        address destinationPoolAddress = bs.base().dstPools[destinationChainSelector];
+
         return
             IConceroRouter(i_conceroRouter).getMessageFee(
-                destinationChainSelector,
-                false,
-                address(0),
-                ConceroTypes.EvmDstChainData({receiver: address(0), gasLimit: DEFAULT_GAS_LIMIT})
+                IConceroRouter.MessageRequest({
+                    dstChainSelector: destinationChainSelector,
+                    srcBlockConfirmations: type(uint64).max,
+                    feeToken: address(0),
+                    dstChainData: MessageCodec.encodeEvmDstChainData(
+                        destinationPoolAddress,
+                        DEFAULT_GAS_LIMIT
+                    ),
+                    validatorLibs: s_base.validatorLibs[destinationChainSelector],
+                    relayerLib: s_base.relayerLibs[destinationChainSelector],
+                    validatorConfigs: new bytes[](1), // TODO: or validatorLibs.length?
+                    relayerConfig: new bytes(0),
+                    payload: abi.encode(ConceroMessageType.BRIDGE_IOU, abi.encode(1e18, msg.sender))
+                })
             );
     }
 
