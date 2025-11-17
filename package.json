@@ -8,6 +8,7 @@
     "engines": {
         "node": "22.15.0"
     },
+    "packageManager": "yarn@1.21",
     "scripts": {
         "chain": "hardhat node --network hardhat --no-deploy",
         "fork": "ETHEREUM_FORKING_ENABLED=true hardhat node --network hardhat --no-deploy",
@@ -30,8 +31,7 @@
         "check-updates": "npx npm-check-updates",
         "prepare": "husky",
         "operator-setup": "bun test/operator/testOperator.ts",
-        "rebuild": "yarn clean && yarn compile",
-        "preinstall": "sh validatePackageManager.sh yarn"
+        "rebuild": "yarn clean && yarn compile"
     },
     "devDependencies": {
         "@chainlink/solhint-plugin-chainlink-solidity": "1.0.1",
