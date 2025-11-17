@@ -32,8 +32,9 @@ abstract contract LancaBridge is ILancaBridge, Base, ReentrancyGuard {
         bytes calldata dstCallData
     ) external payable nonReentrant returns (bytes32 messageId) {
         bs.Bridge storage s_bridge = bs.bridge();
+        s.Base storage s_base = s.base();
 
-        address dstPool = s.base().dstPools[dstChainSelector];
+        address dstPool = s_base.dstPools[dstChainSelector];
         require(dstPool != address(0), InvalidDstChainSelector());
 
         IERC20(i_liquidityToken).safeTransferFrom(msg.sender, address(this), tokenAmount);
@@ -47,11 +48,12 @@ abstract contract LancaBridge is ILancaBridge, Base, ReentrancyGuard {
             dstGasLimit,
             s_bridge.sentNonces[dstChainSelector]++,
             dstCallData,
-            dstPool
+            dstPool,
+            s_base
         );
 
         s_bridge.totalSent += amountAfterFee;
-        s.base().flowByDay[getTodayStartTimestamp()].inflow += amountAfterFee;
+        s_base.flowByDay[getTodayStartTimestamp()].inflow += amountAfterFee;
 
         emit BridgeSent(
             messageId,
@@ -72,15 +74,14 @@ abstract contract LancaBridge is ILancaBridge, Base, ReentrancyGuard {
         uint256 dstGasLimit,
         uint256 nonce,
         bytes calldata dstCallData,
-        address dstPool
+        address dstPool,
+        s.Base storage s_base
     ) internal returns (bytes32 messageId) {
         require(
             (dstGasLimit == 0 && dstCallData.length == 0) ||
                 (dstGasLimit > 0 && dstCallData.length > 0),
             InvalidDstGasLimitOrCallData()
         );
-
-        s.Base storage s_base = s.base();
 
         bytes memory messageData = abi.encode(
             msg.sender,
