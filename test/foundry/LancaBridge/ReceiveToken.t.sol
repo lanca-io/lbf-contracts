@@ -24,6 +24,68 @@ contract ReceiveToken is LancaBridgeBase {
         deal(address(usdc), address(childPool), 1000e6);
     }
 
+    function test_ReceiveTokenToParentPool_gas() public {
+        vm.pauseGasMetering();
+
+        uint256 bridgeAmount = 100e6;
+        address dstUser = makeAddr("dstUser");
+
+        bytes memory message = abi.encode(
+            IBase.ConceroMessageType.BRIDGE,
+            abi.encode(user, dstUser, bridgeAmount, 0, 0, "")
+        );
+
+        IConceroRouter.MessageRequest memory messageRequest = _buildMessageRequest(
+            message,
+            PARENT_POOL_CHAIN_SELECTOR,
+            address(parentPool)
+        );
+
+        vm.prank(conceroRouter);
+        vm.resumeGasMetering();
+        parentPool.conceroReceive(
+            messageRequest.toMessageReceiptBytes(
+                CHILD_POOL_CHAIN_SELECTOR,
+                address(childPool),
+                NONCE
+            ),
+            validationChecks,
+            validatorLibs,
+            relayerLib
+        );
+    }
+
+    function test_ReceiveTokenToChildPool_gas() public {
+        vm.pauseGasMetering();
+
+        uint256 bridgeAmount = 100e6;
+        address dstUser = makeAddr("dstUser");
+
+        bytes memory message = abi.encode(
+            IBase.ConceroMessageType.BRIDGE,
+            abi.encode(user, dstUser, bridgeAmount, 0, 0, "")
+        );
+
+        IConceroRouter.MessageRequest memory messageRequest = _buildMessageRequest(
+            message,
+            CHILD_POOL_CHAIN_SELECTOR,
+            address(childPool)
+        );
+
+        vm.prank(conceroRouter);
+        vm.resumeGasMetering();
+        childPool.conceroReceive(
+            messageRequest.toMessageReceiptBytes(
+                PARENT_POOL_CHAIN_SELECTOR,
+                address(parentPool),
+                NONCE
+            ),
+            validationChecks,
+            validatorLibs,
+            relayerLib
+        );
+    }
+
     function test_ReceiveTokenToParentPool_Success() public {
         uint256 bridgeAmount = 100e6;
         address dstUser = makeAddr("dstUser");

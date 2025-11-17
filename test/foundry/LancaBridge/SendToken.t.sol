@@ -15,6 +15,40 @@ contract SendToken is LancaBridgeBase {
         super.setUp();
     }
 
+    function test_bridge_fromParentToChildPool_gas() public {
+        vm.pauseGasMetering();
+
+        uint256 messageFee = parentPool.getBridgeNativeFee(CHILD_POOL_CHAIN_SELECTOR, GAS_LIMIT);
+        uint256 bridgeAmount = 100e6;
+
+        vm.prank(user);
+        vm.resumeGasMetering();
+        parentPool.bridge{value: messageFee}(
+            user,
+            bridgeAmount,
+            CHILD_POOL_CHAIN_SELECTOR,
+            0, // dstGasLimit for contract call
+            "" // dstCallData for contract call
+        );
+    }
+
+    function test_bridge_fromChildPoolToParentPool_gas() public {
+        vm.pauseGasMetering();
+
+        uint256 messageFee = childPool.getBridgeNativeFee(PARENT_POOL_CHAIN_SELECTOR, GAS_LIMIT);
+        uint256 bridgeAmount = 100e6;
+
+        vm.prank(user);
+        vm.resumeGasMetering();
+        childPool.bridge{value: messageFee}(
+            user,
+            bridgeAmount,
+            PARENT_POOL_CHAIN_SELECTOR,
+            0, // dstGasLimit for contract call
+            "" // dstCallData for contract call
+        );
+    }
+
     function test_bridge_fromParentToChildPool_Success() public {
         uint256 messageFee = parentPool.getBridgeNativeFee(CHILD_POOL_CHAIN_SELECTOR, GAS_LIMIT);
 

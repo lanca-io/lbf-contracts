@@ -53,5 +53,7 @@ coverage:
 	open ./coverage_report/index.html
 	rm -rf lcov.info
 
+gas_snapshot:
+	forge snapshot --mt "_gas"
 
 .PHONY: all test
