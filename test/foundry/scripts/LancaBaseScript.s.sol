@@ -7,6 +7,7 @@ import {IOUToken} from "../../../contracts/Rebalancer/IOUToken.sol";
 import {ConceroRouterMock} from "../mocks/ConceroRouterMock.sol";
 import {DeployMockConceroRouter} from "../scripts/deploy/DeployMockConceroRouter.s.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {LPToken} from "../../../contracts/ParentPool/LPToken.sol";
 
 abstract contract LancaBaseScript is Test {
     address public immutable deployer;
