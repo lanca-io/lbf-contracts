@@ -21,8 +21,8 @@ contract LBFInvariants is InvariantTestBase {
             address(s_usdc),
             address(s_lpToken),
             address(s_iouToken),
-            user,
-            liquidityProvider,
+            s_user,
+            s_liquidityProvider,
             s_lancaKeeper,
             s_rebalancer
         );
@@ -68,11 +68,11 @@ contract LBFInvariants is InvariantTestBase {
     }
 
     function invariant_liquidityProviderFinalBalanceIsMoreThanInitialBalance() public {
-        uint256 lpBalance = s_lpToken.balanceOf(liquidityProvider);
+        uint256 lpBalance = s_lpToken.balanceOf(s_liquidityProvider);
         s_lbfHandler.setIsLastWithdrawal(true);
         s_lbfHandler.withdraw(lpBalance);
 
-        lpBalance = s_lpToken.balanceOf(liquidityProvider);
+        lpBalance = s_lpToken.balanceOf(s_liquidityProvider);
 
         assertEq(lpBalance, 0);
         assertGt(s_lbfHandler.s_totalWithdrawals(), s_lbfHandler.s_totalDeposits());

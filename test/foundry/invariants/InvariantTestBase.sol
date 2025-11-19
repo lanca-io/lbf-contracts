@@ -2,35 +2,24 @@
 /* solhint-disable func-name-mixedcase */
 pragma solidity 0.8.28;
 
-import {Test} from "forge-std/src/Test.sol";
-
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-
 import {ChildPool} from "contracts/ChildPool/ChildPool.sol";
 import {LPToken} from "contracts/ParentPool/LPToken.sol";
 import {IOUToken} from "contracts/Rebalancer/IOUToken.sol";
-import {MockERC20} from "contracts/MockERC20/MockERC20.sol";
+import {MockERC20} from "../mocks/MockERC20.sol";
 import {Base} from "contracts/Base/Base.sol";
-
 import {ParentPoolHarness} from "../harnesses/ParentPoolHarness.sol";
 import {ConceroRouterMockWithCall} from "../mocks/ConceroRouterMockWithCall.sol";
-import {DeployChildPool} from "../scripts/deploy/DeployChildPool.s.sol";
-import {DeployParentPool} from "../scripts/deploy/DeployParentPool.s.sol";
-import {DeployMockERC20} from "../scripts/deploy/DeployMockERC20.s.sol";
-import {DeployIOUToken} from "../scripts/deploy/DeployIOUToken.s.sol";
-import {DeployLPToken} from "../scripts/deploy/DeployLPToken.s.sol";
-
-import {LancaTest} from "../LancaTest.sol";
-
-import {console} from "forge-std/src/console.sol";
+import {LancaTest} from "../helpers/LancaTest.sol";
+import {BridgeCodec} from "contracts/common/libraries/BridgeCodec.sol";
 
 contract InvariantTestBase is LancaTest {
+    using BridgeCodec for address;
+
     ParentPoolHarness public s_parentPool;
     ChildPool public s_childPool_1;
     ChildPool public s_childPool_2;
     ConceroRouterMockWithCall public s_conceroRouterMockWithCall;
-    IERC20 public s_usdc;
-    IOUToken public s_iouToken;
     LPToken public s_lpToken;
 
     address public s_rebalancer = makeAddr("rebalancer");
@@ -61,14 +50,7 @@ contract InvariantTestBase is LancaTest {
     }
 
     function _deployTokens() internal {
-        DeployMockERC20 deployMockERC20 = new DeployMockERC20();
-        s_usdc = IERC20(deployMockERC20.deployERC20("USD Coin", "USDC", 6));
-
-        DeployIOUToken deployIOUToken = new DeployIOUToken();
-        s_iouToken = IOUToken(deployIOUToken.deployIOUToken(deployer, address(0)));
-
-        DeployLPToken deployLPToken = new DeployLPToken();
-        s_lpToken = LPToken(deployLPToken.deployLPToken(deployer, deployer));
+        s_lpToken = new LPToken(s_deployer, s_deployer);
 
         vm.label(address(s_usdc), "USDC");
         vm.label(address(s_iouToken), "IOUToken");
@@ -76,88 +58,78 @@ contract InvariantTestBase is LancaTest {
     }
 
     function _deployPools() internal {
-        DeployParentPool deployParentPool = new DeployParentPool();
-        s_parentPool = ParentPoolHarness(
-            payable(
-                deployParentPool.deployParentPool(
-                    address(s_usdc),
-                    6,
-                    address(s_lpToken),
-                    address(s_conceroRouterMockWithCall),
-                    PARENT_POOL_CHAIN_SELECTOR,
-                    address(s_iouToken),
-                    MIN_TARGET_BALANCE
-                )
-            )
+        vm.startPrank(s_deployer);
+        s_parentPool = new ParentPoolHarness(
+            address(s_usdc),
+            6,
+            address(s_lpToken),
+            address(s_conceroRouterMockWithCall),
+            PARENT_POOL_CHAIN_SELECTOR,
+            address(s_iouToken),
+            MIN_TARGET_BALANCE
         );
 
-        DeployChildPool deployChildPool_1 = new DeployChildPool();
-        s_childPool_1 = ChildPool(
-            payable(
-                deployChildPool_1.deployChildPool(
-                    address(s_usdc),
-                    6,
-                    CHILD_POOL_CHAIN_SELECTOR,
-                    address(s_iouToken),
-                    address(s_conceroRouterMockWithCall)
-                )
-            )
+        s_childPool_1 = new ChildPool(
+            address(s_conceroRouterMockWithCall),
+            address(s_iouToken),
+            address(s_usdc),
+            USDC_TOKEN_DECIMALS,
+            CHILD_POOL_CHAIN_SELECTOR,
+            PARENT_POOL_CHAIN_SELECTOR
         );
 
-        DeployChildPool deployChildPool_2 = new DeployChildPool();
-        s_childPool_2 = ChildPool(
-            payable(
-                deployChildPool_2.deployChildPool(
-                    address(s_usdc),
-                    6,
-                    CHILD_POOL_CHAIN_SELECTOR_2,
-                    address(s_iouToken),
-                    address(s_conceroRouterMockWithCall)
-                )
-            )
+        s_childPool_2 = new ChildPool(
+            address(s_conceroRouterMockWithCall),
+            address(s_iouToken),
+            address(s_usdc),
+            USDC_TOKEN_DECIMALS,
+            CHILD_POOL_CHAIN_SELECTOR_2,
+            PARENT_POOL_CHAIN_SELECTOR
         );
+
+        vm.stopPrank();
 
         vm.label(address(s_childPool_1), "childPool_1");
         vm.label(address(s_childPool_2), "childPool_2");
     }
 
     function _setDstPools() internal {
-        vm.startPrank(deployer);
-        s_parentPool.setDstPool(CHILD_POOL_CHAIN_SELECTOR, address(s_childPool_1));
-        s_parentPool.setDstPool(CHILD_POOL_CHAIN_SELECTOR_2, address(s_childPool_2));
+        vm.startPrank(s_deployer);
+        s_parentPool.setDstPool(CHILD_POOL_CHAIN_SELECTOR, address(s_childPool_1).toBytes32());
+        s_parentPool.setDstPool(CHILD_POOL_CHAIN_SELECTOR_2, address(s_childPool_2).toBytes32());
 
-        s_childPool_1.setDstPool(PARENT_POOL_CHAIN_SELECTOR, address(s_parentPool));
-        s_childPool_1.setDstPool(CHILD_POOL_CHAIN_SELECTOR_2, address(s_childPool_2));
+        s_childPool_1.setDstPool(PARENT_POOL_CHAIN_SELECTOR, address(s_parentPool).toBytes32());
+        s_childPool_1.setDstPool(CHILD_POOL_CHAIN_SELECTOR_2, address(s_childPool_2).toBytes32());
 
-        s_childPool_2.setDstPool(PARENT_POOL_CHAIN_SELECTOR, address(s_parentPool));
-        s_childPool_2.setDstPool(CHILD_POOL_CHAIN_SELECTOR, address(s_childPool_1));
+        s_childPool_2.setDstPool(PARENT_POOL_CHAIN_SELECTOR, address(s_parentPool).toBytes32());
+        s_childPool_2.setDstPool(CHILD_POOL_CHAIN_SELECTOR, address(s_childPool_1).toBytes32());
         vm.stopPrank();
     }
 
     function _fundTestAddresses() internal {
-        vm.deal(user, 100 ether);
-        vm.deal(liquidityProvider, 100 ether);
+        vm.deal(s_user, 100 ether);
+        vm.deal(s_liquidityProvider, 100 ether);
         vm.deal(s_rebalancer, 100 ether);
         vm.deal(s_lancaKeeper, 100 ether);
         vm.deal(address(s_parentPool), 100 ether);
         vm.deal(address(s_childPool_1), 100 ether);
         vm.deal(address(s_childPool_2), 100 ether);
 
-        vm.startPrank(deployer);
-        MockERC20(address(s_usdc)).mint(user, USER_INITIAL_BALANCE);
-        MockERC20(address(s_usdc)).mint(liquidityProvider, LIQUIDITY_PROVIDER_INITIAL_BALANCE);
+        vm.startPrank(s_deployer);
+        MockERC20(address(s_usdc)).mint(s_user, USER_INITIAL_BALANCE);
+        MockERC20(address(s_usdc)).mint(s_liquidityProvider, LIQUIDITY_PROVIDER_INITIAL_BALANCE);
         MockERC20(address(s_usdc)).mint(s_rebalancer, REBALANCER_INITIAL_BALANCE);
         vm.stopPrank();
     }
 
     function _approveTokensForAll() internal {
-        vm.startPrank(user);
+        vm.startPrank(s_user);
         IERC20(s_usdc).approve(address(s_childPool_1), type(uint256).max);
         IERC20(s_usdc).approve(address(s_childPool_2), type(uint256).max);
         IERC20(s_usdc).approve(address(s_parentPool), type(uint256).max);
         vm.stopPrank();
 
-        vm.startPrank(liquidityProvider);
+        vm.startPrank(s_liquidityProvider);
         IERC20(s_usdc).approve(address(s_parentPool), type(uint256).max);
         IERC20(s_lpToken).approve(address(s_parentPool), type(uint256).max);
         vm.stopPrank();
@@ -173,17 +145,17 @@ contract InvariantTestBase is LancaTest {
     }
 
     function _setLibs() internal {
-        _setRelayerLib(CHILD_POOL_CHAIN_SELECTOR, address(s_childPool_1));
-        _setRelayerLib(CHILD_POOL_CHAIN_SELECTOR_2, address(s_childPool_2));
-        _setRelayerLib(PARENT_POOL_CHAIN_SELECTOR, address(s_parentPool));
+        _setRelayerLib(address(s_childPool_1));
+        _setRelayerLib(address(s_childPool_2));
+        _setRelayerLib(address(s_parentPool));
 
-        _setValidatorLibs(CHILD_POOL_CHAIN_SELECTOR, address(s_childPool_1));
-        _setValidatorLibs(CHILD_POOL_CHAIN_SELECTOR_2, address(s_childPool_2));
-        _setValidatorLibs(PARENT_POOL_CHAIN_SELECTOR, address(s_parentPool));
+        _setValidatorLibs(address(s_childPool_1));
+        _setValidatorLibs(address(s_childPool_2));
+        _setValidatorLibs(address(s_parentPool));
     }
 
     function _setVars() internal {
-        vm.startPrank(deployer);
+        vm.startPrank(s_deployer);
         s_parentPool.setMinDepositAmount(MIN_DEPOSIT_AMOUNT);
         s_parentPool.setLancaKeeper(s_lancaKeeper);
         s_parentPool.setLurScoreSensitivity(uint64(5 * LIQ_TOKEN_SCALE_FACTOR));
@@ -209,11 +181,11 @@ contract InvariantTestBase is LancaTest {
         vm.warp(block.timestamp + 1 days * 365);
 
         require(
-            INITIAL_TVL < s_usdc.balanceOf(liquidityProvider),
+            INITIAL_TVL < s_usdc.balanceOf(s_liquidityProvider),
             "INITIAL_TVL is greater than liquidity provider balance"
         );
 
-        vm.prank(liquidityProvider);
+        vm.prank(s_liquidityProvider);
         s_parentPool.enterDepositQueue(INITIAL_TVL);
 
         vm.startPrank(s_lancaKeeper);

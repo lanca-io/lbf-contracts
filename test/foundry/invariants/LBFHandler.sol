@@ -3,14 +3,13 @@
 pragma solidity 0.8.28;
 
 import {Test} from "forge-std/src/Test.sol";
-
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-
 import {ChildPool} from "contracts/ChildPool/ChildPool.sol";
 import {ParentPoolHarness} from "../harnesses/ParentPoolHarness.sol";
 import {ConceroRouterMockWithCall} from "../mocks/ConceroRouterMockWithCall.sol";
 import {Base} from "contracts/Base/Base.sol";
 import {ILancaBridge} from "contracts/LancaBridge/interfaces/ILancaBridge.sol";
+import {MessageCodec} from "@concero/v2-contracts/contracts/common/libraries/MessageCodec.sol";
 
 contract LBFHandler is Test {
     ParentPoolHarness internal immutable i_parentPool;
@@ -35,7 +34,7 @@ contract LBFHandler is Test {
     uint256 public s_totalWithdrawals;
     bool public s_isLastWithdrawal;
 
-    address[] s_pools;
+    address[] internal s_pools;
     mapping(address => uint24 dstPoolChainSelector) internal s_dstPoolChainSelectors;
 
     constructor(
@@ -130,7 +129,7 @@ contract LBFHandler is Test {
             amount = userBalance;
         }
 
-        uint256 messageFee = i_parentPool.getBridgeNativeFee(CHILD_POOL_CHAIN_SELECTOR_1, 0);
+        //        uint256 messageFee = i_parentPool.getBridgeNativeFee(CHILD_POOL_CHAIN_SELECTOR_1, 0);
 
         vm.startPrank(i_user);
         if (srcPool == address(i_parentPool)) {
@@ -149,7 +148,9 @@ contract LBFHandler is Test {
     }
 
     function _bridge(address srcPool, address dstPool, uint256 amount) internal {
-        ILancaBridge(srcPool).bridge(i_user, amount, s_dstPoolChainSelectors[dstPool], 0, "");
+        bytes memory dstChainData = MessageCodec.encodeEvmDstChainData(i_user, 0);
+
+        ILancaBridge(srcPool).bridge(amount, s_dstPoolChainSelectors[dstPool], dstChainData, "");
     }
 
     function _rebalance() internal {
