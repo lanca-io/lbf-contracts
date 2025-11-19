@@ -2,10 +2,8 @@
 pragma solidity 0.8.28;
 
 import {Script} from "forge-std/src/Script.sol";
-
 import {IConceroRouter} from "@concero/v2-contracts/contracts/interfaces/IConceroRouter.sol";
 import {MessageCodec} from "@concero/v2-contracts/contracts/common/libraries/MessageCodec.sol";
-
 import {ConceroClient} from "@concero/v2-contracts/contracts/ConceroClient/ConceroClient.sol";
 
 contract ConceroRouterMockWithCall is IConceroRouter, Script {
@@ -58,6 +56,7 @@ contract ConceroRouterMockWithCall is IConceroRouter, Script {
         return 0.0001 ether;
     }
 
+    // TODO: mb remove it
     function readAddress(bytes memory data) internal pure returns (address) {
         address res;
         assembly {
@@ -65,4 +64,12 @@ contract ConceroRouterMockWithCall is IConceroRouter, Script {
         }
         return res;
     }
+
+    function retryMessageSubmission(
+        bytes calldata,
+        bool[] calldata,
+        address[] calldata,
+        address,
+        uint32
+    ) external {}
 }

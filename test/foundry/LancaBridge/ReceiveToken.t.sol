@@ -20,8 +20,8 @@ contract ReceiveToken is LancaBridgeBase {
     function setUp() public override {
         super.setUp();
 
-        deal(address(usdc), address(parentPool), 1000e6);
-        deal(address(usdc), address(childPool), 1000e6);
+        deal(address(s_usdc), address(s_parentPool), 1000e6);
+        deal(address(s_usdc), address(s_childPool), 1000e6);
     }
 
     function test_ReceiveTokenToParentPool_gas() public {
@@ -32,26 +32,26 @@ contract ReceiveToken is LancaBridgeBase {
 
         bytes memory message = abi.encode(
             IBase.ConceroMessageType.BRIDGE,
-            abi.encode(user, dstUser, bridgeAmount, 0, 0, "")
+            abi.encode(s_user, dstUser, bridgeAmount, 0, 0, "")
         );
 
         IConceroRouter.MessageRequest memory messageRequest = _buildMessageRequest(
             message,
             PARENT_POOL_CHAIN_SELECTOR,
-            address(parentPool)
+            address(s_parentPool)
         );
 
-        vm.prank(conceroRouter);
+        vm.prank(s_conceroRouter);
         vm.resumeGasMetering();
-        parentPool.conceroReceive(
+        s_parentPool.conceroReceive(
             messageRequest.toMessageReceiptBytes(
                 CHILD_POOL_CHAIN_SELECTOR,
-                address(childPool),
+                address(s_childPool),
                 NONCE
             ),
-            validationChecks,
-            validatorLibs,
-            relayerLib
+            s_validationChecks,
+            s_validatorLibs,
+            s_relayerLib
         );
     }
 
@@ -63,26 +63,26 @@ contract ReceiveToken is LancaBridgeBase {
 
         bytes memory message = abi.encode(
             IBase.ConceroMessageType.BRIDGE,
-            abi.encode(user, dstUser, bridgeAmount, 0, 0, "")
+            abi.encode(s_user, dstUser, bridgeAmount, 0, 0, "")
         );
 
         IConceroRouter.MessageRequest memory messageRequest = _buildMessageRequest(
             message,
             CHILD_POOL_CHAIN_SELECTOR,
-            address(childPool)
+            address(s_childPool)
         );
 
-        vm.prank(conceroRouter);
+        vm.prank(s_conceroRouter);
         vm.resumeGasMetering();
-        childPool.conceroReceive(
+        s_childPool.conceroReceive(
             messageRequest.toMessageReceiptBytes(
                 PARENT_POOL_CHAIN_SELECTOR,
-                address(parentPool),
+                address(s_parentPool),
                 NONCE
             ),
-            validationChecks,
-            validatorLibs,
-            relayerLib
+            s_validationChecks,
+            s_validatorLibs,
+            s_relayerLib
         );
     }
 
@@ -92,48 +92,48 @@ contract ReceiveToken is LancaBridgeBase {
 
         bytes memory message = abi.encode(
             IBase.ConceroMessageType.BRIDGE,
-            abi.encode(user, dstUser, bridgeAmount, 0, 0, "")
+            abi.encode(s_user, dstUser, bridgeAmount, 0, 0, "")
         );
 
-        uint256 parentPoolBalanceBefore = IERC20(usdc).balanceOf(address(parentPool));
-        uint256 dstUserBalanceBefore = IERC20(usdc).balanceOf(dstUser);
-        uint256 activeBalanceBefore = parentPool.getActiveBalance();
+        uint256 parentPoolBalanceBefore = IERC20(s_usdc).balanceOf(address(s_parentPool));
+        uint256 dstUserBalanceBefore = IERC20(s_usdc).balanceOf(dstUser);
+        uint256 activeBalanceBefore = s_parentPool.getActiveBalance();
         IBase.LiqTokenDailyFlow memory flowBefore = IBase.LiqTokenDailyFlow({
-            inflow: parentPool.getYesterdayFlow().inflow,
-            outflow: parentPool.getYesterdayFlow().outflow
+            inflow: s_parentPool.getYesterdayFlow().inflow,
+            outflow: s_parentPool.getYesterdayFlow().outflow
         });
 
         IConceroRouter.MessageRequest memory messageRequest = _buildMessageRequest(
             message,
             PARENT_POOL_CHAIN_SELECTOR,
-            address(parentPool)
+            address(s_parentPool)
         );
 
         vm.expectEmit(false, true, true, true);
         emit ILancaBridge.BridgeDelivered(DEFAULT_MESSAGE_ID, bridgeAmount);
 
-        vm.prank(conceroRouter);
-        parentPool.conceroReceive(
+        vm.prank(s_conceroRouter);
+        s_parentPool.conceroReceive(
             messageRequest.toMessageReceiptBytes(
                 CHILD_POOL_CHAIN_SELECTOR,
-                address(childPool),
+                address(s_childPool),
                 NONCE
             ),
-            validationChecks,
-            validatorLibs,
-            relayerLib
+            s_validationChecks,
+            s_validatorLibs,
+            s_relayerLib
         );
 
-        uint256 parentPoolBalanceAfter = IERC20(usdc).balanceOf(address(parentPool));
-        uint256 dstUserBalanceAfter = IERC20(usdc).balanceOf(dstUser);
-        uint256 activeBalanceAfter = parentPool.getActiveBalance();
+        uint256 parentPoolBalanceAfter = IERC20(s_usdc).balanceOf(address(s_parentPool));
+        uint256 dstUserBalanceAfter = IERC20(s_usdc).balanceOf(dstUser);
+        uint256 activeBalanceAfter = s_parentPool.getActiveBalance();
 
         assertEq(parentPoolBalanceAfter, parentPoolBalanceBefore - bridgeAmount);
         assertEq(dstUserBalanceAfter, dstUserBalanceBefore + bridgeAmount);
         assertEq(activeBalanceAfter, activeBalanceBefore - bridgeAmount);
 
         vm.warp(block.timestamp + 1 days);
-        assertEq(parentPool.getYesterdayFlow().outflow, flowBefore.outflow + bridgeAmount);
+        assertEq(s_parentPool.getYesterdayFlow().outflow, flowBefore.outflow + bridgeAmount);
     }
 
     function test_ReceiveTokenToChildPool_Success() public {
@@ -142,48 +142,48 @@ contract ReceiveToken is LancaBridgeBase {
 
         bytes memory message = abi.encode(
             IBase.ConceroMessageType.BRIDGE,
-            abi.encode(user, dstUser, bridgeAmount, 0, 0, "")
+            abi.encode(s_user, dstUser, bridgeAmount, 0, 0, "")
         );
 
-        uint256 childPoolBalanceBefore = IERC20(usdc).balanceOf(address(childPool));
-        uint256 dstUserBalanceBefore = IERC20(usdc).balanceOf(dstUser);
-        uint256 activeBalanceBefore = childPool.getActiveBalance();
+        uint256 childPoolBalanceBefore = IERC20(s_usdc).balanceOf(address(s_childPool));
+        uint256 dstUserBalanceBefore = IERC20(s_usdc).balanceOf(dstUser);
+        uint256 activeBalanceBefore = s_childPool.getActiveBalance();
         IBase.LiqTokenDailyFlow memory flowBefore = IBase.LiqTokenDailyFlow({
-            inflow: childPool.getYesterdayFlow().inflow,
-            outflow: childPool.getYesterdayFlow().outflow
+            inflow: s_childPool.getYesterdayFlow().inflow,
+            outflow: s_childPool.getYesterdayFlow().outflow
         });
 
         IConceroRouter.MessageRequest memory messageRequest = _buildMessageRequest(
             message,
             CHILD_POOL_CHAIN_SELECTOR,
-            address(childPool)
+            address(s_childPool)
         );
 
         vm.expectEmit(false, true, true, true);
         emit ILancaBridge.BridgeDelivered(DEFAULT_MESSAGE_ID, bridgeAmount);
 
-        vm.prank(conceroRouter);
-        childPool.conceroReceive(
+        vm.prank(s_conceroRouter);
+        s_childPool.conceroReceive(
             messageRequest.toMessageReceiptBytes(
                 PARENT_POOL_CHAIN_SELECTOR,
-                address(parentPool),
+                address(s_parentPool),
                 NONCE
             ),
-            validationChecks,
-            validatorLibs,
-            relayerLib
+            s_validationChecks,
+            s_validatorLibs,
+            s_relayerLib
         );
 
-        uint256 childPoolBalanceAfter = IERC20(usdc).balanceOf(address(childPool));
-        uint256 dstUserBalanceAfter = IERC20(usdc).balanceOf(dstUser);
-        uint256 activeBalanceAfter = childPool.getActiveBalance();
+        uint256 childPoolBalanceAfter = IERC20(s_usdc).balanceOf(address(s_childPool));
+        uint256 dstUserBalanceAfter = IERC20(s_usdc).balanceOf(dstUser);
+        uint256 activeBalanceAfter = s_childPool.getActiveBalance();
 
         assertEq(childPoolBalanceAfter, childPoolBalanceBefore - bridgeAmount);
         assertEq(dstUserBalanceAfter, dstUserBalanceBefore + bridgeAmount);
         assertEq(activeBalanceAfter, activeBalanceBefore - bridgeAmount);
 
         vm.warp(block.timestamp + 1 days);
-        assertEq(childPool.getYesterdayFlow().outflow, flowBefore.outflow + bridgeAmount);
+        assertEq(s_childPool.getYesterdayFlow().outflow, flowBefore.outflow + bridgeAmount);
     }
 
     function test_handleConceroReceiveBridgeLiquidity_RevertsInvalidAmount() public {
@@ -192,27 +192,27 @@ contract ReceiveToken is LancaBridgeBase {
 
         bytes memory message = abi.encode(
             IBase.ConceroMessageType.BRIDGE,
-            abi.encode(user, dstUser, bridgeAmount, 0, 0, "")
+            abi.encode(s_user, dstUser, bridgeAmount, 0, 0, "")
         );
 
         IConceroRouter.MessageRequest memory messageRequest = _buildMessageRequest(
             message,
             PARENT_POOL_CHAIN_SELECTOR,
-            address(parentPool)
+            address(s_parentPool)
         );
 
         vm.expectRevert(ICommonErrors.InvalidAmount.selector);
 
-        vm.prank(conceroRouter);
-        parentPool.conceroReceive(
+        vm.prank(s_conceroRouter);
+        s_parentPool.conceroReceive(
             messageRequest.toMessageReceiptBytes(
                 CHILD_POOL_CHAIN_SELECTOR,
-                address(childPool),
+                address(s_childPool),
                 NONCE
             ),
-            validationChecks,
-            validatorLibs,
-            relayerLib
+            s_validationChecks,
+            s_validatorLibs,
+            s_relayerLib
         );
     }
 
@@ -224,36 +224,36 @@ contract ReceiveToken is LancaBridgeBase {
 
         bytes memory firstMessage = abi.encode(
             IBase.ConceroMessageType.BRIDGE,
-            abi.encode(user, dstUser, originalAmount, 0, nonce, "")
+            abi.encode(s_user, dstUser, originalAmount, 0, nonce, "")
         );
 
         IConceroRouter.MessageRequest memory messageRequest = _buildMessageRequest(
             firstMessage,
             PARENT_POOL_CHAIN_SELECTOR,
-            address(parentPool)
+            address(s_parentPool)
         );
 
-        vm.prank(conceroRouter);
-        parentPool.conceroReceive(
+        vm.prank(s_conceroRouter);
+        s_parentPool.conceroReceive(
             messageRequest.toMessageReceiptBytes(
                 CHILD_POOL_CHAIN_SELECTOR,
-                address(childPool),
+                address(s_childPool),
                 NONCE
             ),
-            validationChecks,
-            validatorLibs,
-            relayerLib
+            s_validationChecks,
+            s_validatorLibs,
+            s_relayerLib
         );
 
         bytes memory reorgMessage = abi.encode(
             IBase.ConceroMessageType.BRIDGE,
-            abi.encode(user, dstUser, newAmount, 0, nonce, "")
+            abi.encode(s_user, dstUser, newAmount, 0, nonce, "")
         );
 
         IConceroRouter.MessageRequest memory reorgMessageRequest = _buildMessageRequest(
             reorgMessage,
             PARENT_POOL_CHAIN_SELECTOR,
-            address(parentPool)
+            address(s_parentPool)
         );
 
         vm.expectEmit(true, false, false, true);
@@ -262,16 +262,16 @@ contract ReceiveToken is LancaBridgeBase {
         vm.expectEmit(false, false, false, true);
         emit ILancaBridge.BridgeDelivered(DEFAULT_MESSAGE_ID, newAmount);
 
-        vm.prank(conceroRouter);
-        parentPool.conceroReceive(
+        vm.prank(s_conceroRouter);
+        s_parentPool.conceroReceive(
             reorgMessageRequest.toMessageReceiptBytes(
                 CHILD_POOL_CHAIN_SELECTOR,
-                address(childPool),
+                address(s_childPool),
                 NONCE
             ),
-            validationChecks,
-            validatorLibs,
-            relayerLib
+            s_validationChecks,
+            s_validatorLibs,
+            s_relayerLib
         );
     }
 
@@ -280,15 +280,15 @@ contract ReceiveToken is LancaBridgeBase {
         uint256 dstGasLimit = 200_000;
         bytes memory dstCallData = abi.encode("test call data");
 
-        LancaClientMock lancaClient = new LancaClientMock(address(parentPool));
+        LancaClientMock lancaClient = new LancaClientMock(address(s_parentPool));
 
         bytes memory message = abi.encode(
             IBase.ConceroMessageType.BRIDGE,
-            abi.encode(user, address(lancaClient), bridgeAmount, dstGasLimit, 0, dstCallData)
+            abi.encode(s_user, address(lancaClient), bridgeAmount, dstGasLimit, 0, dstCallData)
         );
 
-        uint256 parentPoolBalanceBefore = IERC20(usdc).balanceOf(address(parentPool));
-        uint256 clientBalanceBefore = IERC20(usdc).balanceOf(address(lancaClient));
+        uint256 parentPoolBalanceBefore = IERC20(s_usdc).balanceOf(address(s_parentPool));
+        uint256 clientBalanceBefore = IERC20(s_usdc).balanceOf(address(lancaClient));
 
         vm.expectEmit(false, false, false, true);
         emit ILancaBridge.BridgeDelivered(DEFAULT_MESSAGE_ID, bridgeAmount);
@@ -296,32 +296,35 @@ contract ReceiveToken is LancaBridgeBase {
         IConceroRouter.MessageRequest memory messageRequest = _buildMessageRequest(
             message,
             PARENT_POOL_CHAIN_SELECTOR,
-            address(parentPool)
+            address(s_parentPool)
         );
 
-        vm.prank(conceroRouter);
-        parentPool.conceroReceive(
+        vm.prank(s_conceroRouter);
+        s_parentPool.conceroReceive(
             messageRequest.toMessageReceiptBytes(
                 CHILD_POOL_CHAIN_SELECTOR,
-                address(childPool),
+                address(s_childPool),
                 NONCE
             ),
-            validationChecks,
-            validatorLibs,
-            relayerLib
+            s_validationChecks,
+            s_validatorLibs,
+            s_relayerLib
         );
 
         assertEq(
-            IERC20(usdc).balanceOf(address(parentPool)),
+            IERC20(s_usdc).balanceOf(address(s_parentPool)),
             parentPoolBalanceBefore - bridgeAmount
         );
-        assertEq(IERC20(usdc).balanceOf(address(lancaClient)), clientBalanceBefore + bridgeAmount);
+        assertEq(
+            IERC20(s_usdc).balanceOf(address(lancaClient)),
+            clientBalanceBefore + bridgeAmount
+        );
 
         assertEq(lancaClient.getReceivedCallsCount(), 1);
 
         LancaClientMock.ReceivedCall memory call = lancaClient.getReceivedCall(0);
         assertEq(call.srcChainSelector, CHILD_POOL_CHAIN_SELECTOR);
-        assertEq(call.sender, user);
+        assertEq(call.sender, s_user);
         assertEq(call.amount, bridgeAmount);
         assertEq(call.data, dstCallData);
     }
@@ -334,27 +337,27 @@ contract ReceiveToken is LancaBridgeBase {
 
         bytes memory message = abi.encode(
             IBase.ConceroMessageType.BRIDGE,
-            abi.encode(user, invalidReceiver, bridgeAmount, dstGasLimit, 0, dstCallData)
+            abi.encode(s_user, invalidReceiver, bridgeAmount, dstGasLimit, 0, dstCallData)
         );
 
         IConceroRouter.MessageRequest memory messageRequest = _buildMessageRequest(
             message,
             PARENT_POOL_CHAIN_SELECTOR,
-            address(parentPool)
+            address(s_parentPool)
         );
 
         vm.expectRevert(ILancaBridge.InvalidConceroMessage.selector);
 
-        vm.prank(conceroRouter);
-        parentPool.conceroReceive(
+        vm.prank(s_conceroRouter);
+        s_parentPool.conceroReceive(
             messageRequest.toMessageReceiptBytes(
                 CHILD_POOL_CHAIN_SELECTOR,
-                address(childPool),
+                address(s_childPool),
                 NONCE
             ),
-            validationChecks,
-            validatorLibs,
-            relayerLib
+            s_validationChecks,
+            s_validatorLibs,
+            s_relayerLib
         );
     }
 
@@ -366,38 +369,38 @@ contract ReceiveToken is LancaBridgeBase {
 
         bytes memory message = abi.encode(
             IBase.ConceroMessageType.BRIDGE,
-            abi.encode(user, dstUser, bridgeAmount, dstGasLimit, 0, dstCallData)
+            abi.encode(s_user, dstUser, bridgeAmount, dstGasLimit, 0, dstCallData)
         );
 
-        uint256 parentPoolBalanceBefore = IERC20(usdc).balanceOf(address(parentPool));
-        uint256 dstUserBalanceBefore = IERC20(usdc).balanceOf(dstUser);
+        uint256 parentPoolBalanceBefore = IERC20(s_usdc).balanceOf(address(s_parentPool));
+        uint256 dstUserBalanceBefore = IERC20(s_usdc).balanceOf(dstUser);
 
         IConceroRouter.MessageRequest memory messageRequest = _buildMessageRequest(
             message,
             PARENT_POOL_CHAIN_SELECTOR,
-            address(parentPool)
+            address(s_parentPool)
         );
 
         vm.expectEmit(false, false, false, true);
         emit ILancaBridge.BridgeDelivered(DEFAULT_MESSAGE_ID, bridgeAmount);
 
-        vm.prank(conceroRouter);
-        parentPool.conceroReceive(
+        vm.prank(s_conceroRouter);
+        s_parentPool.conceroReceive(
             messageRequest.toMessageReceiptBytes(
                 CHILD_POOL_CHAIN_SELECTOR,
-                address(childPool),
+                address(s_childPool),
                 NONCE
             ),
-            validationChecks,
-            validatorLibs,
-            relayerLib
+            s_validationChecks,
+            s_validatorLibs,
+            s_relayerLib
         );
 
         assertEq(
-            IERC20(usdc).balanceOf(address(parentPool)),
+            IERC20(s_usdc).balanceOf(address(s_parentPool)),
             parentPoolBalanceBefore - bridgeAmount
         );
-        assertEq(IERC20(usdc).balanceOf(dstUser), dstUserBalanceBefore + bridgeAmount);
+        assertEq(IERC20(s_usdc).balanceOf(dstUser), dstUserBalanceBefore + bridgeAmount);
     }
 
     function test_handleConceroReceiveBridgeLiquidity_HookReverts() public {
@@ -406,38 +409,38 @@ contract ReceiveToken is LancaBridgeBase {
         bytes memory dstCallData = abi.encode("test call data");
         string memory revertReason = "Test revert";
 
-        LancaClientMock lancaClient = new LancaClientMock(address(parentPool));
+        LancaClientMock lancaClient = new LancaClientMock(address(s_parentPool));
         lancaClient.setShouldRevert(true, revertReason);
 
-        uint256 parentPoolBalanceBefore = IERC20(usdc).balanceOf(address(parentPool));
-        uint256 clientBalanceBefore = IERC20(usdc).balanceOf(address(lancaClient));
+        uint256 parentPoolBalanceBefore = IERC20(s_usdc).balanceOf(address(s_parentPool));
+        uint256 clientBalanceBefore = IERC20(s_usdc).balanceOf(address(lancaClient));
 
         bytes memory message = abi.encode(
             IBase.ConceroMessageType.BRIDGE,
-            abi.encode(user, address(lancaClient), bridgeAmount, dstGasLimit, 0, dstCallData)
+            abi.encode(s_user, address(lancaClient), bridgeAmount, dstGasLimit, 0, dstCallData)
         );
 
         IConceroRouter.MessageRequest memory messageRequest = _buildMessageRequest(
             message,
             PARENT_POOL_CHAIN_SELECTOR,
-            address(parentPool)
+            address(s_parentPool)
         );
 
         vm.expectRevert(abi.encode(revertReason));
 
-        vm.prank(conceroRouter);
-        parentPool.conceroReceive(
+        vm.prank(s_conceroRouter);
+        s_parentPool.conceroReceive(
             messageRequest.toMessageReceiptBytes(
                 CHILD_POOL_CHAIN_SELECTOR,
-                address(childPool),
+                address(s_childPool),
                 NONCE
             ),
-            validationChecks,
-            validatorLibs,
-            relayerLib
+            s_validationChecks,
+            s_validatorLibs,
+            s_relayerLib
         );
 
-        assertEq(IERC20(usdc).balanceOf(address(parentPool)), parentPoolBalanceBefore);
-        assertEq(IERC20(usdc).balanceOf(address(lancaClient)), clientBalanceBefore);
+        assertEq(IERC20(s_usdc).balanceOf(address(s_parentPool)), parentPoolBalanceBefore);
+        assertEq(IERC20(s_usdc).balanceOf(address(lancaClient)), clientBalanceBefore);
     }
 }

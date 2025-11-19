@@ -15,12 +15,15 @@ import {Storage as pbs} from "../Base/libraries/Storage.sol";
 import {Storage as rs} from "../Rebalancer/libraries/Storage.sol";
 import {Storage as s} from "./libraries/Storage.sol";
 import {LancaBridge} from "../LancaBridge/LancaBridge.sol";
+import {BridgeCodec} from "../common/libraries/BridgeCodec.sol";
 
 contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
     using s for s.ParentPool;
     using rs for rs.Rebalancer;
     using pbs for pbs.Base;
     using SafeERC20 for IERC20;
+    using BridgeCodec for bytes32;
+    using BridgeCodec for bytes;
 
     uint32 internal constant UPDATE_TARGET_BALANCE_MESSAGE_GAS_LIMIT = 100_000;
     uint32 internal constant CHILD_POOL_SNAPSHOT_EXPIRATION_TIME = 10 minutes;
@@ -287,7 +290,7 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
         s.parentPool().minWithdrawalQueueLength = length;
     }
 
-    function setDstPool(uint24 chainSelector, address dstPool) public override onlyOwner {
+    function setDstPool(uint24 chainSelector, bytes32 dstPool) public override onlyOwner {
         super.setDstPool(chainSelector, dstPool);
 
         s.ParentPool storage s_parentPool = s.parentPool();
@@ -303,6 +306,8 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
 
         s_parentPool.supportedChainSelectors.push(chainSelector);
     }
+
+    // TODO: add remove dst pool
 
     function setLurScoreSensitivity(uint64 lurScoreSensitivity) external onlyOwner {
         require(
@@ -601,27 +606,25 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
         if (s_parentPool.childPoolTargetBalances[dstChainSelector] == newTargetBalance) return;
         s_parentPool.childPoolTargetBalances[dstChainSelector] = newTargetBalance;
 
-        address childPool = s_base.dstPools[dstChainSelector];
-        require(childPool != address(0), ICommonErrors.InvalidDstChainSelector(dstChainSelector));
+        bytes32 childPool = s_base.dstPools[dstChainSelector];
+        require(childPool != bytes32(0), ICommonErrors.InvalidDstChainSelector(dstChainSelector));
 
-        bytes memory messagePayload = abi.encode(
-            ConceroMessageType.UPDATE_TARGET_BALANCE,
-            abi.encode(newTargetBalance)
-        );
+        address[] memory validatorLibs = new address[](1);
+        validatorLibs[0] = s_base.validatorLib;
 
         IConceroRouter.MessageRequest memory messageRequest = IConceroRouter.MessageRequest({
             dstChainSelector: dstChainSelector,
             srcBlockConfirmations: 0,
             feeToken: address(0),
             dstChainData: MessageCodec.encodeEvmDstChainData(
-                childPool,
+                childPool.toAddress(),
                 UPDATE_TARGET_BALANCE_MESSAGE_GAS_LIMIT
             ),
-            validatorLibs: s_base.validatorLibs[dstChainSelector],
-            relayerLib: s_base.relayerLibs[dstChainSelector],
-            validatorConfigs: new bytes[](1), // TODO: or validatorLibs.length?
+            validatorLibs: validatorLibs,
+            relayerLib: s_base.relayerLib,
+            validatorConfigs: new bytes[](1),
             relayerConfig: new bytes(0),
-            payload: messagePayload
+            payload: BridgeCodec.encodeUpdateTargetBalanceData(newTargetBalance)
         });
 
         uint256 messageFee = IConceroRouter(i_conceroRouter).getMessageFee(messageRequest);
@@ -702,17 +705,13 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
 
     function _handleConceroReceiveSnapshot(
         uint24 sourceChainSelector,
-        bytes memory messageData
+        bytes calldata messageData
     ) internal override {
-        (IParentPool.ChildPoolSnapshot memory snapshot) = abi.decode(
-            messageData,
-            (IParentPool.ChildPoolSnapshot)
-        );
-
-        s.parentPool().childPoolSnapshots[sourceChainSelector] = snapshot;
+        s.parentPool().childPoolSnapshots[sourceChainSelector] = messageData
+            .decodeChildPoolSnapshot();
     }
 
-    function _handleConceroReceiveUpdateTargetBalance(bytes memory) internal pure override {
+    function _handleConceroReceiveUpdateTargetBalance(bytes calldata) internal pure override {
         revert ICommonErrors.FunctionNotImplemented();
     }
 }

@@ -1,16 +1,13 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.28;
 
+import {LancaBaseTest} from "./LancaBaseTest.sol";
+import {Base} from "contracts/Base/Base.sol";
+import {IBase} from "contracts/Base/interfaces/IBase.sol";
 import {IConceroRouter} from "@concero/v2-contracts/contracts/interfaces/IConceroRouter.sol";
 import {MessageCodec} from "@concero/v2-contracts/contracts/common/libraries/MessageCodec.sol";
 
-import {Test} from "forge-std/src/Test.sol";
-import {LancaBaseScript} from "./scripts/LancaBaseScript.s.sol";
-
-import {IBase} from "contracts/Base/interfaces/IBase.sol";
-import {Base} from "contracts/Base/Base.sol";
-
-abstract contract LancaTest is LancaBaseScript {
+abstract contract LancaTest is LancaBaseTest {
     function _buildMessageRequest(
         bytes memory messagePayload,
         uint24 dstChainSelector,
@@ -36,7 +33,7 @@ abstract contract LancaTest is LancaBaseScript {
         address feeToken
     ) internal view returns (IConceroRouter.MessageRequest memory) {
         address[] memory validatorLibs = new address[](1);
-        validatorLibs[0] = validatorLib;
+        validatorLibs[0] = s_validatorLib;
 
         return
             IConceroRouter.MessageRequest({
@@ -45,33 +42,20 @@ abstract contract LancaTest is LancaBaseScript {
                 feeToken: feeToken,
                 dstChainData: MessageCodec.encodeEvmDstChainData(dstPool, dstChainGasLimit),
                 validatorLibs: validatorLibs,
-                relayerLib: relayerLib,
+                relayerLib: s_relayerLib,
                 validatorConfigs: new bytes[](1),
                 relayerConfig: new bytes(0),
                 payload: payload
             });
     }
 
-    function _setRelayerLib(uint24 dstChainSelector, address client) internal {
-        vm.prank(deployer);
-        Base(payable(client)).setRelayerLib(dstChainSelector, relayerLib, true);
+    function _setRelayerLib(address client) internal {
+        vm.prank(s_deployer);
+        Base(payable(client)).setIsRelayerLibAllowed(s_relayerLib, true);
     }
 
-    function _setValidatorLibs(uint24 dstChainSelector, address client) internal {
-        uint24[] memory dstChainSelectors = new uint24[](1);
-        dstChainSelectors[0] = dstChainSelector;
-
-        bool[] memory isAllowed = new bool[](1);
-        isAllowed[0] = true;
-
-        IBase.ValidatorLibs[] memory validatorLibsStruct = new IBase.ValidatorLibs[](1);
-        validatorLibsStruct[0] = IBase.ValidatorLibs({
-            validatorLibs: validatorLibs,
-            isAllowed: isAllowed,
-            requiredValidatorsCount: 1
-        });
-
-        vm.prank(deployer);
-        Base(payable(client)).setValidatorLibs(dstChainSelectors, validatorLibsStruct);
+    function _setValidatorLibs(address client) internal {
+        vm.prank(s_deployer);
+        Base(payable(client)).setValidatorLib(s_validatorLib);
     }
 }

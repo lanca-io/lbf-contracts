@@ -19,7 +19,7 @@ interface IRebalancer {
 
     error AmountExceedsDeficit(uint256 expected, uint256 received);
     error AmountExceedsSurplus(uint256 expected, uint256 received);
-    error InvalidDestinationChain();
+    error InvalidDestinationChain(uint24 chainSelector);
 
     /**
      * @notice Fills the deficit by providing liquidity token to the pool
@@ -42,13 +42,15 @@ interface IRebalancer {
 
     /**
      * @notice Bridges IOU tokens to another chain
-     * @param amount Amount of IOU tokens to bridge
-     * @param chainSelector Destination chain selector
+     * @param receiver of IOU tokens on dst chain
+     * @param dstChainSelector Destination chain selector
+     * @param iouTokenAmount Amount of IOU tokens to bridge
      * @return messageId The ID of the cross-chain message
      */
     function bridgeIOU(
-        uint256 amount,
-        uint24 chainSelector
+        bytes32 receiver,
+        uint24 dstChainSelector,
+        uint256 iouTokenAmount
     ) external payable returns (bytes32 messageId);
 
     /**

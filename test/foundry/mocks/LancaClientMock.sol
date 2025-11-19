@@ -2,8 +2,11 @@
 pragma solidity 0.8.28;
 
 import {LancaClient} from "contracts/LancaClient/LancaClient.sol";
+import {BridgeCodec} from "contracts/common/libraries/BridgeCodec.sol";
 
 contract LancaClientMock is LancaClient {
+    using BridgeCodec for bytes32;
+
     struct ReceivedCall {
         bytes32 id;
         uint24 srcChainSelector;
@@ -34,7 +37,7 @@ contract LancaClientMock is LancaClient {
     function _lancaReceive(
         bytes32 id,
         uint24 srcChainSelector,
-        address sender,
+        bytes32 sender,
         uint256 amount,
         bytes memory data
     ) internal override {
@@ -46,7 +49,7 @@ contract LancaClientMock is LancaClient {
             ReceivedCall({
                 id: id,
                 srcChainSelector: srcChainSelector,
-                sender: sender,
+                sender: sender.toAddress(),
                 amount: amount,
                 data: data
             })

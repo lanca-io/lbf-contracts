@@ -4,20 +4,15 @@ pragma solidity 0.8.28;
 
 import {IConceroRouter} from "@concero/v2-contracts/contracts/interfaces/IConceroRouter.sol";
 import {MessageCodec} from "@concero/v2-contracts/contracts/common/libraries/MessageCodec.sol";
-
+import {BridgeCodec} from "contracts/common/libraries/BridgeCodec.sol";
 import {ICommonErrors} from "contracts/common/interfaces/ICommonErrors.sol";
 import {ILancaKeeper} from "contracts/ParentPool/interfaces/ILancaKeeper.sol";
 import {IBase} from "contracts/Base/interfaces/IBase.sol";
-import {
-    ParentPool,
-    IParentPool,
-    ParentPoolBase,
-    LPToken,
-    DeployLPToken
-} from "./ParentPoolBase.sol";
+import {ParentPool, IParentPool, ParentPoolBase, LPToken} from "./ParentPoolBase.sol";
 
 contract ParentPoolTest is ParentPoolBase {
     using MessageCodec for IConceroRouter.MessageRequest;
+    using BridgeCodec for address;
 
     function setUp() public override {
         super.setUp();
@@ -25,19 +20,18 @@ contract ParentPoolTest is ParentPoolBase {
     }
 
     function test_constructor_RevertsInvalidLiqTokenDecimals() public {
-        DeployLPToken deployLPToken = new DeployLPToken();
-        LPToken lpToken = LPToken(deployLPToken.deployLPToken(address(this), address(this)));
+        LPToken lpToken = new LPToken(address(this), address(this));
 
         uint8 invalidLiqTokenDecimals = 5;
 
         vm.expectRevert(IParentPool.InvalidLiqTokenDecimals.selector);
         new ParentPool(
-            address(usdc),
+            address(s_usdc),
             invalidLiqTokenDecimals,
             address(lpToken),
-            conceroRouter,
+            s_conceroRouter,
             PARENT_POOL_CHAIN_SELECTOR,
-            address(iouToken),
+            address(s_iouToken),
             MIN_TARGET_BALANCE
         );
     }
@@ -45,7 +39,7 @@ contract ParentPoolTest is ParentPoolBase {
     /** -- Enter Deposit Queue -- */
 
     function test_enterDepositQueue_RevertsMinDepositAmountNotSet() public {
-        vm.prank(deployer);
+        vm.prank(s_deployer);
         s_parentPool.setMinDepositAmount(0);
 
         vm.expectRevert(ICommonErrors.MinDepositAmountNotSet.selector);
@@ -53,7 +47,7 @@ contract ParentPoolTest is ParentPoolBase {
     }
 
     function test_enterDepositQueue_RevertsDepositAmountIsTooLow() public {
-        vm.prank(deployer);
+        vm.prank(s_deployer);
         s_parentPool.setMinDepositAmount(100);
 
         vm.expectRevert(
@@ -64,12 +58,12 @@ contract ParentPoolTest is ParentPoolBase {
 
     function test_enterDepositQueue_RevertsDepositQueueIsFull() public {
         for (uint256 i; i < 250; i++) {
-            _enterDepositQueue(user, _addDecimals(100));
+            _enterDepositQueue(s_user, _addDecimals(100));
         }
 
         vm.expectRevert(IParentPool.DepositQueueIsFull.selector);
 
-        vm.prank(user);
+        vm.prank(s_user);
         s_parentPool.enterDepositQueue(_addDecimals(100));
     }
 
@@ -77,29 +71,29 @@ contract ParentPoolTest is ParentPoolBase {
         _baseSetup();
 
         uint256 newLiquidityCap = _addDecimals(100);
-        _enterDepositQueue(user, newLiquidityCap);
+        _enterDepositQueue(s_user, newLiquidityCap);
 
         _triggerDepositWithdrawProcess();
 
-        vm.prank(deployer);
+        vm.prank(s_deployer);
         s_parentPool.setLiquidityCap(newLiquidityCap);
 
         vm.expectRevert(
             abi.encodeWithSelector(IParentPool.LiquidityCapReached.selector, newLiquidityCap)
         );
-        vm.prank(user);
+        vm.prank(s_user);
         s_parentPool.enterDepositQueue(newLiquidityCap + 1);
     }
 
     function test_enterDepositQueue_EmitsDepositQueued() public {
         _baseSetup();
 
-        bytes32 depositId = keccak256(abi.encodePacked(user, block.number, uint256(1)));
+        bytes32 depositId = keccak256(abi.encodePacked(s_user, block.number, uint256(1)));
 
         vm.expectEmit(true, true, true, true);
-        emit IParentPool.DepositQueued(depositId, user, _addDecimals(100));
+        emit IParentPool.DepositQueued(depositId, s_user, _addDecimals(100));
 
-        vm.prank(user);
+        vm.prank(s_user);
         s_parentPool.enterDepositQueue(_addDecimals(100));
     }
 
@@ -108,40 +102,40 @@ contract ParentPoolTest is ParentPoolBase {
     function test_enterWithdrawalQueue_RevertsAmountIsZero() public {
         vm.expectRevert(ICommonErrors.AmountIsZero.selector);
 
-        vm.prank(user);
+        vm.prank(s_user);
         s_parentPool.enterWithdrawalQueue(0);
     }
 
     function test_enterWithdrawalQueue_RevertsWithdrawalQueueIsFull() public {
         _setQueuesLength(0, 0);
-        _enterDepositQueue(user, _addDecimals(1000));
+        _enterDepositQueue(s_user, _addDecimals(1000));
 
         _fillChildPoolSnapshots();
         _triggerDepositWithdrawProcess();
 
         for (uint256 i; i < 250; i++) {
-            _enterWithdrawalQueue(user, _addDecimals(1));
+            _enterWithdrawalQueue(s_user, _addDecimals(1));
         }
 
         vm.expectRevert(IParentPool.WithdrawalQueueIsFull.selector);
 
-        vm.prank(user);
+        vm.prank(s_user);
         s_parentPool.enterWithdrawalQueue(1);
     }
 
     function test_enterWithdrawalQueue_EmitsWithdrawalQueued() public {
         _baseSetup();
-        _mintLpToken(user, _addDecimals(1));
+        _mintLpToken(s_user, _addDecimals(1));
 
-        vm.prank(user);
-        lpToken.approve(address(s_parentPool), _addDecimals(1));
+        vm.prank(s_user);
+        s_lpToken.approve(address(s_parentPool), _addDecimals(1));
 
-        bytes32 withdrawalId = keccak256(abi.encodePacked(user, block.number, uint256(1)));
+        bytes32 withdrawalId = keccak256(abi.encodePacked(s_user, block.number, uint256(1)));
 
         vm.expectEmit(true, true, true, true);
-        emit IParentPool.WithdrawalQueued(withdrawalId, user, _addDecimals(1));
+        emit IParentPool.WithdrawalQueued(withdrawalId, s_user, _addDecimals(1));
 
-        vm.prank(user);
+        vm.prank(s_user);
         s_parentPool.enterWithdrawalQueue(_addDecimals(1));
     }
 
@@ -156,7 +150,7 @@ contract ParentPoolTest is ParentPoolBase {
 
     function test_triggerDepositWithdrawProcess_RevertsChildPoolSnapshotsAreNotReady() public {
         _setQueuesLength(0, 0);
-        _enterDepositQueue(user, _addDecimals(100));
+        _enterDepositQueue(s_user, _addDecimals(100));
 
         vm.expectRevert(IParentPool.ChildPoolSnapshotsAreNotReady.selector);
 
@@ -166,10 +160,10 @@ contract ParentPoolTest is ParentPoolBase {
 
     function test_triggerDepositWithdrawProcess_RevertsInvalidDstChainSelector() public {
         _setQueuesLength(0, 0);
-        _enterDepositQueue(user, _addDecimals(100));
+        _enterDepositQueue(s_user, _addDecimals(100));
 
         uint24 invalidChainSelector = 1;
-        s_parentPool.exposed_setDstPool(invalidChainSelector, address(0));
+        s_parentPool.exposed_setDstPool(invalidChainSelector, bytes32(0));
 
         _fillChildPoolSnapshots();
 
@@ -219,7 +213,7 @@ contract ParentPoolTest is ParentPoolBase {
     function test_setAverageConceroMessageFee() public {
         _baseSetupWithLPMinting();
 
-        vm.prank(deployer);
+        vm.prank(s_deployer);
         s_parentPool.setAverageConceroMessageFee(uint96(_addDecimals(1)));
 
         address user1 = _getUsers(1)[0];
@@ -238,50 +232,50 @@ contract ParentPoolTest is ParentPoolBase {
     function test_setDstPool_ReversInvalidChainSelector() public {
         vm.expectRevert(ICommonErrors.AddressShouldNotBeZero.selector);
 
-        vm.prank(deployer);
-        s_parentPool.setDstPool(1, address(0));
+        vm.prank(s_deployer);
+        s_parentPool.setDstPool(1, address(0).toBytes32());
 
         vm.expectRevert(ICommonErrors.InvalidChainSelector.selector);
 
-        vm.prank(deployer);
-        s_parentPool.setDstPool(1, address(1));
+        vm.prank(s_deployer);
+        s_parentPool.setDstPool(1, address(1).toBytes32());
     }
 
     function test_setLurScoreSensitivity_RevertsInvalidLurScoreSensitivity() public {
         vm.expectRevert(IParentPool.InvalidLurScoreSensitivity.selector);
 
-        vm.prank(deployer);
+        vm.prank(s_deployer);
         s_parentPool.setLurScoreSensitivity(0);
 
         // Should be from 1.1 * LIQ_TOKEN_SCALE_FACTOR to 9.9 * LIQ_TOKEN_SCALE_FACTOR
 
         vm.expectRevert(IParentPool.InvalidLurScoreSensitivity.selector);
 
-        vm.prank(deployer);
+        vm.prank(s_deployer);
         s_parentPool.setLurScoreSensitivity(uint64(_addDecimals(1)));
 
         vm.expectRevert(IParentPool.InvalidLurScoreSensitivity.selector);
 
-        vm.prank(deployer);
+        vm.prank(s_deployer);
         s_parentPool.setLurScoreSensitivity(uint64(_addDecimals(10)));
     }
 
     function test_setScoresWeights_RevertsInvalidScoresWeights() public {
         vm.expectRevert(IParentPool.InvalidScoreWeights.selector);
 
-        vm.prank(deployer);
+        vm.prank(s_deployer);
         s_parentPool.setScoresWeights(0, 0);
 
         // Total weight should be 100% (1 * LIQ_TOKEN_SCALE_FACTOR)
 
         vm.expectRevert(IParentPool.InvalidScoreWeights.selector);
 
-        vm.prank(deployer);
+        vm.prank(s_deployer);
         s_parentPool.setScoresWeights(1, 1);
 
         vm.expectRevert(IParentPool.InvalidScoreWeights.selector);
 
-        vm.prank(deployer);
+        vm.prank(s_deployer);
         s_parentPool.setScoresWeights(uint64(_addDecimals(1)), 1);
     }
 
@@ -301,7 +295,7 @@ contract ParentPoolTest is ParentPoolBase {
         assertEq(s_parentPool.isReadyToTriggerDepositWithdrawProcess(), false);
 
         _baseSetup();
-        _enterDepositQueue(user, _addDecimals(100));
+        _enterDepositQueue(s_user, _addDecimals(100));
         _fillChildPoolSnapshots();
 
         assertEq(s_parentPool.isReadyToTriggerDepositWithdrawProcess(), true);
@@ -315,14 +309,14 @@ contract ParentPoolTest is ParentPoolBase {
         _setQueuesLength(DEFAULT_TARGET_QUEUE_LENGTH, DEFAULT_TARGET_QUEUE_LENGTH);
 
         for (uint256 i; i < DEFAULT_TARGET_QUEUE_LENGTH; i++) {
-            _enterDepositQueue(user, _addDecimals(100));
+            _enterDepositQueue(s_user, _addDecimals(100));
         }
 
         assertEq(s_parentPool.areQueuesFull(), false);
 
         for (uint256 i; i < DEFAULT_TARGET_QUEUE_LENGTH; i++) {
-            _mintLpToken(user, _addDecimals(100));
-            _enterWithdrawalQueue(user, _addDecimals(100));
+            _mintLpToken(s_user, _addDecimals(100));
+            _enterWithdrawalQueue(s_user, _addDecimals(100));
         }
 
         assertEq(s_parentPool.areQueuesFull(), true);
@@ -349,13 +343,13 @@ contract ParentPoolTest is ParentPoolBase {
         _mintUsdc(address(s_parentPool), _addDecimals(1_000));
         assertEq(s_parentPool.getActiveBalance(), _addDecimals(1_000));
 
-        _enterDepositQueue(user, _addDecimals(100));
+        _enterDepositQueue(s_user, _addDecimals(100));
         assertEq(s_parentPool.getActiveBalance(), _addDecimals(1_000));
 
-        _mintLpToken(user, _addDecimals(100));
+        _mintLpToken(s_user, _addDecimals(100));
         assertEq(s_parentPool.getActiveBalance(), _addDecimals(1_000));
 
-        _enterWithdrawalQueue(user, _addDecimals(100));
+        _enterWithdrawalQueue(s_user, _addDecimals(100));
         assertEq(s_parentPool.getActiveBalance(), _addDecimals(1_000));
     }
 
@@ -377,9 +371,9 @@ contract ParentPoolTest is ParentPoolBase {
         assertEq(s_parentPool.getPendingWithdrawalIds().length, 0);
         _setQueuesLength(0, 0);
 
-        _mintLpToken(user, _addDecimals(100));
-        _enterWithdrawalQueue(user, _addDecimals(50));
-        _enterWithdrawalQueue(user, _addDecimals(50));
+        _mintLpToken(s_user, _addDecimals(100));
+        _enterWithdrawalQueue(s_user, _addDecimals(50));
+        _enterWithdrawalQueue(s_user, _addDecimals(50));
         _fillChildPoolSnapshots();
         _triggerDepositWithdrawProcess();
 
@@ -389,7 +383,7 @@ contract ParentPoolTest is ParentPoolBase {
     function test_getLurScoreSensitivity() public {
         assertEq(s_parentPool.getLurScoreSensitivity(), uint64(5 * LIQ_TOKEN_SCALE_FACTOR));
 
-        vm.prank(deployer);
+        vm.prank(s_deployer);
         s_parentPool.setLurScoreSensitivity(uint64(4 * LIQ_TOKEN_SCALE_FACTOR));
         assertEq(s_parentPool.getLurScoreSensitivity(), uint64(4 * LIQ_TOKEN_SCALE_FACTOR));
     }
@@ -399,7 +393,7 @@ contract ParentPoolTest is ParentPoolBase {
         assertEq(lurScoreWeight, uint64((7 * LIQ_TOKEN_SCALE_FACTOR) / 10));
         assertEq(ndrScoreWeight, uint64((3 * LIQ_TOKEN_SCALE_FACTOR) / 10));
 
-        vm.prank(deployer);
+        vm.prank(s_deployer);
         s_parentPool.setScoresWeights(
             uint64((6 * LIQ_TOKEN_SCALE_FACTOR) / 10),
             uint64((4 * LIQ_TOKEN_SCALE_FACTOR) / 10)
@@ -413,7 +407,7 @@ contract ParentPoolTest is ParentPoolBase {
     function test_getLiquidityCap() public {
         assertEq(s_parentPool.getLiquidityCap(), 0);
 
-        vm.prank(deployer);
+        vm.prank(s_deployer);
         s_parentPool.setLiquidityCap(100);
         assertEq(s_parentPool.getLiquidityCap(), 100);
     }
@@ -421,7 +415,7 @@ contract ParentPoolTest is ParentPoolBase {
     function test_getMinDepositAmount() public {
         assertEq(s_parentPool.getMinDepositAmount(), _addDecimals(100));
 
-        vm.prank(deployer);
+        vm.prank(s_deployer);
         s_parentPool.setMinDepositAmount(uint64(_addDecimals(50)));
         assertEq(s_parentPool.getMinDepositAmount(), _addDecimals(50));
     }
@@ -430,91 +424,91 @@ contract ParentPoolTest is ParentPoolBase {
 
     function test_triggerDepositWithdrawProcess_RevertsUnauthorizedCaller() public {
         vm.expectRevert(
-            abi.encodeWithSelector(ICommonErrors.UnauthorizedCaller.selector, user, s_lancaKeeper)
+            abi.encodeWithSelector(ICommonErrors.UnauthorizedCaller.selector, s_user, s_lancaKeeper)
         );
 
-        vm.prank(user);
+        vm.prank(s_user);
         s_parentPool.triggerDepositWithdrawProcess();
     }
 
     function test_processPendingWithdrawals_RevertsUnauthorizedCaller() public {
         vm.expectRevert(
-            abi.encodeWithSelector(ICommonErrors.UnauthorizedCaller.selector, user, s_lancaKeeper)
+            abi.encodeWithSelector(ICommonErrors.UnauthorizedCaller.selector, s_user, s_lancaKeeper)
         );
 
-        vm.prank(user);
+        vm.prank(s_user);
         s_parentPool.processPendingWithdrawals();
     }
 
     function test_setMinDepositQueueLength_RevertsUnauthorizedCaller() public {
         vm.expectRevert(
-            abi.encodeWithSelector(ICommonErrors.UnauthorizedCaller.selector, user, deployer)
+            abi.encodeWithSelector(ICommonErrors.UnauthorizedCaller.selector, s_user, s_deployer)
         );
 
-        vm.prank(user);
+        vm.prank(s_user);
         s_parentPool.setMinDepositQueueLength(100);
     }
 
     function test_setMinWithdrawalQueueLength_RevertsUnauthorizedCaller() public {
         vm.expectRevert(
-            abi.encodeWithSelector(ICommonErrors.UnauthorizedCaller.selector, user, deployer)
+            abi.encodeWithSelector(ICommonErrors.UnauthorizedCaller.selector, s_user, s_deployer)
         );
 
-        vm.prank(user);
+        vm.prank(s_user);
         s_parentPool.setMinWithdrawalQueueLength(100);
     }
 
     function test_setDstPool_RevertsUnauthorizedCaller() public {
         vm.expectRevert(
-            abi.encodeWithSelector(ICommonErrors.UnauthorizedCaller.selector, user, deployer)
+            abi.encodeWithSelector(ICommonErrors.UnauthorizedCaller.selector, s_user, s_deployer)
         );
 
-        vm.prank(user);
-        s_parentPool.setDstPool(1, address(0));
+        vm.prank(s_user);
+        s_parentPool.setDstPool(1, address(0).toBytes32());
     }
 
     function test_setLurScoreSensitivity_RevertsUnauthorizedCaller() public {
         vm.expectRevert(
-            abi.encodeWithSelector(ICommonErrors.UnauthorizedCaller.selector, user, deployer)
+            abi.encodeWithSelector(ICommonErrors.UnauthorizedCaller.selector, s_user, s_deployer)
         );
 
-        vm.prank(user);
+        vm.prank(s_user);
         s_parentPool.setLurScoreSensitivity(100);
     }
 
     function test_setScoresWeights_RevertsUnauthorizedCaller() public {
         vm.expectRevert(
-            abi.encodeWithSelector(ICommonErrors.UnauthorizedCaller.selector, user, deployer)
+            abi.encodeWithSelector(ICommonErrors.UnauthorizedCaller.selector, s_user, s_deployer)
         );
 
-        vm.prank(user);
+        vm.prank(s_user);
         s_parentPool.setScoresWeights(100, 100);
     }
 
     function test_setLiquidityCap_RevertsUnauthorizedCaller() public {
         vm.expectRevert(
-            abi.encodeWithSelector(ICommonErrors.UnauthorizedCaller.selector, user, deployer)
+            abi.encodeWithSelector(ICommonErrors.UnauthorizedCaller.selector, s_user, s_deployer)
         );
 
-        vm.prank(user);
+        vm.prank(s_user);
         s_parentPool.setLiquidityCap(100);
     }
 
     function test_setMinDepositAmount_RevertsUnauthorizedCaller() public {
         vm.expectRevert(
-            abi.encodeWithSelector(ICommonErrors.UnauthorizedCaller.selector, user, deployer)
+            abi.encodeWithSelector(ICommonErrors.UnauthorizedCaller.selector, s_user, s_deployer)
         );
 
-        vm.prank(user);
+        vm.prank(s_user);
         s_parentPool.setMinDepositAmount(100);
     }
 
     function test_setAverageConceroMessageFee_RevertsUnauthorizedCaller() public {
         vm.expectRevert(
-            abi.encodeWithSelector(ICommonErrors.UnauthorizedCaller.selector, user, deployer)
+            abi.encodeWithSelector(ICommonErrors.UnauthorizedCaller.selector, s_user, s_deployer)
         );
 
-        vm.prank(user);
+        vm.prank(s_user);
         s_parentPool.setAverageConceroMessageFee(100);
     }
 
@@ -527,17 +521,17 @@ contract ParentPoolTest is ParentPoolBase {
             address(s_parentPool)
         );
 
-        _setRelayerLib(CHILD_POOL_CHAIN_SELECTOR, address(s_parentPool));
-        _setValidatorLibs(CHILD_POOL_CHAIN_SELECTOR, address(s_parentPool));
+        _setRelayerLib(address(s_parentPool));
+        _setValidatorLibs(address(s_parentPool));
 
         vm.expectRevert(ICommonErrors.FunctionNotImplemented.selector);
 
-        vm.prank(conceroRouter);
+        vm.prank(s_conceroRouter);
         s_parentPool.conceroReceive(
             messageRequest.toMessageReceiptBytes(CHILD_POOL_CHAIN_SELECTOR, address(0), NONCE),
-            validationChecks,
-            validatorLibs,
-            relayerLib
+            s_validationChecks,
+            s_validatorLibs,
+            s_relayerLib
         );
     }
 }

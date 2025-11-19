@@ -14,7 +14,7 @@ contract LancaClientWrapper is LancaClient {
     function _lancaReceive(
         bytes32 id,
         uint24 srcChainSelector,
-        address sender,
+        bytes32 sender,
         uint256 amount,
         bytes memory data
     ) internal override {}
@@ -26,15 +26,15 @@ contract LancaClientTest is LancaBridgeBase {
 
         new LancaClientWrapper(address(0));
 
-        LancaClientWrapper lancaClient = new LancaClientWrapper(address(parentPool));
+        LancaClientWrapper lancaClient = new LancaClientWrapper(address(s_parentPool));
 
         vm.expectRevert(LancaClient.InvalidLancaPool.selector);
 
-        lancaClient.lancaReceive(DEFAULT_MESSAGE_ID, PARENT_POOL_CHAIN_SELECTOR, address(0), 0, "");
+        lancaClient.lancaReceive(DEFAULT_MESSAGE_ID, PARENT_POOL_CHAIN_SELECTOR, bytes32(0), 0, "");
     }
 
     function test_supportsInterface() public {
-        LancaClientWrapper lancaClient = new LancaClientWrapper(address(parentPool));
+        LancaClientWrapper lancaClient = new LancaClientWrapper(address(s_parentPool));
 
         assertEq(lancaClient.supportsInterface(type(ILancaClient).interfaceId), true);
         assertEq(lancaClient.supportsInterface(type(ERC165).interfaceId), true);

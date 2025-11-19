@@ -4,7 +4,7 @@ pragma solidity 0.8.28;
 
 import {IConceroRouter} from "@concero/v2-contracts/contracts/interfaces/IConceroRouter.sol";
 import {MessageCodec} from "@concero/v2-contracts/contracts/common/libraries/MessageCodec.sol";
-
+import {BridgeCodec} from "contracts/common/libraries/BridgeCodec.sol";
 import {ICommonErrors} from "contracts/common/interfaces/ICommonErrors.sol";
 import {IBase} from "contracts/Base/interfaces/IBase.sol";
 import {ChildPoolBase} from "./ChildPoolBase.sol";
@@ -25,41 +25,43 @@ contract ChildPoolTest is ChildPoolBase {
         IConceroRouter.MessageRequest memory messageRequest = _buildMessageRequest(
             messagePayload,
             CHILD_POOL_CHAIN_SELECTOR,
-            address(childPool)
+            address(s_childPool)
         );
 
-        vm.prank(conceroRouter);
-        childPool.conceroReceive(
-            messageRequest.toMessageReceiptBytes(PARENT_POOL_CHAIN_SELECTOR, mockParentPool, NONCE),
-            validationChecks,
-            validatorLibs,
-            relayerLib
+        vm.prank(s_conceroRouter);
+        s_childPool.conceroReceive(
+            messageRequest.toMessageReceiptBytes(
+                PARENT_POOL_CHAIN_SELECTOR,
+                s_mockParentPool,
+                NONCE
+            ),
+            s_validationChecks,
+            s_validatorLibs,
+            s_relayerLib
         );
 
-        assertEq(childPool.getTargetBalance(), newTargetBalance);
+        assertEq(s_childPool.getTargetBalance(), newTargetBalance);
     }
 
     function test_handleConceroReceiveSnapshot_RevertsFunctionNotImplemented() public {
-        bytes memory snapshotData = abi.encode("");
-        bytes memory messagePayload = abi.encode(
-            IBase.ConceroMessageType.SEND_SNAPSHOT,
-            snapshotData
-        );
-
         IConceroRouter.MessageRequest memory messageRequest = _buildMessageRequest(
-            messagePayload,
+            BridgeCodec.encodeChildPoolSnapshotData(1, 1, 1, 1, 1, 1, 1, 1, 1),
             CHILD_POOL_CHAIN_SELECTOR,
-            address(childPool)
+            address(s_childPool)
         );
 
         vm.expectRevert(ICommonErrors.FunctionNotImplemented.selector);
 
-        vm.prank(conceroRouter);
-        childPool.conceroReceive(
-            messageRequest.toMessageReceiptBytes(PARENT_POOL_CHAIN_SELECTOR, mockParentPool, NONCE),
-            validationChecks,
-            validatorLibs,
-            relayerLib
+        vm.prank(s_conceroRouter);
+        s_childPool.conceroReceive(
+            messageRequest.toMessageReceiptBytes(
+                PARENT_POOL_CHAIN_SELECTOR,
+                s_mockParentPool,
+                NONCE
+            ),
+            s_validationChecks,
+            s_validatorLibs,
+            s_relayerLib
         );
     }
 
@@ -75,7 +77,7 @@ contract ChildPoolTest is ChildPoolBase {
         IConceroRouter.MessageRequest memory messageRequest = _buildMessageRequest(
             messagePayload,
             CHILD_POOL_CHAIN_SELECTOR,
-            address(childPool)
+            address(s_childPool)
         );
 
         vm.expectRevert(
@@ -86,16 +88,16 @@ contract ChildPoolTest is ChildPoolBase {
             )
         );
 
-        vm.prank(conceroRouter);
-        childPool.conceroReceive(
+        vm.prank(s_conceroRouter);
+        s_childPool.conceroReceive(
             messageRequest.toMessageReceiptBytes(
                 PARENT_POOL_CHAIN_SELECTOR,
                 unauthorizedSender,
                 NONCE
             ),
-            validationChecks,
-            validatorLibs,
-            relayerLib
+            s_validationChecks,
+            s_validatorLibs,
+            s_relayerLib
         );
     }
 }
