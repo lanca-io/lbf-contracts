@@ -33,12 +33,14 @@ contract InvariantTestBase is LancaTest {
     IOUToken public s_iouToken;
     LPToken public s_lpToken;
 
+	address public s_rebalancer = makeAddr("rebalancer");
+
     uint24 public constant CHILD_POOL_CHAIN_SELECTOR_2 = 200;
 
     // initial balances
     uint256 public constant USER_INITIAL_BALANCE = 10_000e6;
     uint256 public constant LIQUIDITY_PROVIDER_INITIAL_BALANCE = 50_000e6;
-    uint256 public constant OPERATOR_INITIAL_BALANCE = 10_000e6;
+    uint256 public constant REBALANCER_INITIAL_BALANCE = 10_000e6;
     uint256 public constant INITIAL_TVL = 10_000e6;
     uint64 public constant MIN_DEPOSIT_AMOUNT = 1e6;
     uint256 public constant LIQUIDITY_CAP =
@@ -134,7 +136,7 @@ contract InvariantTestBase is LancaTest {
     function _fundTestAddresses() internal {
         vm.deal(user, 100 ether);
         vm.deal(liquidityProvider, 100 ether);
-        vm.deal(operator, 100 ether);
+        vm.deal(s_rebalancer, 100 ether);
         vm.deal(s_lancaKeeper, 100 ether);
         vm.deal(address(s_parentPool), 100 ether);
         vm.deal(address(s_childPool_1), 100 ether);
@@ -143,7 +145,7 @@ contract InvariantTestBase is LancaTest {
         vm.startPrank(deployer);
         MockERC20(address(s_usdc)).mint(user, USER_INITIAL_BALANCE);
         MockERC20(address(s_usdc)).mint(liquidityProvider, LIQUIDITY_PROVIDER_INITIAL_BALANCE);
-        MockERC20(address(s_usdc)).mint(operator, OPERATOR_INITIAL_BALANCE);
+        MockERC20(address(s_usdc)).mint(s_rebalancer, REBALANCER_INITIAL_BALANCE);
         vm.stopPrank();
     }
 
@@ -159,7 +161,7 @@ contract InvariantTestBase is LancaTest {
         IERC20(s_lpToken).approve(address(s_parentPool), type(uint256).max);
         vm.stopPrank();
 
-        vm.startPrank(operator);
+        vm.startPrank(s_rebalancer);
         IERC20(s_usdc).approve(address(s_childPool_1), type(uint256).max);
         IERC20(s_usdc).approve(address(s_childPool_2), type(uint256).max);
         IERC20(s_usdc).approve(address(s_parentPool), type(uint256).max);
@@ -222,11 +224,11 @@ contract InvariantTestBase is LancaTest {
         s_parentPool.triggerDepositWithdrawProcess();
         vm.stopPrank();
 
-        vm.startPrank(operator);
+        vm.startPrank(s_rebalancer);
         s_childPool_1.fillDeficit(s_childPool_1.getDeficit());
         s_childPool_2.fillDeficit(s_childPool_2.getDeficit());
 
-        s_parentPool.takeSurplus(s_iouToken.balanceOf(operator));
+        s_parentPool.takeSurplus(s_iouToken.balanceOf(s_rebalancer));
         vm.stopPrank();
     }
 }

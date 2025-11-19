@@ -24,7 +24,7 @@ contract LBFHandler is Test {
     address internal immutable i_user;
     address internal immutable i_liquidityProvider;
     address internal immutable i_lancaKeeper;
-    address internal immutable i_operator;
+    address internal immutable i_rebalancer;
 
     uint24 internal constant PARENT_POOL_CHAIN_SELECTOR = 1000;
     uint24 internal constant CHILD_POOL_CHAIN_SELECTOR_1 = 100;
@@ -32,6 +32,7 @@ contract LBFHandler is Test {
 
     uint256 public s_totalDeposits;
     uint256 public s_totalWithdrawals;
+    bool public s_isLastWithdrawal;
 
     address[] pools;
     mapping(address => uint24 dstPoolChainSelector) internal i_dstPoolChainSelectors;
@@ -47,7 +48,7 @@ contract LBFHandler is Test {
         address user,
         address liquidityProvider,
         address lancaKeeper,
-        address operator
+        address rebalancer
     ) {
         i_parentPool = ParentPoolHarness(payable(parentPool));
         i_childPool_1 = ChildPool(payable(childPool1));
@@ -59,7 +60,7 @@ contract LBFHandler is Test {
         i_user = user;
         i_liquidityProvider = liquidityProvider;
         i_lancaKeeper = lancaKeeper;
-        i_operator = operator;
+        i_rebalancer = rebalancer;
 
         pools.push(address(i_parentPool));
         pools.push(address(i_childPool_1));
@@ -94,6 +95,10 @@ contract LBFHandler is Test {
         if (lpBalance == 0) return;
         amount = bound(amount, 1, lpBalance);
 
+        if (s_isLastWithdrawal) {
+            amount = lpBalance;
+        }
+
         s_totalWithdrawals += amount;
 
         vm.prank(i_liquidityProvider);
@@ -102,9 +107,10 @@ contract LBFHandler is Test {
         _sendSnapshotsToParentPool();
         _triggerDepositWithdrawProcess();
 
-        if (i_parentPool.isReadyToProcessPendingWithdrawals()) {
-            vm.prank(i_lancaKeeper);
-            i_parentPool.processPendingWithdrawals();
+        if (!i_parentPool.isReadyToProcessPendingWithdrawals()) {
+            _rebalance();
+        } else {
+            _processPendingWithdrawals();
         }
     }
 
@@ -156,7 +162,11 @@ contract LBFHandler is Test {
         }
         vm.stopPrank();
 
-        vm.startPrank(i_operator);
+        _rebalance();
+    }
+
+    function _rebalance() internal {
+        vm.startPrank(i_rebalancer);
         _fillDeficits();
         _takeSurpluses();
         vm.stopPrank();
@@ -164,7 +174,7 @@ contract LBFHandler is Test {
 
     function _fillDeficits() internal {
         uint256 deficit = i_parentPool.getDeficit();
-        uint256 usdcBalance = i_usdc.balanceOf(i_lancaKeeper);
+        uint256 usdcBalance = i_usdc.balanceOf(i_rebalancer);
         deficit = deficit > usdcBalance ? usdcBalance : deficit;
 
         if (deficit > 0) {
@@ -188,7 +198,7 @@ contract LBFHandler is Test {
 
     function _takeSurpluses() internal {
         uint256 surplus = i_parentPool.getSurplus();
-        uint256 iouBalance = i_iou.balanceOf(i_lancaKeeper);
+        uint256 iouBalance = i_iou.balanceOf(i_rebalancer);
         surplus = surplus > iouBalance ? iouBalance : surplus;
 
         if (surplus > 0) {
@@ -226,5 +236,14 @@ contract LBFHandler is Test {
 
         vm.prank(i_lancaKeeper);
         i_parentPool.triggerDepositWithdrawProcess();
+    }
+
+    function _processPendingWithdrawals() internal {
+        vm.prank(i_lancaKeeper);
+        i_parentPool.processPendingWithdrawals();
+    }
+
+    function setIsLastWithdrawal(bool isLastWithdrawal) external {
+        s_isLastWithdrawal = isLastWithdrawal;
     }
 }

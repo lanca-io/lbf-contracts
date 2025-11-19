@@ -5,6 +5,8 @@ pragma solidity 0.8.28;
 import {InvariantTestBase} from "./InvariantTestBase.sol";
 import {LBFHandler} from "./LBFHandler.sol";
 
+import {console} from "forge-std/src/console.sol";
+
 contract LBFInvariants is InvariantTestBase {
     LBFHandler public s_lbfHandler;
 
@@ -22,7 +24,7 @@ contract LBFInvariants is InvariantTestBase {
             user,
             liquidityProvider,
             s_lancaKeeper,
-            operator
+            s_rebalancer
         );
 
         bytes4[] memory selectors = new bytes4[](5);
@@ -44,6 +46,9 @@ contract LBFInvariants is InvariantTestBase {
             s_childPool_1.getActiveBalance() +
             s_childPool_2.getActiveBalance();
 
+		console.log("totalTargetBalance", totalTargetBalance);
+		console.log("totalActiveBalance", totalActiveBalance);
+
         assert(totalTargetBalance <= totalActiveBalance);
     }
 
@@ -60,9 +65,13 @@ contract LBFInvariants is InvariantTestBase {
     }
 
     function invariant_liquidityProviderFinalBalanceIsMoreThanInitialBalance() public {
-        uint256 withdrawalAmount = s_lpToken.balanceOf(liquidityProvider);
-        s_lbfHandler.withdraw(withdrawalAmount);
+        uint256 lpBalance = s_lpToken.balanceOf(liquidityProvider);
+		s_lbfHandler.setIsLastWithdrawal(true);
+        s_lbfHandler.withdraw(lpBalance);
 
+        lpBalance = s_lpToken.balanceOf(liquidityProvider);
+
+        assertEq(lpBalance, 0);
         assertGt(s_lbfHandler.s_totalWithdrawals(), s_lbfHandler.s_totalDeposits());
     }
 }
