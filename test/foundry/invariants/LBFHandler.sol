@@ -197,16 +197,8 @@ contract LBFHandler is Test {
     }
 
     function _takeSurpluses() internal {
-        uint256 surplus = i_parentPool.getSurplus();
+        uint256 surplus = i_childPool_1.getSurplus();
         uint256 iouBalance = i_iou.balanceOf(i_rebalancer);
-        surplus = surplus > iouBalance ? iouBalance : surplus;
-
-        if (surplus > 0) {
-            i_parentPool.takeSurplus(surplus);
-        }
-
-        iouBalance = iouBalance - surplus;
-        surplus = i_childPool_1.getSurplus();
         surplus = surplus > iouBalance ? iouBalance : surplus;
 
         if (surplus > 0) {
@@ -219,6 +211,14 @@ contract LBFHandler is Test {
 
         if (surplus > 0) {
             i_childPool_2.takeSurplus(surplus);
+        }
+
+        iouBalance = iouBalance - surplus;
+        surplus = i_parentPool.getSurplus();
+        surplus = surplus > iouBalance ? iouBalance : surplus;
+
+        if (surplus > 0) {
+            i_parentPool.takeSurplus(surplus);
         }
     }
 
