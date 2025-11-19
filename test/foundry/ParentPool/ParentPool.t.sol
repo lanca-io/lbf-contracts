@@ -516,13 +516,10 @@ contract ParentPoolTest is ParentPoolBase {
 
     function test_handleConceroReceiveUpdateTargetBalance_RevertsFunctionNotImplemented() public {
         IConceroRouter.MessageRequest memory messageRequest = _buildMessageRequest(
-            abi.encode(IBase.ConceroMessageType.UPDATE_TARGET_BALANCE, abi.encode("0")),
+            BridgeCodec.encodeUpdateTargetBalanceData(0),
             PARENT_POOL_CHAIN_SELECTOR,
             address(s_parentPool)
         );
-
-        _setRelayerLib(address(s_parentPool));
-        _setValidatorLibs(address(s_parentPool));
 
         vm.expectRevert(ICommonErrors.FunctionNotImplemented.selector);
 

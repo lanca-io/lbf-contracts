@@ -234,10 +234,15 @@ contract SendToken is LancaBridgeBase {
     }
 
     function test_bridge_revertIfInvalidDstChainSelector() public {
-        vm.expectRevert(abi.encodeWithSelector(ILancaBridge.InvalidDstChainSelector.selector));
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                ILancaBridge.InvalidDstChainSelector.selector,
+                CHILD_POOL_CHAIN_SELECTOR
+            )
+        );
         bytes memory dstChainData = MessageCodec.encodeEvmDstChainData(s_user, 0);
 
         vm.prank(s_user);
-        s_childPool.bridge{value: 0}(1, PARENT_POOL_CHAIN_SELECTOR, dstChainData, "");
+        s_childPool.bridge{value: 0.0001 ether}(1, CHILD_POOL_CHAIN_SELECTOR, dstChainData, "");
     }
 }

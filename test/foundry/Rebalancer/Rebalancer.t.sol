@@ -62,7 +62,7 @@ contract Rebalancer is RebalancerBase {
         assertEq(iouTotalSupplyBefore - iouTotalSupplyAfter, 0);
     }
 
-    function test_receiveBridgeIouAndTakeSurplus(
+    function testFuzz_receiveBridgeIouAndTakeSurplus(
         uint256 parentPoolBaseBalance,
         uint256 surplusToTake
     ) public {
@@ -85,7 +85,7 @@ contract Rebalancer is RebalancerBase {
         uint256 iouBalanceBefore = s_iouToken.balanceOf(s_user);
 
         IConceroRouter.MessageRequest memory messageRequest = _buildMessageRequest(
-            abi.encode(IBase.ConceroMessageType.BRIDGE_IOU, abi.encode(surplusToTake, s_user)),
+            BridgeCodec.encodeBridgeIouData(s_user.toBytes32(), surplusToTake),
             PARENT_POOL_CHAIN_SELECTOR,
             address(s_parentPool)
         );
@@ -418,7 +418,7 @@ contract Rebalancer is RebalancerBase {
     }
 
     function test_bridgeIOU_RevertsIfInvalidDestinationChain() public {
-        vm.expectRevert(IRebalancer.InvalidDestinationChain.selector);
+        vm.expectRevert(abi.encodeWithSelector(ICommonErrors.InvalidDstChainSelector.selector, 5));
         s_parentPool.bridgeIOU(s_user.toBytes32(), 5, 1);
     }
 

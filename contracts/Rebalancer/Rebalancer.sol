@@ -119,7 +119,10 @@ abstract contract Rebalancer is IRebalancer, Base {
         bs.Base storage s_base = bs.base();
 
         address destinationPoolAddress = bs.base().dstPools[dstChainSelector].toAddress();
-        require(destinationPoolAddress != address(0), InvalidDestinationChain(dstChainSelector));
+        require(
+            destinationPoolAddress != address(0),
+            ICommonErrors.InvalidDstChainSelector(dstChainSelector)
+        );
 
         address[] memory validatorLibs = new address[](1);
         validatorLibs[0] = s_base.validatorLib;

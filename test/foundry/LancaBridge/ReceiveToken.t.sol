@@ -3,16 +3,14 @@
 pragma solidity 0.8.28;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-
 import {IConceroRouter} from "@concero/v2-contracts/contracts/interfaces/IConceroRouter.sol";
 import {MessageCodec} from "@concero/v2-contracts/contracts/common/libraries/MessageCodec.sol";
-
 import {IBase} from "contracts/Base/interfaces/IBase.sol";
 import {ILancaBridge} from "contracts/LancaBridge/interfaces/ILancaBridge.sol";
 import {ICommonErrors} from "contracts/common/interfaces/ICommonErrors.sol";
-
 import {LancaClientMock} from "../mocks/LancaClientMock.sol";
 import {LancaBridgeBase} from "./LancaBridgeBase.sol";
+import {BridgeCodec} from "contracts/common/libraries/BridgeCodec.sol";
 
 contract ReceiveToken is LancaBridgeBase {
     using MessageCodec for IConceroRouter.MessageRequest;
@@ -30,13 +28,13 @@ contract ReceiveToken is LancaBridgeBase {
         uint256 bridgeAmount = 100e6;
         address dstUser = makeAddr("dstUser");
 
-        bytes memory message = abi.encode(
-            IBase.ConceroMessageType.BRIDGE,
-            abi.encode(s_user, dstUser, bridgeAmount, 0, 0, "")
-        );
-
         IConceroRouter.MessageRequest memory messageRequest = _buildMessageRequest(
-            message,
+            BridgeCodec.encodeBridgeData(
+                s_user,
+                bridgeAmount,
+                MessageCodec.encodeEvmDstChainData(dstUser, 0),
+                ""
+            ),
             PARENT_POOL_CHAIN_SELECTOR,
             address(s_parentPool)
         );
@@ -61,13 +59,13 @@ contract ReceiveToken is LancaBridgeBase {
         uint256 bridgeAmount = 100e6;
         address dstUser = makeAddr("dstUser");
 
-        bytes memory message = abi.encode(
-            IBase.ConceroMessageType.BRIDGE,
-            abi.encode(s_user, dstUser, bridgeAmount, 0, 0, "")
-        );
-
         IConceroRouter.MessageRequest memory messageRequest = _buildMessageRequest(
-            message,
+            BridgeCodec.encodeBridgeData(
+                s_user,
+                bridgeAmount,
+                MessageCodec.encodeEvmDstChainData(dstUser, 0),
+                ""
+            ),
             CHILD_POOL_CHAIN_SELECTOR,
             address(s_childPool)
         );
@@ -90,11 +88,6 @@ contract ReceiveToken is LancaBridgeBase {
         uint256 bridgeAmount = 100e6;
         address dstUser = makeAddr("dstUser");
 
-        bytes memory message = abi.encode(
-            IBase.ConceroMessageType.BRIDGE,
-            abi.encode(s_user, dstUser, bridgeAmount, 0, 0, "")
-        );
-
         uint256 parentPoolBalanceBefore = IERC20(s_usdc).balanceOf(address(s_parentPool));
         uint256 dstUserBalanceBefore = IERC20(s_usdc).balanceOf(dstUser);
         uint256 activeBalanceBefore = s_parentPool.getActiveBalance();
@@ -104,7 +97,12 @@ contract ReceiveToken is LancaBridgeBase {
         });
 
         IConceroRouter.MessageRequest memory messageRequest = _buildMessageRequest(
-            message,
+            BridgeCodec.encodeBridgeData(
+                s_user,
+                bridgeAmount,
+                MessageCodec.encodeEvmDstChainData(dstUser, 0),
+                ""
+            ),
             PARENT_POOL_CHAIN_SELECTOR,
             address(s_parentPool)
         );
@@ -140,11 +138,6 @@ contract ReceiveToken is LancaBridgeBase {
         uint256 bridgeAmount = 100e6;
         address dstUser = makeAddr("dstUser");
 
-        bytes memory message = abi.encode(
-            IBase.ConceroMessageType.BRIDGE,
-            abi.encode(s_user, dstUser, bridgeAmount, 0, 0, "")
-        );
-
         uint256 childPoolBalanceBefore = IERC20(s_usdc).balanceOf(address(s_childPool));
         uint256 dstUserBalanceBefore = IERC20(s_usdc).balanceOf(dstUser);
         uint256 activeBalanceBefore = s_childPool.getActiveBalance();
@@ -154,7 +147,12 @@ contract ReceiveToken is LancaBridgeBase {
         });
 
         IConceroRouter.MessageRequest memory messageRequest = _buildMessageRequest(
-            message,
+            BridgeCodec.encodeBridgeData(
+                s_user,
+                bridgeAmount,
+                MessageCodec.encodeEvmDstChainData(dstUser, 0),
+                ""
+            ),
             CHILD_POOL_CHAIN_SELECTOR,
             address(s_childPool)
         );
@@ -190,13 +188,13 @@ contract ReceiveToken is LancaBridgeBase {
         uint256 bridgeAmount = 2000e6;
         address dstUser = makeAddr("dstUser");
 
-        bytes memory message = abi.encode(
-            IBase.ConceroMessageType.BRIDGE,
-            abi.encode(s_user, dstUser, bridgeAmount, 0, 0, "")
-        );
-
         IConceroRouter.MessageRequest memory messageRequest = _buildMessageRequest(
-            message,
+            BridgeCodec.encodeBridgeData(
+                s_user,
+                bridgeAmount,
+                MessageCodec.encodeEvmDstChainData(dstUser, 0),
+                ""
+            ),
             PARENT_POOL_CHAIN_SELECTOR,
             address(s_parentPool)
         );
@@ -222,9 +220,11 @@ contract ReceiveToken is LancaBridgeBase {
         uint256 nonce = 123;
         address dstUser = makeAddr("dstUser");
 
-        bytes memory firstMessage = abi.encode(
-            IBase.ConceroMessageType.BRIDGE,
-            abi.encode(s_user, dstUser, originalAmount, 0, nonce, "")
+        bytes memory firstMessage = BridgeCodec.encodeBridgeData(
+            s_user,
+            originalAmount,
+            MessageCodec.encodeEvmDstChainData(dstUser, 0),
+            ""
         );
 
         IConceroRouter.MessageRequest memory messageRequest = _buildMessageRequest(
@@ -245,9 +245,11 @@ contract ReceiveToken is LancaBridgeBase {
             s_relayerLib
         );
 
-        bytes memory reorgMessage = abi.encode(
-            IBase.ConceroMessageType.BRIDGE,
-            abi.encode(s_user, dstUser, newAmount, 0, nonce, "")
+        bytes memory reorgMessage = BridgeCodec.encodeBridgeData(
+            s_user,
+            newAmount,
+            MessageCodec.encodeEvmDstChainData(dstUser, 0),
+            ""
         );
 
         IConceroRouter.MessageRequest memory reorgMessageRequest = _buildMessageRequest(
@@ -277,15 +279,10 @@ contract ReceiveToken is LancaBridgeBase {
 
     function test_handleConceroReceiveBridgeLiquidity_WithValidLancaClient() public {
         uint256 bridgeAmount = 100e6;
-        uint256 dstGasLimit = 200_000;
+        uint32 dstGasLimit = 200_000;
         bytes memory dstCallData = abi.encode("test call data");
 
         LancaClientMock lancaClient = new LancaClientMock(address(s_parentPool));
-
-        bytes memory message = abi.encode(
-            IBase.ConceroMessageType.BRIDGE,
-            abi.encode(s_user, address(lancaClient), bridgeAmount, dstGasLimit, 0, dstCallData)
-        );
 
         uint256 parentPoolBalanceBefore = IERC20(s_usdc).balanceOf(address(s_parentPool));
         uint256 clientBalanceBefore = IERC20(s_usdc).balanceOf(address(lancaClient));
@@ -294,7 +291,12 @@ contract ReceiveToken is LancaBridgeBase {
         emit ILancaBridge.BridgeDelivered(DEFAULT_MESSAGE_ID, bridgeAmount);
 
         IConceroRouter.MessageRequest memory messageRequest = _buildMessageRequest(
-            message,
+            BridgeCodec.encodeBridgeData(
+                s_user,
+                bridgeAmount,
+                MessageCodec.encodeEvmDstChainData(address(lancaClient), dstGasLimit),
+                dstCallData
+            ),
             PARENT_POOL_CHAIN_SELECTOR,
             address(s_parentPool)
         );
@@ -331,17 +333,17 @@ contract ReceiveToken is LancaBridgeBase {
 
     function test_handleConceroReceiveBridgeLiquidity_RevertsInvalidConceroMessage() public {
         uint256 bridgeAmount = 100e6;
-        uint256 dstGasLimit = 50_000;
+        uint32 dstGasLimit = 50_000;
         bytes memory dstCallData = abi.encode("test call data");
         address invalidReceiver = makeAddr("invalidReceiver");
 
-        bytes memory message = abi.encode(
-            IBase.ConceroMessageType.BRIDGE,
-            abi.encode(s_user, invalidReceiver, bridgeAmount, dstGasLimit, 0, dstCallData)
-        );
-
         IConceroRouter.MessageRequest memory messageRequest = _buildMessageRequest(
-            message,
+            BridgeCodec.encodeBridgeData(
+                s_user,
+                bridgeAmount,
+                MessageCodec.encodeEvmDstChainData(invalidReceiver, dstGasLimit),
+                dstCallData
+            ),
             PARENT_POOL_CHAIN_SELECTOR,
             address(s_parentPool)
         );
@@ -363,20 +365,20 @@ contract ReceiveToken is LancaBridgeBase {
 
     function test_handleConceroReceiveBridgeLiquidity_NoHookCall() public {
         uint256 bridgeAmount = 100e6;
-        uint256 dstGasLimit = 0;
+        uint32 dstGasLimit = 0;
         bytes memory dstCallData = "";
         address dstUser = makeAddr("dstUser");
-
-        bytes memory message = abi.encode(
-            IBase.ConceroMessageType.BRIDGE,
-            abi.encode(s_user, dstUser, bridgeAmount, dstGasLimit, 0, dstCallData)
-        );
 
         uint256 parentPoolBalanceBefore = IERC20(s_usdc).balanceOf(address(s_parentPool));
         uint256 dstUserBalanceBefore = IERC20(s_usdc).balanceOf(dstUser);
 
         IConceroRouter.MessageRequest memory messageRequest = _buildMessageRequest(
-            message,
+            BridgeCodec.encodeBridgeData(
+                s_user,
+                bridgeAmount,
+                MessageCodec.encodeEvmDstChainData(dstUser, dstGasLimit),
+                dstCallData
+            ),
             PARENT_POOL_CHAIN_SELECTOR,
             address(s_parentPool)
         );
@@ -405,7 +407,7 @@ contract ReceiveToken is LancaBridgeBase {
 
     function test_handleConceroReceiveBridgeLiquidity_HookReverts() public {
         uint256 bridgeAmount = 100e6;
-        uint256 dstGasLimit = 200_000;
+        uint32 dstGasLimit = 200_000;
         bytes memory dstCallData = abi.encode("test call data");
         string memory revertReason = "Test revert";
 
@@ -415,13 +417,13 @@ contract ReceiveToken is LancaBridgeBase {
         uint256 parentPoolBalanceBefore = IERC20(s_usdc).balanceOf(address(s_parentPool));
         uint256 clientBalanceBefore = IERC20(s_usdc).balanceOf(address(lancaClient));
 
-        bytes memory message = abi.encode(
-            IBase.ConceroMessageType.BRIDGE,
-            abi.encode(s_user, address(lancaClient), bridgeAmount, dstGasLimit, 0, dstCallData)
-        );
-
         IConceroRouter.MessageRequest memory messageRequest = _buildMessageRequest(
-            message,
+            BridgeCodec.encodeBridgeData(
+                s_user,
+                bridgeAmount,
+                MessageCodec.encodeEvmDstChainData(address(lancaClient), dstGasLimit),
+                dstCallData
+            ),
             PARENT_POOL_CHAIN_SELECTOR,
             address(s_parentPool)
         );

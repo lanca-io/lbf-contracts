@@ -46,15 +46,15 @@ library BridgeCodec {
     function encodeBridgeData(
         address sender,
         uint256 amount,
-        bytes calldata dstChainData,
-        bytes calldata payload
+        bytes memory dstChainData,
+        bytes memory payload
     ) internal pure returns (bytes memory) {
         require(payload.length <= type(uint24).max, PayloadToBig());
         require(dstChainData.length <= type(uint24).max, DstChainDataToBig());
 
         return
             abi.encodePacked(
-                IBase.ConceroMessageType.BRIDGE_IOU,
+                IBase.ConceroMessageType.BRIDGE,
                 VERSION,
                 toBytes32(sender),
                 amount,
@@ -115,21 +115,23 @@ library BridgeCodec {
     function decodeBridgeData(
         bytes calldata data
     ) internal pure returns (bytes32, uint256, bytes calldata, bytes memory) {
-        uint24 dstChainDataLength = uint24(bytes3(data[DST_CHAIN_DATA_OFFSET:UINT24_LENGTH_BYTES]));
+        uint24 dstChainDataLength = uint24(
+            bytes3(data[DST_CHAIN_DATA_OFFSET:DST_CHAIN_DATA_OFFSET + UINT24_LENGTH_BYTES])
+        );
         uint24 dstChainDataEnd = DST_CHAIN_DATA_OFFSET + dstChainDataLength + UINT24_LENGTH_BYTES;
 
         return (
-            bytes32(data[SENDER_OFFSET:BYTES32_LENGTH_BYTES]),
-            uint256(bytes32(data[AMOUNT_OFFSET:BYTES32_LENGTH_BYTES])),
-            data[DST_CHAIN_DATA_OFFSET:dstChainDataEnd],
-            data[dstChainDataEnd:]
+            bytes32(data[SENDER_OFFSET:SENDER_OFFSET + BYTES32_LENGTH_BYTES]),
+            uint256(bytes32(data[AMOUNT_OFFSET:AMOUNT_OFFSET + BYTES32_LENGTH_BYTES])),
+            data[DST_CHAIN_DATA_OFFSET + UINT24_LENGTH_BYTES:dstChainDataEnd],
+            data[dstChainDataEnd + UINT24_LENGTH_BYTES:]
         );
     }
 
     function decodeBridgeIouData(bytes calldata data) internal pure returns (bytes32, uint256) {
         return (
-            bytes32(data[SENDER_OFFSET:BYTES32_LENGTH_BYTES]),
-            uint256(bytes32(data[AMOUNT_OFFSET:BYTES32_LENGTH_BYTES]))
+            bytes32(data[SENDER_OFFSET:SENDER_OFFSET + BYTES32_LENGTH_BYTES]),
+            uint256(bytes32(data[AMOUNT_OFFSET:AMOUNT_OFFSET + BYTES32_LENGTH_BYTES]))
         );
     }
 

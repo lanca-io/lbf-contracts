@@ -14,16 +14,9 @@ contract ChildPoolTest is ChildPoolBase {
 
     /** -- Test Concero Receive Functions -- */
 
-    function test_handleConceroReceiveUpdateTargetBalance() public {
-        uint256 newTargetBalance = 500_000e6;
-
-        bytes memory messagePayload = abi.encode(
-            IBase.ConceroMessageType.UPDATE_TARGET_BALANCE,
-            abi.encode(newTargetBalance)
-        );
-
+    function testFuzz_handleConceroReceiveUpdateTargetBalance(uint256 newTargetBalance) public {
         IConceroRouter.MessageRequest memory messageRequest = _buildMessageRequest(
-            messagePayload,
+            BridgeCodec.encodeUpdateTargetBalanceData(newTargetBalance),
             CHILD_POOL_CHAIN_SELECTOR,
             address(s_childPool)
         );
