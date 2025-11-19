@@ -4,18 +4,13 @@
 pragma solidity 0.8.28;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-
 import {ICommonErrors} from "contracts/common/interfaces/ICommonErrors.sol";
 import {Storage as s} from "contracts/Base/libraries/Storage.sol";
 import {IOUToken} from "contracts/Rebalancer/IOUToken.sol";
 import {Base} from "contracts/Base/Base.sol";
+import {LancaTest} from "../helpers/LancaTest.sol";
+import {MockERC20} from "../mocks/MockERC20.sol";
 
-import {DeployIOUToken} from "../scripts/deploy/DeployIOUToken.s.sol";
-import {DeployMockERC20} from "../scripts/deploy/DeployMockERC20.s.sol";
-import {MockERC20} from "../scripts/deploy/DeployMockERC20.s.sol";
-import {LancaTest} from "../LancaTest.sol";
-
-// Concrete implementation of Base for testing
 contract TestPoolBase is Base {
     using s for s.Base;
 
@@ -31,32 +26,29 @@ contract TestPoolBase is Base {
         s.base().targetBalance = newTargetBalance;
     }
 
-    function _handleConceroReceiveBridgeIou(bytes32, uint24, bytes memory) internal override {}
-    function _handleConceroReceiveSnapshot(uint24, bytes memory) internal override {}
+    function _handleConceroReceiveBridgeIou(bytes32, uint24, bytes calldata) internal override {}
+    function _handleConceroReceiveSnapshot(uint24, bytes calldata) internal override {}
     function _handleConceroReceiveBridgeLiquidity(
         bytes32,
         uint24,
-        bytes memory
+        uint256,
+        bytes calldata
     ) internal override {}
-    function _handleConceroReceiveUpdateTargetBalance(bytes memory) internal override {}
+    function _handleConceroReceiveUpdateTargetBalance(bytes calldata) internal override {}
 }
 
 contract BaseTest is LancaTest {
     TestPoolBase public base;
 
     function setUp() public {
-        DeployMockERC20 deployMockERC20 = new DeployMockERC20();
-        usdc = IERC20(deployMockERC20.deployERC20("USD Coin", "USDC", 6));
-
-        DeployIOUToken deployIOUToken = new DeployIOUToken();
-        iouToken = IOUToken(deployIOUToken.deployIOUToken(address(this), address(0)));
+        s_iouToken = new IOUToken(address(this), address(0));
 
         // Deploy TestPoolBase with mock token
         base = new TestPoolBase(
-            address(usdc),
-            conceroRouter,
-            address(iouToken),
-            6,
+            address(s_usdc),
+            s_conceroRouter,
+            address(s_iouToken),
+            USDC_TOKEN_DECIMALS,
             PARENT_POOL_CHAIN_SELECTOR
         );
     }
@@ -81,7 +73,7 @@ contract BaseTest is LancaTest {
         assertEq(surplus, 0, "Surplus should be 0 when balance is less than target");
 
         // Mint 500 tokens to the pool
-        MockERC20(address(usdc)).mint(address(base), 500e6);
+        MockERC20(address(s_usdc)).mint(address(base), 500e6);
 
         // Now deficit should be 500e6
         (deficit, surplus) = base.getPoolData();
@@ -93,7 +85,7 @@ contract BaseTest is LancaTest {
         assertEq(surplus, 0, "Surplus should be 0 when balance is less than target");
 
         // Mint another 750 tokens (total 1250e6)
-        MockERC20(address(usdc)).mint(address(base), 750e6);
+        MockERC20(address(s_usdc)).mint(address(base), 750e6);
 
         // Now surplus should be 250e6
         (deficit, surplus) = base.getPoolData();
@@ -118,7 +110,7 @@ contract BaseTest is LancaTest {
         base.setTargetBalance(0);
 
         // Mint some tokens to the pool
-        MockERC20(address(usdc)).mint(address(base), 1000e6);
+        MockERC20(address(s_usdc)).mint(address(base), 1000e6);
 
         (uint256 deficit, uint256 surplus) = base.getPoolData();
         assertEq(deficit, 0, "Deficit should be 0 when target is 0");
@@ -135,11 +127,11 @@ contract BaseTest is LancaTest {
         );
 
         vm.prank(address(1));
-        base.setDstPool(CHILD_POOL_CHAIN_SELECTOR, address(0));
+        base.setDstPool(CHILD_POOL_CHAIN_SELECTOR, bytes32(0));
     }
 
     function test_setDstPool_Success() public {
-        address dstPool = address(1);
+        bytes32 dstPool = bytes32(uint256(1));
 
         base.setDstPool(CHILD_POOL_CHAIN_SELECTOR, dstPool);
         assertEq(base.getDstPool(CHILD_POOL_CHAIN_SELECTOR), dstPool);
@@ -147,12 +139,12 @@ contract BaseTest is LancaTest {
 
     function test_setDstPool_RevertsIfChainSelectorIsSameAsParentPool() public {
         vm.expectRevert(ICommonErrors.InvalidChainSelector.selector);
-        base.setDstPool(PARENT_POOL_CHAIN_SELECTOR, address(0));
+        base.setDstPool(PARENT_POOL_CHAIN_SELECTOR, bytes32(0));
     }
 
     function test_setDstPool_RevertsIfDstPoolIsZeroAddress() public {
         vm.expectRevert(ICommonErrors.AddressShouldNotBeZero.selector);
-        base.setDstPool(CHILD_POOL_CHAIN_SELECTOR, address(0));
+        base.setDstPool(CHILD_POOL_CHAIN_SELECTOR, bytes32(0));
     }
 
     function test_setLancaKeeper_Success() public {

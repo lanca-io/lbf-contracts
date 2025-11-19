@@ -8,10 +8,12 @@ import {IParentPool} from "contracts/ParentPool/interfaces/IParentPool.sol";
 import {IBase} from "contracts/Base/interfaces/IBase.sol";
 import {ChildPoolWrapper} from "contracts/test-helpers/ChildPoolWrapper.sol";
 import {ICommonErrors} from "contracts/common/interfaces/ICommonErrors.sol";
-
 import {ChildPoolBase} from "./ChildPoolBase.sol";
+import {BridgeCodec} from "contracts/common/libraries/BridgeCodec.sol";
 
 contract SendSnapshot is ChildPoolBase {
+    using BridgeCodec for address;
+
     address public parentPool;
 
     function setUp() public override {
@@ -19,55 +21,55 @@ contract SendSnapshot is ChildPoolBase {
 
         parentPool = makeAddr("parentPool");
 
-        vm.startPrank(deployer);
-        childPool = new ChildPoolWrapper(
-            conceroRouter,
-            address(iouToken),
-            address(usdc),
+        vm.startPrank(s_deployer);
+        s_childPool = new ChildPoolWrapper(
+            s_conceroRouter,
+            address(s_iouToken),
+            address(s_usdc),
             6,
             CHILD_POOL_CHAIN_SELECTOR,
             PARENT_POOL_CHAIN_SELECTOR
         );
 
-        childPool.setLancaKeeper(s_lancaKeeper);
-        childPool.setDstPool(PARENT_POOL_CHAIN_SELECTOR, parentPool);
+        s_childPool.setLancaKeeper(s_lancaKeeper);
+        s_childPool.setDstPool(PARENT_POOL_CHAIN_SELECTOR, parentPool.toBytes32());
         vm.stopPrank();
 
         vm.deal(s_lancaKeeper, 1 ether);
     }
 
     function test_sendSnapshotToParentPool_Success() public {
-        uint256 messageFee = childPool.getBridgeIouNativeFee(PARENT_POOL_CHAIN_SELECTOR);
+        uint256 messageFee = s_childPool.getBridgeIouNativeFee(PARENT_POOL_CHAIN_SELECTOR);
 
         // Allocate the balance
-        deal(address(usdc), address(childPool), 1000e6);
+        deal(address(s_usdc), address(s_childPool), 1000e6);
 
         // Increase IOU totalSupply
-        vm.startPrank(deployer);
-        IOUToken(iouToken).grantRole(IOUToken(iouToken).MINTER_ROLE(), deployer);
-        IOUToken(iouToken).mint(address(childPool), 100e6);
+        vm.startPrank(s_deployer);
+        IOUToken(s_iouToken).grantRole(IOUToken(s_iouToken).MINTER_ROLE(), s_deployer);
+        IOUToken(s_iouToken).mint(address(s_childPool), 100e6);
         vm.stopPrank();
 
         // Set daily flow
         uint256 inflow = 100e6;
         uint256 outflow = 200e6;
 
-        ChildPoolWrapper(payable(childPool)).setDailyFlow(inflow, outflow);
+        ChildPoolWrapper(payable(s_childPool)).setDailyFlow(inflow, outflow);
 
         // Set total IOU sent and received
         uint256 totalIouSent = 300e6;
         uint256 totalIouReceived = 400e6;
 
-        ChildPoolWrapper(payable(childPool)).setTotalIouSent(totalIouSent);
-        ChildPoolWrapper(payable(childPool)).setTotalIouReceived(totalIouReceived);
+        ChildPoolWrapper(payable(s_childPool)).setTotalIouSent(totalIouSent);
+        ChildPoolWrapper(payable(s_childPool)).setTotalIouReceived(totalIouReceived);
 
         // Create snapshot
         IParentPool.ChildPoolSnapshot memory snapshot = IParentPool.ChildPoolSnapshot({
-            balance: childPool.getActiveBalance(),
-            dailyFlow: childPool.getYesterdayFlow(),
+            balance: s_childPool.getActiveBalance(),
+            dailyFlow: s_childPool.getYesterdayFlow(),
             iouTotalSent: totalIouSent,
             iouTotalReceived: totalIouReceived,
-            iouTotalSupply: IOUToken(iouToken).totalSupply(),
+            iouTotalSupply: IOUToken(s_iouToken).totalSupply(),
             timestamp: uint32(block.timestamp),
             // todo: fill it
             totalLiqTokenReceived: 0,
@@ -85,21 +87,21 @@ contract SendSnapshot is ChildPoolBase {
         );
 
         vm.prank(s_lancaKeeper);
-        childPool.sendSnapshotToParentPool{value: messageFee}();
+        s_childPool.sendSnapshotToParentPool{value: messageFee}();
     }
 
     function test_sendSnapshotToParentPool_InvalidDstChainSelector() public {
-        vm.startPrank(deployer);
-        childPool = new ChildPoolWrapper(
-            conceroRouter,
-            address(iouToken),
-            address(usdc),
+        vm.startPrank(s_deployer);
+        s_childPool = new ChildPoolWrapper(
+            s_conceroRouter,
+            address(s_iouToken),
+            address(s_usdc),
             6,
             CHILD_POOL_CHAIN_SELECTOR,
             PARENT_POOL_CHAIN_SELECTOR
         );
 
-        childPool.setLancaKeeper(s_lancaKeeper);
+        s_childPool.setLancaKeeper(s_lancaKeeper);
         vm.stopPrank();
 
         vm.prank(s_lancaKeeper);
@@ -109,11 +111,11 @@ contract SendSnapshot is ChildPoolBase {
                 PARENT_POOL_CHAIN_SELECTOR
             )
         );
-        childPool.sendSnapshotToParentPool{value: 0}();
+        s_childPool.sendSnapshotToParentPool{value: 0}();
     }
 
     function test_getSnapshotMessageFee() public view {
-        uint256 messageFee = childPool.getSnapshotMessageFee();
+        uint256 messageFee = s_childPool.getSnapshotMessageFee();
         assertEq(messageFee, 0.0001 ether);
     }
 }

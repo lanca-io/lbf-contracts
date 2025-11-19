@@ -11,11 +11,19 @@ import {IBase} from "./interfaces/IBase.sol";
 import {CommonConstants} from "../common/CommonConstants.sol";
 import {Storage as rs} from "../Rebalancer/libraries/Storage.sol";
 import {Storage as s} from "./libraries/Storage.sol";
+import {BridgeCodec} from "../common/libraries/BridgeCodec.sol";
 
 abstract contract Base is IBase, ConceroClient, ConceroOwnable {
     using s for s.Base;
     using s for rs.Rebalancer;
     using MessageCodec for bytes;
+    using BridgeCodec for bytes32;
+    using BridgeCodec for bytes;
+
+    error ValidatorAlreadySet(address currentValidator);
+    error RelayerAlreadySet(address currentRelayer);
+    error ValidatorIsNotSet();
+    error RelayerIsNotSet();
 
     uint32 private constant SECONDS_IN_DAY = 86400;
 
@@ -74,7 +82,7 @@ abstract contract Base is IBase, ConceroClient, ConceroOwnable {
         surplus = getSurplus();
     }
 
-    function getDstPool(uint24 chainSelector) public view returns (address) {
+    function getDstPool(uint24 chainSelector) public view returns (bytes32) {
         return s.base().dstPools[chainSelector];
     }
 
@@ -113,9 +121,9 @@ abstract contract Base is IBase, ConceroClient, ConceroOwnable {
 
     /*   ADMIN FUNCTIONS   */
 
-    function setDstPool(uint24 chainSelector, address dstPool) public virtual onlyOwner {
+    function setDstPool(uint24 chainSelector, bytes32 dstPool) public virtual onlyOwner {
         require(chainSelector != i_chainSelector, ICommonErrors.InvalidChainSelector());
-        require(dstPool != address(0), ICommonErrors.AddressShouldNotBeZero());
+        require(dstPool != bytes32(0), ICommonErrors.AddressShouldNotBeZero());
 
         s.base().dstPools[chainSelector] = dstPool;
     }
@@ -124,37 +132,55 @@ abstract contract Base is IBase, ConceroClient, ConceroOwnable {
         s.base().lancaKeeper = lancaKeeper;
     }
 
-    function setRelayerLib(
-        uint24 dstChainSelector,
-        address relayerLib,
-        bool isAllowed
-    ) external onlyOwner {
-        s.Base storage s_base = s.base();
-
-        s_base.relayerLibs[dstChainSelector] = relayerLib;
+    function setIsRelayerLibAllowed(address relayerLib, bool isAllowed) external onlyOwner {
+        s.base().relayerLib = relayerLib;
         _setIsRelayerAllowed(relayerLib, isAllowed);
     }
 
-    function setValidatorLibs(
-        uint24[] calldata dstChainSelectors,
-        ValidatorLibs[] memory validatorLibs
-    ) external onlyOwner {
-        require(dstChainSelectors.length == validatorLibs.length, ICommonErrors.LengthMismatch());
-
+    function setRelayerLib(address relayerLib) external onlyOwner {
         s.Base storage s_base = s.base();
 
-        for (uint256 i = 0; i < dstChainSelectors.length; i++) {
-            s_base.validatorLibs[dstChainSelectors[i]] = validatorLibs[i].validatorLibs;
+        address currentRelayer = s_base.validatorLib;
 
-            _setRequiredValidatorsCount(validatorLibs[i].requiredValidatorsCount);
+        require(currentRelayer != relayerLib, ValidatorAlreadySet(currentRelayer));
 
-            for (uint256 j = 0; j < validatorLibs[i].validatorLibs.length; j++) {
-                _setIsValidatorAllowed(
-                    validatorLibs[i].validatorLibs[j],
-                    validatorLibs[i].isAllowed[j]
-                );
-            }
-        }
+        s_base.relayerLib = relayerLib;
+
+        _setIsRelayerAllowed(relayerLib, true);
+    }
+
+    function removeRelayerLib() external onlyOwner {
+        s.Base storage s_base = s.base();
+
+        address currentRelayer = s_base.relayerLib;
+        require(currentRelayer != address(0), RelayerIsNotSet());
+
+        _setIsRelayerAllowed(currentRelayer, false);
+
+        s_base.relayerLib = address(0);
+    }
+
+    function setValidatorLib(address validatorLib) external onlyOwner {
+        s.Base storage s_base = s.base();
+
+        require(s_base.validatorLib != validatorLib, ValidatorAlreadySet(s_base.validatorLib));
+
+        s_base.validatorLib = validatorLib;
+
+        _setRequiredValidatorsCount(1);
+        _setIsValidatorAllowed(validatorLib, true);
+    }
+
+    function removeValidatorLib() external onlyOwner {
+        s.Base storage s_base = s.base();
+
+        address currentValidator = s_base.validatorLib;
+        require(currentValidator != address(0), ValidatorIsNotSet());
+
+        _setRequiredValidatorsCount(0);
+        _setIsValidatorAllowed(currentValidator, false);
+
+        s_base.validatorLib = address(0);
     }
 
     /*   INTERNAL FUNCTIONS   */
@@ -166,26 +192,30 @@ abstract contract Base is IBase, ConceroClient, ConceroOwnable {
         uint24 sourceChainSelector = messageReceipt.srcChainSelector();
 
         require(
-            s_base.dstPools[sourceChainSelector] == sender,
-            ICommonErrors.UnauthorizedSender(sender, s_base.dstPools[sourceChainSelector])
+            s_base.dstPools[sourceChainSelector].toAddress() == sender,
+            ICommonErrors.UnauthorizedSender(
+                sender,
+                s_base.dstPools[sourceChainSelector].toAddress()
+            )
         );
 
-        bytes memory message = messageReceipt.payload();
+        bytes calldata message = messageReceipt.calldataPayload();
         bytes32 messageId = keccak256(messageReceipt);
-
-        (ConceroMessageType messageType, bytes memory messageData) = abi.decode(
-            message,
-            (ConceroMessageType, bytes)
-        );
+        ConceroMessageType messageType = message.getMessageType();
 
         if (messageType == ConceroMessageType.BRIDGE_IOU) {
-            _handleConceroReceiveBridgeIou(messageId, sourceChainSelector, messageData);
+            _handleConceroReceiveBridgeIou(messageId, sourceChainSelector, message);
         } else if (messageType == ConceroMessageType.SEND_SNAPSHOT) {
-            _handleConceroReceiveSnapshot(sourceChainSelector, messageData);
+            _handleConceroReceiveSnapshot(sourceChainSelector, message);
         } else if (messageType == ConceroMessageType.BRIDGE) {
-            _handleConceroReceiveBridgeLiquidity(messageId, sourceChainSelector, messageData);
+            _handleConceroReceiveBridgeLiquidity(
+                messageId,
+                sourceChainSelector,
+                messageReceipt.nonce(),
+                message
+            );
         } else if (messageType == ConceroMessageType.UPDATE_TARGET_BALANCE) {
-            _handleConceroReceiveUpdateTargetBalance(messageData);
+            _handleConceroReceiveUpdateTargetBalance(message);
         } else {
             revert InvalidConceroMessageType();
         }
@@ -194,19 +224,20 @@ abstract contract Base is IBase, ConceroClient, ConceroOwnable {
     function _handleConceroReceiveBridgeIou(
         bytes32 messageId,
         uint24 sourceChainSelector,
-        bytes memory messageData
+        bytes calldata messageData
     ) internal virtual;
 
     function _handleConceroReceiveSnapshot(
         uint24 sourceChainSelector,
-        bytes memory messageData
+        bytes calldata messageData
     ) internal virtual;
 
     function _handleConceroReceiveBridgeLiquidity(
         bytes32 messageId,
         uint24 sourceChainSelector,
-        bytes memory messageData
+        uint256 nonce,
+        bytes calldata messageData
     ) internal virtual;
 
-    function _handleConceroReceiveUpdateTargetBalance(bytes memory messageData) internal virtual;
+    function _handleConceroReceiveUpdateTargetBalance(bytes calldata messageData) internal virtual;
 }

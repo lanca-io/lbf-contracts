@@ -15,11 +15,11 @@ library Storage {
         uint256 totalLancaFeeInLiqToken;
         address lancaKeeper;
         mapping(uint32 timestamp => IBase.LiqTokenDailyFlow flow) flowByDay;
-        mapping(uint24 chainSelector => address dstPool) dstPools;
+        mapping(uint24 chainSelector => bytes32 dstPool) dstPools;
         uint256 totalLiqTokenSent;
         uint256 totalLiqTokenReceived;
-        mapping(uint24 dstChainSelector => address relayerLib) relayerLibs;
-        mapping(uint24 dstChainSelector => address[] validatorLibs) validatorLibs;
+        address relayerLib;
+        address validatorLib;
     }
 
     /* SLOT-BASED STORAGE ACCESS */

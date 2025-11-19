@@ -4,17 +4,17 @@ pragma solidity 0.8.28;
 
 import {IConceroRouter} from "@concero/v2-contracts/contracts/interfaces/IConceroRouter.sol";
 import {MessageCodec} from "@concero/v2-contracts/contracts/common/libraries/MessageCodec.sol";
-
 import {IBase} from "contracts/Base/interfaces/IBase.sol";
 import {ICommonErrors} from "contracts/common/interfaces/ICommonErrors.sol";
 import {IRebalancer} from "contracts/Rebalancer/interfaces/IRebalancer.sol";
 import {ChildPool} from "contracts/ChildPool/ChildPool.sol";
-
-import {MockERC20} from "../scripts/deploy/DeployMockERC20.s.sol";
 import {RebalancerBase} from "../Rebalancer/RebalancerBase.sol";
+import {MockERC20} from "../mocks/MockERC20.sol";
+import {BridgeCodec} from "contracts/common/libraries/BridgeCodec.sol";
 
 contract Rebalancer is RebalancerBase {
     using MessageCodec for IConceroRouter.MessageRequest;
+    using BridgeCodec for address;
 
     function setUp() public override {
         super.setUp();
@@ -31,37 +31,38 @@ contract Rebalancer is RebalancerBase {
         vm.assume(deficit > 0 && deficit < parentPoolBaseBalance && deficit < MAX_DEPOSIT_AMOUNT);
 
         _mintUsdc(address(s_parentPool), parentPoolBaseBalance);
-        _mintUsdc(address(operator), deficit);
+        _mintUsdc(address(s_operator), deficit);
 
         s_parentPool.exposed_setTargetBalance(parentPoolBaseBalance + deficit);
 
-        uint256 iouBalanceBefore = iouToken.balanceOf(operator);
+        uint256 iouBalanceBefore = s_iouToken.balanceOf(s_operator);
         _fillDeficit(deficit);
-        uint256 iouBalanceAfter = iouToken.balanceOf(operator);
+        uint256 iouBalanceAfter = s_iouToken.balanceOf(s_operator);
 
         assertEq(iouBalanceAfter - iouBalanceBefore, deficit);
 
         uint24 dstChainSelector = childPoolChainSelector_1;
-        uint256 iouTotalSupplyBefore = iouToken.totalSupply();
+        uint256 iouTotalSupplyBefore = s_iouToken.totalSupply();
 
-        iouBalanceBefore = iouToken.balanceOf(operator);
+        iouBalanceBefore = s_iouToken.balanceOf(s_operator);
 
-        vm.startPrank(operator);
-        iouToken.approve(address(s_parentPool), deficit);
+        vm.startPrank(s_operator);
+        s_iouToken.approve(address(s_parentPool), deficit);
         s_parentPool.bridgeIOU{value: s_parentPool.getBridgeIouNativeFee(dstChainSelector)}(
-            deficit,
-            dstChainSelector
+            s_operator.toBytes32(),
+            dstChainSelector,
+            deficit
         );
         vm.stopPrank();
 
-        iouBalanceAfter = iouToken.balanceOf(operator);
-        uint256 iouTotalSupplyAfter = iouToken.totalSupply();
+        iouBalanceAfter = s_iouToken.balanceOf(s_operator);
+        uint256 iouTotalSupplyAfter = s_iouToken.totalSupply();
 
         assertEq(iouBalanceBefore - iouBalanceAfter, 0);
         assertEq(iouTotalSupplyBefore - iouTotalSupplyAfter, 0);
     }
 
-    function test_receiveBridgeIouAndTakeSurplus(
+    function testFuzz_receiveBridgeIouAndTakeSurplus(
         uint256 parentPoolBaseBalance,
         uint256 surplusToTake
     ) public {
@@ -78,13 +79,13 @@ contract Rebalancer is RebalancerBase {
             address(s_parentPool),
             parentPoolBaseBalance + s_parentPool.getRebalancerFee(surplusToTake)
         );
-        _mintUsdc(user, surplusToTake);
+        _mintUsdc(s_user, surplusToTake);
         s_parentPool.exposed_setTargetBalance(parentPoolBaseBalance - surplusToTake);
 
-        uint256 iouBalanceBefore = iouToken.balanceOf(user);
+        uint256 iouBalanceBefore = s_iouToken.balanceOf(s_user);
 
         IConceroRouter.MessageRequest memory messageRequest = _buildMessageRequest(
-            abi.encode(IBase.ConceroMessageType.BRIDGE_IOU, abi.encode(surplusToTake, user)),
+            BridgeCodec.encodeBridgeIouData(s_user.toBytes32(), surplusToTake),
             PARENT_POOL_CHAIN_SELECTOR,
             address(s_parentPool)
         );
@@ -96,21 +97,21 @@ contract Rebalancer is RebalancerBase {
                 address(s_childPool_1),
                 NONCE
             ),
-            validationChecks,
-            validatorLibs,
-            relayerLib
+            s_validationChecks,
+            s_validatorLibs,
+            s_relayerLib
         );
 
-        uint256 iouBalanceAfter = iouToken.balanceOf(user);
+        uint256 iouBalanceAfter = s_iouToken.balanceOf(s_user);
 
         assertEq(iouBalanceAfter - iouBalanceBefore, surplusToTake);
 
-        uint256 usdcBalanceBefore = usdc.balanceOf(user);
-        vm.startPrank(user);
-        iouToken.approve(address(s_parentPool), surplusToTake);
+        uint256 usdcBalanceBefore = s_usdc.balanceOf(s_user);
+        vm.startPrank(s_user);
+        s_iouToken.approve(address(s_parentPool), surplusToTake);
         s_parentPool.takeSurplus(surplusToTake);
         vm.stopPrank();
-        uint256 usdcBalanceAfter = usdc.balanceOf(user);
+        uint256 usdcBalanceAfter = s_usdc.balanceOf(s_user);
 
         assertEq(
             usdcBalanceAfter - usdcBalanceBefore,
@@ -123,11 +124,11 @@ contract Rebalancer is RebalancerBase {
     function test_RebalancerFee_CalculatesCorrectlyWhenDepositToEmptyPool() public {
         _setSupportedChildPools(2); // 2 child pools
 
-        vm.prank(deployer);
+        vm.prank(s_deployer);
         s_parentPool.setLiquidityCap(_addDecimals(3_000));
 
         _setQueuesLength(0, 0);
-        _enterDepositQueue(user, _addDecimals(3_000));
+        _enterDepositQueue(s_user, _addDecimals(3_000));
 
         _fillChildPoolSnapshots();
         _triggerDepositWithdrawProcess();
@@ -136,21 +137,21 @@ contract Rebalancer is RebalancerBase {
         assertEq(s_childPool_1.getTargetBalance(), _takeRebalancerFee(_addDecimals(1_000)));
         assertEq(s_childPool_2.getTargetBalance(), _takeRebalancerFee(_addDecimals(1_000)));
 
-        uint256 usdcBalanceBefore = usdc.balanceOf(operator);
+        uint256 usdcBalanceBefore = s_usdc.balanceOf(s_operator);
 
-        vm.startPrank(operator);
-        usdc.approve(address(s_childPool_1), type(uint256).max);
-        usdc.approve(address(s_childPool_2), type(uint256).max);
+        vm.startPrank(s_operator);
+        s_usdc.approve(address(s_childPool_1), type(uint256).max);
+        s_usdc.approve(address(s_childPool_2), type(uint256).max);
 
         s_childPool_1.fillDeficit(s_childPool_1.getDeficit());
         s_childPool_2.fillDeficit(s_childPool_2.getDeficit());
 
-        uint256 iouBalanceAfterFillDeficit = iouToken.balanceOf(operator);
+        uint256 iouBalanceAfterFillDeficit = s_iouToken.balanceOf(s_operator);
 
-        _takeSurplus(iouToken.balanceOf(operator));
+        _takeSurplus(s_iouToken.balanceOf(s_operator));
         vm.stopPrank();
 
-        uint256 usdcBalanceAfter = usdc.balanceOf(operator);
+        uint256 usdcBalanceAfter = s_usdc.balanceOf(s_operator);
         uint256 rebalancerFee = s_parentPool.getRebalancerFee(iouBalanceAfterFillDeficit);
 
         assertEq(usdcBalanceAfter - usdcBalanceBefore, rebalancerFee);
@@ -159,7 +160,7 @@ contract Rebalancer is RebalancerBase {
     function test_RebalancerFee_CalculatesCorrectlyWhenFullWithdrawal() public {
         test_RebalancerFee_CalculatesCorrectlyWhenDepositToEmptyPool();
 
-        _enterWithdrawalQueue(user, lpToken.balanceOf(user));
+        _enterWithdrawalQueue(s_user, s_lpToken.balanceOf(s_user));
         _fillChildPoolSnapshots();
 
         _triggerDepositWithdrawProcess();
@@ -167,25 +168,25 @@ contract Rebalancer is RebalancerBase {
         assertEq(s_childPool_1.getTargetBalance(), 0);
         assertEq(s_childPool_2.getTargetBalance(), 0);
 
-        uint256 usdcBalanceBefore = usdc.balanceOf(operator);
+        uint256 usdcBalanceBefore = s_usdc.balanceOf(s_operator);
 
         _fillDeficit(s_parentPool.getDeficit());
-        uint256 iouBalanceAfterFillDeficit = iouToken.balanceOf(operator);
+        uint256 iouBalanceAfterFillDeficit = s_iouToken.balanceOf(s_operator);
 
         _processPendingWithdrawals();
 
-        vm.startPrank(operator);
-        iouToken.approve(address(s_childPool_1), type(uint256).max);
-        iouToken.approve(address(s_childPool_2), type(uint256).max);
+        vm.startPrank(s_operator);
+        s_iouToken.approve(address(s_childPool_1), type(uint256).max);
+        s_iouToken.approve(address(s_childPool_2), type(uint256).max);
 
         s_childPool_1.takeSurplus(s_childPool_1.getSurplus());
         s_childPool_2.takeSurplus(s_childPool_2.getSurplus());
         vm.stopPrank();
 
-        _takeSurplus(iouToken.balanceOf(operator));
+        _takeSurplus(s_iouToken.balanceOf(s_operator));
 
         uint256 rebalancerFee = s_parentPool.getRebalancerFee(iouBalanceAfterFillDeficit);
-        uint256 usdcBalanceAfter = usdc.balanceOf(operator);
+        uint256 usdcBalanceAfter = s_usdc.balanceOf(s_operator);
 
         assertApproxEqRel(usdcBalanceAfter - usdcBalanceBefore, rebalancerFee, 1e13);
     }
@@ -193,7 +194,7 @@ contract Rebalancer is RebalancerBase {
     function test_RebalancerFee_ParentPoolRemaining() public {
         _setSupportedChildPools(9); // 9 child pools
         _setQueuesLength(0, 0);
-        _enterDepositQueue(user, _addDecimals(1_000_000));
+        _enterDepositQueue(s_user, _addDecimals(1_000_000));
         _fillChildPoolSnapshots();
         _triggerDepositWithdrawProcess();
 
@@ -201,16 +202,16 @@ contract Rebalancer is RebalancerBase {
         assertEq(s_childPool_5.getTargetBalance(), _takeRebalancerFee(_addDecimals(100_000)));
         assertEq(s_childPool_9.getTargetBalance(), _takeRebalancerFee(_addDecimals(100_000)));
 
-        vm.startPrank(operator);
-        usdc.approve(address(s_childPool_1), type(uint256).max);
-        usdc.approve(address(s_childPool_2), type(uint256).max);
-        usdc.approve(address(s_childPool_3), type(uint256).max);
-        usdc.approve(address(s_childPool_4), type(uint256).max);
-        usdc.approve(address(s_childPool_5), type(uint256).max);
-        usdc.approve(address(s_childPool_6), type(uint256).max);
-        usdc.approve(address(s_childPool_7), type(uint256).max);
-        usdc.approve(address(s_childPool_8), type(uint256).max);
-        usdc.approve(address(s_childPool_9), type(uint256).max);
+        vm.startPrank(s_operator);
+        s_usdc.approve(address(s_childPool_1), type(uint256).max);
+        s_usdc.approve(address(s_childPool_2), type(uint256).max);
+        s_usdc.approve(address(s_childPool_3), type(uint256).max);
+        s_usdc.approve(address(s_childPool_4), type(uint256).max);
+        s_usdc.approve(address(s_childPool_5), type(uint256).max);
+        s_usdc.approve(address(s_childPool_6), type(uint256).max);
+        s_usdc.approve(address(s_childPool_7), type(uint256).max);
+        s_usdc.approve(address(s_childPool_8), type(uint256).max);
+        s_usdc.approve(address(s_childPool_9), type(uint256).max);
 
         s_childPool_1.fillDeficit(s_childPool_1.getDeficit());
         s_childPool_2.fillDeficit(s_childPool_2.getDeficit());
@@ -223,24 +224,24 @@ contract Rebalancer is RebalancerBase {
         s_childPool_9.fillDeficit(s_childPool_9.getDeficit());
         vm.stopPrank();
 
-        _takeSurplus(iouToken.balanceOf(operator));
-        _enterWithdrawalQueue(user, lpToken.balanceOf(user));
+        _takeSurplus(s_iouToken.balanceOf(s_operator));
+        _enterWithdrawalQueue(s_user, s_lpToken.balanceOf(s_user));
         _fillChildPoolSnapshots();
         _triggerDepositWithdrawProcess();
 
         _fillDeficit(s_parentPool.getDeficit());
         _processPendingWithdrawals();
 
-        vm.startPrank(operator);
-        iouToken.approve(address(s_childPool_1), type(uint256).max);
-        iouToken.approve(address(s_childPool_2), type(uint256).max);
-        iouToken.approve(address(s_childPool_3), type(uint256).max);
-        iouToken.approve(address(s_childPool_4), type(uint256).max);
-        iouToken.approve(address(s_childPool_5), type(uint256).max);
-        iouToken.approve(address(s_childPool_6), type(uint256).max);
-        iouToken.approve(address(s_childPool_7), type(uint256).max);
-        iouToken.approve(address(s_childPool_8), type(uint256).max);
-        iouToken.approve(address(s_childPool_9), type(uint256).max);
+        vm.startPrank(s_operator);
+        s_iouToken.approve(address(s_childPool_1), type(uint256).max);
+        s_iouToken.approve(address(s_childPool_2), type(uint256).max);
+        s_iouToken.approve(address(s_childPool_3), type(uint256).max);
+        s_iouToken.approve(address(s_childPool_4), type(uint256).max);
+        s_iouToken.approve(address(s_childPool_5), type(uint256).max);
+        s_iouToken.approve(address(s_childPool_6), type(uint256).max);
+        s_iouToken.approve(address(s_childPool_7), type(uint256).max);
+        s_iouToken.approve(address(s_childPool_8), type(uint256).max);
+        s_iouToken.approve(address(s_childPool_9), type(uint256).max);
 
         s_childPool_1.takeSurplus(s_childPool_1.getSurplus());
         s_childPool_2.takeSurplus(s_childPool_2.getSurplus());
@@ -253,46 +254,46 @@ contract Rebalancer is RebalancerBase {
         s_childPool_9.takeSurplus(s_childPool_9.getSurplus());
         vm.stopPrank();
 
-        _takeSurplus(iouToken.balanceOf(operator));
+        _takeSurplus(s_iouToken.balanceOf(s_operator));
 
         // 10 USDC is accrued to LP because the calculation is based on the balance of the entire pool
         // 10 USDC is remaining in the ParentPool
-        assertApproxEqRel(usdc.balanceOf(address(s_parentPool)), _addDecimals(10), 1e12); // 0.0001%
+        assertApproxEqRel(s_usdc.balanceOf(address(s_parentPool)), _addDecimals(10), 1e12); // 0.0001%
     }
 
     function test_RebalancerFee_ExtraProfit() public {
         _setSupportedChildPools(2); // 2 child pools
         _setQueuesLength(0, 0);
-        _enterDepositQueue(user, _addDecimals(1_200_000));
+        _enterDepositQueue(s_user, _addDecimals(1_200_000));
         _fillChildPoolSnapshots();
         _triggerDepositWithdrawProcess();
 
-        vm.startPrank(deployer);
-        s_childPool_1.setDstPool(childPoolChainSelector_2, address(s_childPool_2));
-        s_childPool_2.setDstPool(childPoolChainSelector_1, address(s_childPool_1));
+        vm.startPrank(s_deployer);
+        s_childPool_1.setDstPool(childPoolChainSelector_2, address(s_childPool_2).toBytes32());
+        s_childPool_2.setDstPool(childPoolChainSelector_1, address(s_childPool_1).toBytes32());
         vm.stopPrank();
 
         assertEq(s_parentPool.getTargetBalance(), _takeRebalancerFee(_addDecimals(400_000)));
         assertEq(s_childPool_1.getTargetBalance(), _takeRebalancerFee(_addDecimals(400_000)));
         assertEq(s_childPool_2.getTargetBalance(), _takeRebalancerFee(_addDecimals(400_000)));
 
-        usdc.balanceOf(operator);
+        s_usdc.balanceOf(s_operator);
 
-        vm.startPrank(operator);
-        usdc.approve(address(s_childPool_1), type(uint256).max);
-        usdc.approve(address(s_childPool_2), type(uint256).max);
-        iouToken.approve(address(s_childPool_1), type(uint256).max);
-        iouToken.approve(address(s_childPool_2), type(uint256).max);
-        usdc.approve(address(s_parentPool), type(uint256).max);
-        iouToken.approve(address(s_parentPool), type(uint256).max);
+        vm.startPrank(s_operator);
+        s_usdc.approve(address(s_childPool_1), type(uint256).max);
+        s_usdc.approve(address(s_childPool_2), type(uint256).max);
+        s_iouToken.approve(address(s_childPool_1), type(uint256).max);
+        s_iouToken.approve(address(s_childPool_2), type(uint256).max);
+        s_usdc.approve(address(s_parentPool), type(uint256).max);
+        s_iouToken.approve(address(s_parentPool), type(uint256).max);
 
         s_childPool_1.fillDeficit(s_childPool_1.getDeficit());
         s_childPool_2.fillDeficit(s_childPool_2.getDeficit());
 
-        s_parentPool.takeSurplus(iouToken.balanceOf(operator));
+        s_parentPool.takeSurplus(s_iouToken.balanceOf(s_operator));
         vm.stopPrank();
 
-        _enterDepositQueue(user, _addDecimals(100));
+        _enterDepositQueue(s_user, _addDecimals(100));
 
         uint256 totalFlow = _addDecimals(3_000_000);
         s_parentPool.exposed_setChildPoolSnapshot(
@@ -309,14 +310,14 @@ contract Rebalancer is RebalancerBase {
         assertApproxEqRel(s_childPool_1.getDeficit(), _addDecimals(51_930), 1e15);
         assertApproxEqRel(s_childPool_2.getDeficit(), _addDecimals(51_930), 1e15);
 
-        vm.startPrank(operator);
+        vm.startPrank(s_operator);
         s_childPool_1.fillDeficit(s_childPool_1.getDeficit());
         s_childPool_2.fillDeficit(s_childPool_2.getDeficit());
         vm.stopPrank();
 
         uint256 lastDepositRebalancerFee = s_parentPool.getRebalancerFee(_addDecimals(100));
         uint256 rebalancerExtraProfit = s_parentPool.getRebalancerFee(
-            iouToken.balanceOf(operator)
+            s_iouToken.balanceOf(s_operator)
         ) - lastDepositRebalancerFee;
 
         assertApproxEqRel(rebalancerExtraProfit, _addDecimals(10), 4e16);
@@ -332,17 +333,17 @@ contract Rebalancer is RebalancerBase {
         _baseSetupWithLPMinting();
 
         address user1 = _getUsers(1)[0];
-        uint256 usdcBalanceBefore = usdc.balanceOf(user1);
+        uint256 usdcBalanceBefore = s_usdc.balanceOf(user1);
         _enterWithdrawalQueue(user1, _takeRebalancerFee(_addDecimals(2_000)));
 
         // Imagine that someone send 1000 USDC from ParentPool to ChildPool
         _fillChildPoolSnapshots(_addDecimals(1_000));
-        MockERC20(address(usdc)).burn(address(s_parentPool), _addDecimals(1_000));
+        MockERC20(address(s_usdc)).burn(address(s_parentPool), _addDecimals(1_000));
         s_parentPool.exposed_setChildPoolSnapshot(
             1,
             _getChildPoolSnapshot(_addDecimals(2_000), 0, 0)
         );
-        assertEq(usdc.balanceOf(address(s_parentPool)), 0);
+        assertEq(s_usdc.balanceOf(address(s_parentPool)), 0);
 
         // Re-calculate target balances
         _triggerDepositWithdrawProcess();
@@ -368,11 +369,11 @@ contract Rebalancer is RebalancerBase {
         _processPendingWithdrawals();
 
         // 800 USDC should be in the ParentPool
-        assertApproxEqRel(usdc.balanceOf(address(s_parentPool)), _addDecimals(800), 1e15);
+        assertApproxEqRel(s_usdc.balanceOf(address(s_parentPool)), _addDecimals(800), 1e15);
 
         // User1 should have 2000 USDC
         assertEq(
-            usdc.balanceOf(user1),
+            s_usdc.balanceOf(user1),
             usdcBalanceBefore + _takeRebalancerFee(_addDecimals(2_000))
         );
     }
@@ -394,11 +395,11 @@ contract Rebalancer is RebalancerBase {
     }
 
     function test_takeSurplus_CalculatesNewIOUAmount_WhenFullWithdrawal() public {
-        vm.prank(deployer);
+        vm.prank(s_deployer);
         s_parentPool.setLiquidityCap(_addDecimals(5_000));
 
         _setQueuesLength(0, 0);
-        _enterDepositQueue(user, _addDecimals(5_000));
+        _enterDepositQueue(s_user, _addDecimals(5_000));
 
         _fillChildPoolSnapshots();
         _triggerDepositWithdrawProcess();
@@ -413,15 +414,15 @@ contract Rebalancer is RebalancerBase {
 
     function test_bridgeIOU_RevertsIfAmountIsZero() public {
         vm.expectRevert(ICommonErrors.AmountIsZero.selector);
-        s_parentPool.bridgeIOU(0, 1);
+        s_parentPool.bridgeIOU(s_user.toBytes32(), 1, 0);
     }
 
     function test_bridgeIOU_RevertsIfInvalidDestinationChain() public {
-        vm.expectRevert(IRebalancer.InvalidDestinationChain.selector);
-        s_parentPool.bridgeIOU(1, 5);
+        vm.expectRevert(abi.encodeWithSelector(ICommonErrors.InvalidDstChainSelector.selector, 5));
+        s_parentPool.bridgeIOU(s_user.toBytes32(), 5, 1);
     }
 
     function test_getIouToken() public view {
-        assertEq(s_parentPool.getIOUToken(), address(iouToken));
+        assertEq(s_parentPool.getIOUToken(), address(s_iouToken));
     }
 }

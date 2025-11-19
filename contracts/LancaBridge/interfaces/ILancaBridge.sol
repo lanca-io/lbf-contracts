@@ -5,28 +5,28 @@ interface ILancaBridge {
     event BridgeSent(
         bytes32 indexed messageId,
         uint24 dstChainSelector,
+        bytes dstChainData,
         address tokenSender,
-        address tokenReceiver,
-        uint256 tokenAmountBeforeFee,
-        uint256 dstGasLimit
+        uint256 tokenAmountBeforeFee
     );
     event BridgeDelivered(bytes32 indexed messageId, uint256 tokenAmountAfterFee);
     event SrcBridgeReorged(uint24 indexed sourceChainSelector, uint256 oldAmount);
 
-    error InvalidDstChainSelector();
+    error InvalidDstChainSelector(uint24 dstChainSelector);
     error InvalidDstGasLimitOrCallData();
     error InvalidConceroMessage();
 
     function bridge(
-        address tokenReceiver,
         uint256 tokenAmount,
         uint24 dstChainSelector,
-        uint256 dstGasLimit,
-        bytes calldata dstCallData
+        bytes calldata dstChainData,
+        bytes calldata payload
     ) external payable returns (bytes32 messageId);
 
     function getBridgeNativeFee(
+        uint256 tokenAmount,
         uint24 dstChainSelector,
-        uint256 dstGasLimit
+        bytes calldata dstChainData,
+        bytes calldata payload
     ) external view returns (uint256);
 }

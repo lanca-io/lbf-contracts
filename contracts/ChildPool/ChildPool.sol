@@ -12,11 +12,14 @@ import {ICommonErrors} from "../common/interfaces/ICommonErrors.sol";
 import {IParentPool} from "../ParentPool/interfaces/IParentPool.sol";
 import {Storage as rs} from "../Rebalancer/libraries/Storage.sol";
 import {Storage as pbs} from "../Base/libraries/Storage.sol";
+import {BridgeCodec} from "../common/libraries/BridgeCodec.sol";
 
 contract ChildPool is Rebalancer, LancaBridge {
     using s for s.ChildPool;
     using rs for rs.Rebalancer;
     using pbs for pbs.Base;
+    using BridgeCodec for bytes32;
+    using BridgeCodec for bytes;
 
     uint32 internal constant SEND_SNAPSHOT_MESSAGE_GAS_LIMIT = 100_000;
     uint24 internal immutable i_parentPoolChainSelector;
@@ -36,43 +39,31 @@ contract ChildPool is Rebalancer, LancaBridge {
         pbs.Base storage s_base = pbs.base();
         rs.Rebalancer storage s_rebalancer = rs.rebalancer();
 
-        IParentPool.ChildPoolSnapshot memory snapshot = IParentPool.ChildPoolSnapshot({
-            balance: getActiveBalance(),
-            dailyFlow: getYesterdayFlow(),
-            iouTotalSent: s_rebalancer.totalIouSent,
-            iouTotalReceived: s_rebalancer.totalIouReceived,
-            iouTotalSupply: i_iouToken.totalSupply(),
-            timestamp: uint32(block.timestamp),
-            totalLiqTokenReceived: s_base.totalLiqTokenSent,
-            totalLiqTokenSent: s_base.totalLiqTokenReceived
-        });
-
-        address parentPool = s_base.dstPools[i_parentPoolChainSelector];
+        bytes32 parentPool = s_base.dstPools[i_parentPoolChainSelector];
         require(
-            parentPool != address(0),
+            parentPool != bytes32(0),
             ICommonErrors.InvalidDstChainSelector(i_parentPoolChainSelector)
         );
 
-        bytes memory messagePayload = abi.encode(
-            ConceroMessageType.SEND_SNAPSHOT,
-            abi.encode(snapshot)
-        );
+        address[] memory validatorLibs = new address[](1);
+        validatorLibs[0] = s_base.validatorLib;
 
         IConceroRouter.MessageRequest memory messageRequest = IConceroRouter.MessageRequest({
             dstChainSelector: i_parentPoolChainSelector,
             srcBlockConfirmations: 0,
             feeToken: address(0),
             dstChainData: MessageCodec.encodeEvmDstChainData(
-                parentPool,
+                address(bytes20(parentPool)),
                 SEND_SNAPSHOT_MESSAGE_GAS_LIMIT
             ),
-            validatorLibs: s_base.validatorLibs[i_parentPoolChainSelector],
-            relayerLib: s_base.relayerLibs[i_parentPoolChainSelector],
-            validatorConfigs: new bytes[](1), // TODO: or validatorLibs.length?
+            validatorLibs: validatorLibs,
+            relayerLib: s_base.relayerLib,
+            validatorConfigs: new bytes[](1),
             relayerConfig: new bytes(0),
-            payload: messagePayload
+            payload: getEncodedSnapshot()
         });
 
+        // TODO: mb get rid of this
         uint256 messageFee = IConceroRouter(i_conceroRouter).getMessageFee(messageRequest);
 
         IConceroRouter(i_conceroRouter).conceroSend{value: messageFee}(messageRequest);
@@ -82,16 +73,8 @@ contract ChildPool is Rebalancer, LancaBridge {
         pbs.Base storage s_base = pbs.base();
         rs.Rebalancer storage s_rebalancer = rs.rebalancer();
 
-        IParentPool.ChildPoolSnapshot memory snapshot = IParentPool.ChildPoolSnapshot({
-            balance: getActiveBalance(),
-            dailyFlow: getYesterdayFlow(),
-            iouTotalSent: s_rebalancer.totalIouSent,
-            iouTotalReceived: s_rebalancer.totalIouReceived,
-            iouTotalSupply: i_iouToken.totalSupply(),
-            timestamp: uint32(block.timestamp),
-            totalLiqTokenReceived: s_base.totalLiqTokenSent,
-            totalLiqTokenSent: s_base.totalLiqTokenReceived
-        });
+        address[] memory validatorLibs = new address[](1);
+        validatorLibs[0] = s_base.validatorLib;
 
         return
             IConceroRouter(i_conceroRouter).getMessageFee(
@@ -100,24 +83,45 @@ contract ChildPool is Rebalancer, LancaBridge {
                     srcBlockConfirmations: 0,
                     feeToken: address(0),
                     dstChainData: MessageCodec.encodeEvmDstChainData(
-                        s_base.dstPools[i_parentPoolChainSelector],
+                        s_base.dstPools[i_parentPoolChainSelector].toAddress(),
                         SEND_SNAPSHOT_MESSAGE_GAS_LIMIT
                     ),
-                    validatorLibs: s_base.validatorLibs[i_parentPoolChainSelector],
-                    relayerLib: s_base.relayerLibs[i_parentPoolChainSelector],
-                    validatorConfigs: new bytes[](1), // TODO: or validatorLibs.length?
+                    validatorLibs: validatorLibs,
+                    relayerLib: s_base.relayerLib,
+                    validatorConfigs: new bytes[](1),
                     relayerConfig: new bytes(0),
-                    payload: abi.encode(ConceroMessageType.SEND_SNAPSHOT, abi.encode(snapshot))
+                    payload: getEncodedSnapshot()
                 })
             );
     }
 
-    function _handleConceroReceiveUpdateTargetBalance(bytes memory messageData) internal override {
-        uint256 targetBalance = abi.decode(messageData, (uint256));
-        pbs.base().targetBalance = targetBalance;
+    function getEncodedSnapshot() public view returns (bytes memory) {
+        pbs.Base storage s_base = pbs.base();
+        rs.Rebalancer storage s_rebalancer = rs.rebalancer();
+
+        LiqTokenDailyFlow memory dailyFlow = getYesterdayFlow();
+
+        return
+            BridgeCodec.encodeChildPoolSnapshotData(
+                getActiveBalance(),
+                dailyFlow.inflow,
+                dailyFlow.outflow,
+                s_rebalancer.totalIouSent,
+                s_rebalancer.totalIouReceived,
+                i_iouToken.totalSupply(),
+                uint32(block.timestamp),
+                s_base.totalLiqTokenSent,
+                s_base.totalLiqTokenReceived
+            );
     }
 
-    function _handleConceroReceiveSnapshot(uint24, bytes memory) internal pure override {
+    function _handleConceroReceiveUpdateTargetBalance(
+        bytes calldata messageData
+    ) internal override {
+        pbs.base().targetBalance = messageData.decodeUpdateTargetBalanceData();
+    }
+
+    function _handleConceroReceiveSnapshot(uint24, bytes calldata) internal pure override {
         revert ICommonErrors.FunctionNotImplemented();
     }
 }

@@ -23,4 +23,12 @@ contract ConceroRouterMock is IConceroRouter {
     function _getFee() internal pure returns (uint256) {
         return 0.0001 ether;
     }
+
+    function retryMessageSubmission(
+        bytes calldata messageReceipt,
+        bool[] calldata validationChecks,
+        address[] calldata validatorLibs,
+        address relayerLib,
+        uint32 gasLimitOverride
+    ) external {}
 }

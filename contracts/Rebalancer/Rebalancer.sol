@@ -10,6 +10,7 @@ import {MessageCodec} from "@concero/v2-contracts/contracts/common/libraries/Mes
 import {ICommonErrors} from "../common/interfaces/ICommonErrors.sol";
 import {Storage as s} from "./libraries/Storage.sol";
 import {Storage as bs} from "../Base/libraries/Storage.sol";
+import {BridgeCodec} from "../common/libraries/BridgeCodec.sol";
 
 /**
  * @title Rebalancer
@@ -19,6 +20,9 @@ abstract contract Rebalancer is IRebalancer, Base {
     using s for s.Rebalancer;
     using bs for bs.Base;
     using SafeERC20 for IERC20;
+    using BridgeCodec for bytes32;
+    using BridgeCodec for address;
+    using BridgeCodec for bytes;
 
     uint32 private constant DEFAULT_GAS_LIMIT = 300_000;
 
@@ -29,7 +33,6 @@ abstract contract Rebalancer is IRebalancer, Base {
             AmountExceedsDeficit(getDeficit(), liquidityAmountToFill)
         );
 
-        // Safe transfer liquidity tokens from caller to the pool
         IERC20(i_liquidityToken).safeTransferFrom(msg.sender, address(this), liquidityAmountToFill);
 
         i_iouToken.mint(msg.sender, liquidityAmountToFill);
@@ -63,46 +66,46 @@ abstract contract Rebalancer is IRebalancer, Base {
     }
 
     function bridgeIOU(
-        uint256 iouTokenAmount,
-        uint24 destinationChainSelector
-    ) external payable returns (bytes32 messageId) {
+        bytes32 receiver,
+        uint24 dstChainSelector,
+        uint256 iouTokenAmount
+    ) external payable returns (bytes32) {
         require(iouTokenAmount > 0, ICommonErrors.AmountIsZero());
+        require(receiver != bytes32(0), ICommonErrors.AddressShouldNotBeZero());
 
-        s.Rebalancer storage s_rebalancer = s.rebalancer();
         bs.Base storage s_base = bs.base();
 
-        // Validate destination pool exists
-        address destinationPoolAddress = s_base.dstPools[destinationChainSelector];
-        require(destinationPoolAddress != address(0), InvalidDestinationChain());
+        bytes32 dstPool = s_base.dstPools[dstChainSelector];
+        require(dstPool != bytes32(0), ICommonErrors.InvalidDstChainSelector(dstChainSelector));
 
-        // Burn IOU tokens from sender first (fail early if insufficient balance)
         i_iouToken.burnFrom(msg.sender, iouTokenAmount);
 
-        // Encode message data
-        bytes memory messageData = abi.encode(iouTokenAmount, msg.sender);
-        bytes memory crossChainMessage = abi.encode(ConceroMessageType.BRIDGE_IOU, messageData);
+        address[] memory validatorLibs = new address[](1);
+        validatorLibs[0] = s_base.validatorLib;
 
         IConceroRouter.MessageRequest memory messageRequest = IConceroRouter.MessageRequest({
-            dstChainSelector: destinationChainSelector,
+            dstChainSelector: dstChainSelector,
             srcBlockConfirmations: type(uint64).max,
             feeToken: address(0),
             dstChainData: MessageCodec.encodeEvmDstChainData(
-                destinationPoolAddress,
+                dstPool.toAddress(),
                 DEFAULT_GAS_LIMIT
             ),
-            validatorLibs: s_base.validatorLibs[destinationChainSelector],
-            relayerLib: s_base.relayerLibs[destinationChainSelector],
-            validatorConfigs: new bytes[](1), // TODO: or validatorLibs.length?
+            validatorLibs: validatorLibs,
+            relayerLib: s_base.relayerLib,
+            validatorConfigs: new bytes[](1),
             relayerConfig: new bytes(0),
-            payload: crossChainMessage
+            payload: BridgeCodec.encodeBridgeIouData(receiver, iouTokenAmount)
         });
 
         uint256 messageFee = IConceroRouter(i_conceroRouter).getMessageFee(messageRequest);
-        messageId = IConceroRouter(i_conceroRouter).conceroSend{value: messageFee}(messageRequest);
+        bytes32 messageId = IConceroRouter(i_conceroRouter).conceroSend{value: messageFee}(
+            messageRequest
+        );
 
-        s_rebalancer.totalIouSent += iouTokenAmount;
+        s.rebalancer().totalIouSent += iouTokenAmount;
 
-        emit IOUBridged(messageId, msg.sender, destinationChainSelector, iouTokenAmount);
+        emit IOUBridged(messageId, msg.sender, dstChainSelector, iouTokenAmount);
         return messageId;
     }
 
@@ -112,27 +115,33 @@ abstract contract Rebalancer is IRebalancer, Base {
         return address(i_iouToken);
     }
 
-    function getBridgeIouNativeFee(
-        uint24 destinationChainSelector
-    ) external view returns (uint256) {
+    function getBridgeIouNativeFee(uint24 dstChainSelector) external view returns (uint256) {
         bs.Base storage s_base = bs.base();
-        address destinationPoolAddress = bs.base().dstPools[destinationChainSelector];
+
+        address destinationPoolAddress = bs.base().dstPools[dstChainSelector].toAddress();
+        require(
+            destinationPoolAddress != address(0),
+            ICommonErrors.InvalidDstChainSelector(dstChainSelector)
+        );
+
+        address[] memory validatorLibs = new address[](1);
+        validatorLibs[0] = s_base.validatorLib;
 
         return
             IConceroRouter(i_conceroRouter).getMessageFee(
                 IConceroRouter.MessageRequest({
-                    dstChainSelector: destinationChainSelector,
+                    dstChainSelector: dstChainSelector,
                     srcBlockConfirmations: type(uint64).max,
                     feeToken: address(0),
                     dstChainData: MessageCodec.encodeEvmDstChainData(
                         destinationPoolAddress,
                         DEFAULT_GAS_LIMIT
                     ),
-                    validatorLibs: s_base.validatorLibs[destinationChainSelector],
-                    relayerLib: s_base.relayerLibs[destinationChainSelector],
-                    validatorConfigs: new bytes[](1), // TODO: or validatorLibs.length?
+                    validatorLibs: validatorLibs,
+                    relayerLib: s_base.relayerLib,
+                    validatorConfigs: new bytes[](1),
                     relayerConfig: new bytes(0),
-                    payload: abi.encode(ConceroMessageType.BRIDGE_IOU, abi.encode(1e18, msg.sender))
+                    payload: BridgeCodec.encodeBridgeIouData(msg.sender.toBytes32(), 1)
                 })
             );
     }
@@ -142,15 +151,15 @@ abstract contract Rebalancer is IRebalancer, Base {
     function _handleConceroReceiveBridgeIou(
         bytes32 messageId,
         uint24 sourceChainSelector,
-        bytes memory messageData
+        bytes calldata messageData
     ) internal override {
-        (uint256 iouTokenAmount, address receiver) = abi.decode(messageData, (uint256, address));
+        (bytes32 receiver, uint256 iouTokenAmount) = messageData.decodeBridgeIouData();
 
-        i_iouToken.mint(receiver, iouTokenAmount);
+        i_iouToken.mint(receiver.toAddress(), iouTokenAmount);
 
         s.rebalancer().totalIouReceived += iouTokenAmount;
 
-        emit IOUReceived(messageId, receiver, sourceChainSelector, iouTokenAmount);
+        emit IOUReceived(messageId, receiver.toAddress(), sourceChainSelector, iouTokenAmount);
     }
 
     function _postInflowRebalance(uint256 liquidityAmountToFill) internal virtual {}

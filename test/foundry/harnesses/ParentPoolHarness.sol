@@ -95,7 +95,7 @@ contract ParentPoolHarness is ParentPool {
         return i_conceroRouter;
     }
 
-    function exposed_setDstPool(uint24 chainSelector, address dstPool) public {
+    function exposed_setDstPool(uint24 chainSelector, bytes32 dstPool) public {
         pbs.base().dstPools[chainSelector] = dstPool;
     }
 }

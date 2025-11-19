@@ -4,12 +4,11 @@ pragma solidity 0.8.28;
 
 import {IConceroRouter} from "@concero/v2-contracts/contracts/interfaces/IConceroRouter.sol";
 import {MessageCodec} from "@concero/v2-contracts/contracts/common/libraries/MessageCodec.sol";
-
+import {BridgeCodec} from "contracts/common/libraries/BridgeCodec.sol";
 import {IBase} from "contracts/Base/interfaces/IBase.sol";
 import {ParentPool} from "contracts/ParentPool/ParentPool.sol";
 import {IParentPool} from "contracts/ParentPool/interfaces/IParentPool.sol";
 import {ICommonErrors} from "contracts/common/interfaces/ICommonErrors.sol";
-
 import {ParentPoolBase} from "../ParentPool/ParentPoolBase.sol";
 
 contract ReceiveSnapshot is ParentPoolBase {
@@ -46,21 +45,31 @@ contract ReceiveSnapshot is ParentPoolBase {
         });
 
         IConceroRouter.MessageRequest memory messageRequest = _buildMessageRequest(
-            abi.encode(IBase.ConceroMessageType.SEND_SNAPSHOT, abi.encode(snapshot)),
+            BridgeCodec.encodeChildPoolSnapshotData(
+                activeBalance,
+                dailyFlow.inflow,
+                dailyFlow.outflow,
+                iouTotalSent,
+                iouTotalReceived,
+                iouTotalSupply,
+                uint32(block.timestamp),
+                0,
+                0
+            ),
             PARENT_POOL_CHAIN_SELECTOR,
             address(s_parentPool)
         );
 
-        vm.prank(conceroRouter);
+        vm.prank(s_conceroRouter);
         s_parentPool.conceroReceive(
             messageRequest.toMessageReceiptBytes(
                 childPoolChainSelector_1,
                 address(s_childPool_1),
                 NONCE
             ),
-            validationChecks,
-            validatorLibs,
-            relayerLib
+            s_validationChecks,
+            s_validatorLibs,
+            s_relayerLib
         );
 
         IParentPool.ChildPoolSnapshot memory receivedSnapshot = s_parentPool
@@ -77,7 +86,7 @@ contract ReceiveSnapshot is ParentPoolBase {
 
     function test_ReceiveSnapshot_CannotBeUsedTwice() public {
         _setQueuesLength(0, 0);
-        _enterDepositQueue(user, _addDecimals(100));
+        _enterDepositQueue(s_user, _addDecimals(100));
 
         _fillChildPoolSnapshots();
 
@@ -122,18 +131,18 @@ contract ReceiveSnapshot is ParentPoolBase {
             )
         );
 
-        vm.prank(conceroRouter);
+        vm.prank(s_conceroRouter);
         s_parentPool.conceroReceive(
             messageRequest.toMessageReceiptBytes(childPoolChainSelector_1, invalidSender, NONCE),
-            validationChecks,
-            validatorLibs,
-            relayerLib
+            s_validationChecks,
+            s_validatorLibs,
+            s_relayerLib
         );
     }
 
     function test_ReceiveSnapshot_CannotBeUsedWithExpiredTimestamp() public {
         _setQueuesLength(0, 0);
-        _enterDepositQueue(user, _addDecimals(100));
+        _enterDepositQueue(s_user, _addDecimals(100));
 
         _fillChildPoolSnapshots();
 
