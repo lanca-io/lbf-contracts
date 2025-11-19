@@ -88,7 +88,9 @@ contract TargetBalanceHandler is Test {
         if (usdcBalance < minDepositAmount) return;
         amount = bound(amount, minDepositAmount, usdcBalance);
 
-        _etherDepositQueue(amount);
+        vm.prank(i_liquidityProvider);
+        i_parentPool.enterDepositQueue(amount);
+
         _sendSnapshotsToParentPool();
         _triggerDepositWithdrawProcess();
     }
@@ -99,11 +101,14 @@ contract TargetBalanceHandler is Test {
         if (lpBalance == 0) return;
         amount = bound(amount, 1, lpBalance);
 
-        _enterWithdrawalQueue(amount);
+        vm.prank(i_liquidityProvider);
+        i_parentPool.enterWithdrawalQueue(amount);
 
         _sendSnapshotsToParentPool();
         _triggerDepositWithdrawProcess();
-        _processPendingWithdrawals();
+
+        vm.prank(s_lancaKeeper);
+        i_parentPool.processPendingWithdrawals();
     }
 
     function bridge(uint256 srcActorIndexSeed, uint256 dstActorIndexSeed, uint256 amount) external {
@@ -116,11 +121,10 @@ contract TargetBalanceHandler is Test {
         if (activeBalance == 0) return;
 
         amount = bound(amount, 0, activeBalance);
-        if (amount > i_usdc.balanceOf(i_user)) {
-            amount = i_usdc.balanceOf(i_user);
+        uint256 userBalance = i_usdc.balanceOf(i_user);
+        if (amount > userBalance) {
+            amount = userBalance;
         }
-
-        console.log("Bridge from, to, amount: ", srcPool, dstPool, amount);
 
         uint256 messageFee = i_parentPool.getBridgeNativeFee(i_childPoolChainSelector_1, 0);
 
@@ -226,21 +230,6 @@ contract TargetBalanceHandler is Test {
         vm.prank(s_lancaKeeper);
         i_parentPool.triggerDepositWithdrawProcess();
     }
-
-    function _processPendingWithdrawals() internal {
-        vm.prank(s_lancaKeeper);
-        i_parentPool.processPendingWithdrawals();
-    }
-
-    function _etherDepositQueue(uint256 amount) internal {
-        vm.prank(i_liquidityProvider);
-        i_parentPool.enterDepositQueue(amount);
-    }
-
-    function _enterWithdrawalQueue(uint256 amount) internal {
-        vm.prank(i_liquidityProvider);
-        i_parentPool.enterWithdrawalQueue(amount);
-    }
 }
 
 contract TargetBalanceInvariants is LancaTest {
@@ -307,7 +296,7 @@ contract TargetBalanceInvariants is LancaTest {
         targetSelector(FuzzSelector({addr: address(s_targetBalanceHandler), selectors: selectors}));
     }
 
-    function invariant_totalTargetBalanceAlwaysLessOrEqualToActiveBalance() public view {
+    function invariant_totalTargetBalanceAlwaysLessThanOrEqualToActiveBalance() public view {
         uint256 parentPoolTargetBalance = s_parentPool.getTargetBalance();
         uint256 childPoolTargetBalance_1 = s_childPool_1.getTargetBalance();
         uint256 childPoolTargetBalance_2 = s_childPool_2.getTargetBalance();
@@ -323,6 +312,22 @@ contract TargetBalanceInvariants is LancaTest {
             childPoolActiveBalance_2;
 
         assert(totalTargetBalance <= totalActiveBalance);
+    }
+
+    function invariant_totalSurplusAlwaysMoreThanOrEqualTotalDeficit() public view {
+        uint256 parentPoolSurplus = s_parentPool.getSurplus();
+        uint256 childPoolSurplus_1 = s_childPool_1.getSurplus();
+        uint256 childPoolSurplus_2 = s_childPool_2.getSurplus();
+
+        uint256 totalSurplus = parentPoolSurplus + childPoolSurplus_1 + childPoolSurplus_2;
+
+        uint256 parentPoolDeficit = s_parentPool.getDeficit();
+        uint256 childPoolDeficit_1 = s_childPool_1.getDeficit();
+        uint256 childPoolDeficit_2 = s_childPool_2.getDeficit();
+
+        uint256 totalDeficit = parentPoolDeficit + childPoolDeficit_1 + childPoolDeficit_2;
+
+        assert(totalSurplus >= totalDeficit);
     }
 
     function _deployTokens() internal {
