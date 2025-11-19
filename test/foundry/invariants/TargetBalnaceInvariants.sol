@@ -265,6 +265,8 @@ contract TargetBalanceInvariants is LancaTest {
     uint256 public constant OPERATOR_INITIAL_BALANCE = 10_000e6;
     uint256 public constant INITIAL_TVL = 10_000e6;
     uint64 public constant MIN_DEPOSIT_AMOUNT = 1e6;
+    uint256 public constant LIQUIDITY_CAP =
+        LIQUIDITY_PROVIDER_INITIAL_BALANCE + USER_INITIAL_BALANCE;
 
     function setUp() public {
         s_conceroRouterMockWithCall = new ConceroRouterMockWithCall();
@@ -305,20 +307,22 @@ contract TargetBalanceInvariants is LancaTest {
         targetSelector(FuzzSelector({addr: address(s_targetBalanceHandler), selectors: selectors}));
     }
 
-    function invariant_totalTargetBalanceAlwaysEqualsToActiveBalance() public view {
-        // uint256 parentPoolTargetBalance = parentPool.getTargetBalance();
-        // uint256 childPool1TargetBalance = childPool.getTargetBalance();
-        // uint256 childPool2TargetBalance = childPool_2.getTargetBalance();
-        // uint256 parentPoolActiveBalance = parentPool.getActiveBalance();
-        // uint256 childPool1ActiveBalance = childPool.getActiveBalance();
-        // uint256 childPool2ActiveBalance = childPool_2.getActiveBalance();
-        // uint256 totalTargetBalance = parentPoolTargetBalance +
-        //     childPool1TargetBalance +
-        //     childPool2TargetBalance;
-        // uint256 totalActiveBalance = parentPoolActiveBalance +
-        //     childPool1ActiveBalance +
-        //     childPool2ActiveBalance;
-        // assertEq(totalTargetBalance, totalActiveBalance);
+    function invariant_totalTargetBalanceAlwaysLessOrEqualToActiveBalance() public view {
+        uint256 parentPoolTargetBalance = s_parentPool.getTargetBalance();
+        uint256 childPoolTargetBalance_1 = s_childPool_1.getTargetBalance();
+        uint256 childPoolTargetBalance_2 = s_childPool_2.getTargetBalance();
+        uint256 parentPoolActiveBalance = s_parentPool.getActiveBalance();
+        uint256 childPoolActiveBalance_1 = s_childPool_1.getActiveBalance();
+        uint256 childPoolActiveBalance_2 = s_childPool_2.getActiveBalance();
+
+        uint256 totalTargetBalance = parentPoolTargetBalance +
+            childPoolTargetBalance_1 +
+            childPoolTargetBalance_2;
+        uint256 totalActiveBalance = parentPoolActiveBalance +
+            childPoolActiveBalance_1 +
+            childPoolActiveBalance_2;
+
+        assert(totalTargetBalance <= totalActiveBalance);
     }
 
     function _deployTokens() internal {
@@ -495,6 +499,6 @@ contract TargetBalanceInvariants is LancaTest {
 
     function _setLiquidityCap() internal {
         vm.prank(deployer);
-        s_parentPool.setLiquidityCap(LIQUIDITY_PROVIDER_INITIAL_BALANCE);
+        s_parentPool.setLiquidityCap(LIQUIDITY_CAP);
     }
 }
