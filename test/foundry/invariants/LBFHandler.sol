@@ -30,6 +30,9 @@ contract LBFHandler is Test {
     uint24 internal constant CHILD_POOL_CHAIN_SELECTOR_1 = 100;
     uint24 internal constant CHILD_POOL_CHAIN_SELECTOR_2 = 200;
 
+    uint256 public s_totalDeposits;
+    uint256 public s_totalWithdrawals;
+
     address[] pools;
     mapping(address => uint24 dstPoolChainSelector) internal i_dstPoolChainSelectors;
 
@@ -76,6 +79,8 @@ contract LBFHandler is Test {
         if (usdcBalance < minDepositAmount) return;
         amount = bound(amount, minDepositAmount, usdcBalance);
 
+        s_totalDeposits += amount;
+
         vm.prank(i_liquidityProvider);
         i_parentPool.enterDepositQueue(amount);
 
@@ -84,10 +89,12 @@ contract LBFHandler is Test {
     }
 
     function withdraw(uint256 amount) external {
-        uint256 lpBalance = i_lp.balanceOf(i_user);
+        uint256 lpBalance = i_lp.balanceOf(i_liquidityProvider);
 
         if (lpBalance == 0) return;
         amount = bound(amount, 1, lpBalance);
+
+        s_totalWithdrawals += amount;
 
         vm.prank(i_liquidityProvider);
         i_parentPool.enterWithdrawalQueue(amount);
@@ -95,8 +102,10 @@ contract LBFHandler is Test {
         _sendSnapshotsToParentPool();
         _triggerDepositWithdrawProcess();
 
-        vm.prank(i_lancaKeeper);
-        i_parentPool.processPendingWithdrawals();
+        if (i_parentPool.isReadyToProcessPendingWithdrawals()) {
+            vm.prank(i_lancaKeeper);
+            i_parentPool.processPendingWithdrawals();
+        }
     }
 
     function bridge(uint256 srcActorIndexSeed, uint256 dstActorIndexSeed, uint256 amount) external {

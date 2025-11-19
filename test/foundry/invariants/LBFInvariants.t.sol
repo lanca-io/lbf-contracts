@@ -58,4 +58,11 @@ contract LBFInvariants is InvariantTestBase {
 
         assert(totalSurplus >= totalDeficit);
     }
+
+    function invariant_liquidityProviderFinalBalanceIsMoreThanInitialBalance() public {
+        uint256 withdrawalAmount = s_lpToken.balanceOf(liquidityProvider);
+        s_lbfHandler.withdraw(withdrawalAmount);
+
+        assertGt(s_lbfHandler.s_totalWithdrawals(), s_lbfHandler.s_totalDeposits());
+    }
 }
