@@ -33,7 +33,7 @@ contract InvariantTestBase is LancaTest {
     IOUToken public s_iouToken;
     LPToken public s_lpToken;
 
-	address public s_rebalancer = makeAddr("rebalancer");
+    address public s_rebalancer = makeAddr("rebalancer");
 
     uint24 public constant CHILD_POOL_CHAIN_SELECTOR_2 = 200;
 
@@ -42,6 +42,7 @@ contract InvariantTestBase is LancaTest {
     uint256 public constant LIQUIDITY_PROVIDER_INITIAL_BALANCE = 50_000e6;
     uint256 public constant REBALANCER_INITIAL_BALANCE = 10_000e6;
     uint256 public constant INITIAL_TVL = 10_000e6;
+
     uint64 public constant MIN_DEPOSIT_AMOUNT = 1e6;
     uint256 public constant LIQUIDITY_CAP =
         LIQUIDITY_PROVIDER_INITIAL_BALANCE + USER_INITIAL_BALANCE;
@@ -230,5 +231,85 @@ contract InvariantTestBase is LancaTest {
 
         s_parentPool.takeSurplus(s_iouToken.balanceOf(s_rebalancer));
         vm.stopPrank();
+    }
+
+    /** Helper functions */
+
+    function _sendSnapshotsToParentPool() internal {
+        vm.startPrank(s_lancaKeeper);
+        s_conceroRouterMockWithCall.setSrcChainSelector(CHILD_POOL_CHAIN_SELECTOR);
+        s_childPool_1.sendSnapshotToParentPool();
+        s_conceroRouterMockWithCall.setSrcChainSelector(CHILD_POOL_CHAIN_SELECTOR_2);
+        s_childPool_2.sendSnapshotToParentPool();
+        vm.stopPrank();
+    }
+
+    function _triggerDepositWithdrawProcess() internal {
+        s_conceroRouterMockWithCall.setSrcChainSelector(PARENT_POOL_CHAIN_SELECTOR);
+
+        vm.prank(s_lancaKeeper);
+        s_parentPool.triggerDepositWithdrawProcess();
+    }
+
+    function _processPendingWithdrawals() internal {
+        vm.prank(s_lancaKeeper);
+        s_parentPool.processPendingWithdrawals();
+    }
+
+    function _rebalance() internal {
+        vm.startPrank(s_rebalancer);
+        _fillDeficits();
+        _takeSurpluses();
+        vm.stopPrank();
+    }
+
+    function _fillDeficits() internal {
+        uint256 deficit = s_parentPool.getDeficit();
+        uint256 usdcBalance = s_usdc.balanceOf(s_rebalancer);
+        deficit = deficit > usdcBalance ? usdcBalance : deficit;
+
+        if (deficit > 0) {
+            s_parentPool.fillDeficit(deficit);
+        }
+
+        usdcBalance = usdcBalance - deficit;
+        deficit = s_childPool_1.getDeficit();
+        deficit = deficit > usdcBalance ? usdcBalance : deficit;
+        if (deficit > 0) {
+            s_childPool_1.fillDeficit(deficit);
+        }
+
+        usdcBalance = usdcBalance - deficit;
+        deficit = s_childPool_2.getDeficit();
+        deficit = deficit > usdcBalance ? usdcBalance : deficit;
+        if (deficit > 0) {
+            s_childPool_2.fillDeficit(deficit);
+        }
+    }
+
+    function _takeSurpluses() internal {
+        uint256 surplus = s_parentPool.getSurplus();
+        uint256 iouBalance = s_iouToken.balanceOf(s_rebalancer);
+        surplus = surplus > iouBalance ? iouBalance : surplus;
+
+        if (surplus > 0) {
+            s_parentPool.takeSurplus(surplus);
+        }
+
+        iouBalance = iouBalance - surplus;
+        surplus = s_childPool_1.getSurplus();
+        surplus = surplus > iouBalance ? iouBalance : surplus;
+
+        if (surplus > 0) {
+            s_childPool_1.takeSurplus(surplus);
+        }
+
+        iouBalance = iouBalance - surplus;
+        surplus = s_childPool_2.getSurplus();
+        surplus = surplus > iouBalance ? iouBalance : surplus;
+
+        if (surplus > 0) {
+            s_childPool_2.takeSurplus(surplus);
+        }
     }
 }

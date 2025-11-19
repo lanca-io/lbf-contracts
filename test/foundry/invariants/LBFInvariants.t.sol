@@ -46,8 +46,8 @@ contract LBFInvariants is InvariantTestBase {
             s_childPool_1.getActiveBalance() +
             s_childPool_2.getActiveBalance();
 
-		console.log("totalTargetBalance", totalTargetBalance);
-		console.log("totalActiveBalance", totalActiveBalance);
+        console.log("totalTargetBalance", totalTargetBalance);
+        console.log("totalActiveBalance", totalActiveBalance);
 
         assert(totalTargetBalance <= totalActiveBalance);
     }
@@ -61,12 +61,15 @@ contract LBFInvariants is InvariantTestBase {
             s_childPool_1.getDeficit() +
             s_childPool_2.getDeficit();
 
+        console.log("totalSurplus", totalSurplus);
+        console.log("totalDeficit", totalDeficit);
+
         assert(totalSurplus >= totalDeficit);
     }
 
     function invariant_liquidityProviderFinalBalanceIsMoreThanInitialBalance() public {
         uint256 lpBalance = s_lpToken.balanceOf(liquidityProvider);
-		s_lbfHandler.setIsLastWithdrawal(true);
+        s_lbfHandler.setIsLastWithdrawal(true);
         s_lbfHandler.withdraw(lpBalance);
 
         lpBalance = s_lpToken.balanceOf(liquidityProvider);
@@ -74,4 +77,40 @@ contract LBFInvariants is InvariantTestBase {
         assertEq(lpBalance, 0);
         assertGt(s_lbfHandler.s_totalWithdrawals(), s_lbfHandler.s_totalDeposits());
     }
+
+    // function test_underflow() public {
+    //     uint256 lpBalance = s_lpToken.balanceOf(liquidityProvider);
+    //     vm.prank(liquidityProvider);
+    //     s_parentPool.enterWithdrawalQueue(lpBalance / 2);
+
+    //     _sendSnapshotsToParentPool();
+    //     _triggerDepositWithdrawProcess();
+
+    //     console.log(
+    //         "isReadyToProcessPendingWithdrawals",
+    //         s_parentPool.isReadyToProcessPendingWithdrawals()
+    //     );
+
+    //     if (!s_parentPool.isReadyToProcessPendingWithdrawals()) {
+    //         _rebalance();
+    //     } else {
+    //         _processPendingWithdrawals();
+    //     }
+
+    //     lpBalance = s_lpToken.balanceOf(liquidityProvider);
+
+    //     vm.prank(liquidityProvider);
+    //     s_parentPool.enterWithdrawalQueue(lpBalance);
+
+    //     _sendSnapshotsToParentPool();
+
+    //     // vm.prank(user);
+    //     // s_usdc.transfer(address(s_parentPool), 1e6);
+
+    //     _triggerDepositWithdrawProcess();
+
+    //     _rebalance();
+
+    //     _processPendingWithdrawals();
+    // }
 }

@@ -10,6 +10,7 @@ import {ChildPool} from "contracts/ChildPool/ChildPool.sol";
 import {ParentPoolHarness} from "../harnesses/ParentPoolHarness.sol";
 import {ConceroRouterMockWithCall} from "../mocks/ConceroRouterMockWithCall.sol";
 import {Base} from "contracts/Base/Base.sol";
+import {ILancaBridge} from "contracts/LancaBridge/interfaces/ILancaBridge.sol";
 
 contract LBFHandler is Test {
     ParentPoolHarness internal immutable i_parentPool;
@@ -34,8 +35,8 @@ contract LBFHandler is Test {
     uint256 public s_totalWithdrawals;
     bool public s_isLastWithdrawal;
 
-    address[] pools;
-    mapping(address => uint24 dstPoolChainSelector) internal i_dstPoolChainSelectors;
+    address[] s_pools;
+    mapping(address => uint24 dstPoolChainSelector) internal s_dstPoolChainSelectors;
 
     constructor(
         address parentPool,
@@ -62,13 +63,13 @@ contract LBFHandler is Test {
         i_lancaKeeper = lancaKeeper;
         i_rebalancer = rebalancer;
 
-        pools.push(address(i_parentPool));
-        pools.push(address(i_childPool_1));
-        pools.push(address(i_childPool_2));
+        s_pools.push(address(i_parentPool));
+        s_pools.push(address(i_childPool_1));
+        s_pools.push(address(i_childPool_2));
 
-        i_dstPoolChainSelectors[address(i_parentPool)] = PARENT_POOL_CHAIN_SELECTOR;
-        i_dstPoolChainSelectors[address(i_childPool_1)] = CHILD_POOL_CHAIN_SELECTOR_1;
-        i_dstPoolChainSelectors[address(i_childPool_2)] = CHILD_POOL_CHAIN_SELECTOR_2;
+        s_dstPoolChainSelectors[address(i_parentPool)] = PARENT_POOL_CHAIN_SELECTOR;
+        s_dstPoolChainSelectors[address(i_childPool_1)] = CHILD_POOL_CHAIN_SELECTOR_1;
+        s_dstPoolChainSelectors[address(i_childPool_2)] = CHILD_POOL_CHAIN_SELECTOR_2;
 
         i_conceroRouter = ConceroRouterMockWithCall(conceroRouter);
     }
@@ -115,8 +116,8 @@ contract LBFHandler is Test {
     }
 
     function bridge(uint256 srcActorIndexSeed, uint256 dstActorIndexSeed, uint256 amount) external {
-        address srcPool = pools[bound(srcActorIndexSeed, 0, pools.length - 1)];
-        address dstPool = pools[bound(dstActorIndexSeed, 0, pools.length - 1)];
+        address srcPool = s_pools[bound(srcActorIndexSeed, 0, s_pools.length - 1)];
+        address dstPool = s_pools[bound(dstActorIndexSeed, 0, s_pools.length - 1)];
 
         if (srcPool == dstPool) return;
 
@@ -134,35 +135,21 @@ contract LBFHandler is Test {
         vm.startPrank(i_user);
         if (srcPool == address(i_parentPool)) {
             i_conceroRouter.setSrcChainSelector(PARENT_POOL_CHAIN_SELECTOR);
-            i_parentPool.bridge{value: messageFee}(
-                i_user,
-                amount,
-                i_dstPoolChainSelectors[dstPool],
-                0,
-                ""
-            );
+            _bridge(address(i_parentPool), dstPool, amount);
         } else if (srcPool == address(i_childPool_1)) {
             i_conceroRouter.setSrcChainSelector(CHILD_POOL_CHAIN_SELECTOR_1);
-            i_childPool_1.bridge{value: messageFee}(
-                i_user,
-                amount,
-                i_dstPoolChainSelectors[dstPool],
-                0,
-                ""
-            );
+            _bridge(address(i_childPool_1), dstPool, amount);
         } else {
             i_conceroRouter.setSrcChainSelector(CHILD_POOL_CHAIN_SELECTOR_2);
-            i_childPool_2.bridge{value: messageFee}(
-                i_user,
-                amount,
-                i_dstPoolChainSelectors[dstPool],
-                0,
-                ""
-            );
+            _bridge(address(i_childPool_2), dstPool, amount);
         }
         vm.stopPrank();
 
         _rebalance();
+    }
+
+    function _bridge(address srcPool, address dstPool, uint256 amount) internal {
+        ILancaBridge(srcPool).bridge(i_user, amount, s_dstPoolChainSelectors[dstPool], 0, "");
     }
 
     function _rebalance() internal {
