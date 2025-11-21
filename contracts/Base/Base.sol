@@ -30,7 +30,7 @@ abstract contract Base is IBase, ConceroClient, ConceroOwnable {
     address internal immutable i_liquidityToken;
     IOUToken internal immutable i_iouToken;
     uint8 internal immutable i_liquidityTokenDecimals;
-    uint24 internal i_chainSelector;
+    uint24 internal immutable i_chainSelector;
 
     modifier onlyLancaKeeper() {
         s.Base storage s_base = s.base();
