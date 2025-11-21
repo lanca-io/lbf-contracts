@@ -30,7 +30,7 @@ abstract contract Base is IBase, ConceroClient, ConceroOwnable {
     address internal immutable i_liquidityToken;
     IOUToken internal immutable i_iouToken;
     uint8 internal immutable i_liquidityTokenDecimals;
-    uint24 internal i_chainSelector;
+    uint24 internal immutable i_chainSelector;
 
     modifier onlyLancaKeeper() {
         s.Base storage s_base = s.base();
@@ -90,6 +90,14 @@ abstract contract Base is IBase, ConceroClient, ConceroOwnable {
         return s.base().lancaKeeper;
     }
 
+    function getRelayerLib() public view returns (address) {
+        return s.base().relayerLib;
+    }
+
+    function getValidatorLib() public view returns (address) {
+        return s.base().validatorLib;
+    }
+
     function getTargetBalance() public view returns (uint256) {
         return s.base().targetBalance;
     }
@@ -132,20 +140,13 @@ abstract contract Base is IBase, ConceroClient, ConceroOwnable {
         s.base().lancaKeeper = lancaKeeper;
     }
 
-    function setIsRelayerLibAllowed(address relayerLib, bool isAllowed) external onlyOwner {
-        s.base().relayerLib = relayerLib;
-        _setIsRelayerAllowed(relayerLib, isAllowed);
-    }
-
     function setRelayerLib(address relayerLib) external onlyOwner {
         s.Base storage s_base = s.base();
 
-        address currentRelayer = s_base.validatorLib;
-
-        require(currentRelayer != relayerLib, ValidatorAlreadySet(currentRelayer));
+        require(relayerLib != address(0), ICommonErrors.AddressShouldNotBeZero());
+        require(s_base.relayerLib == address(0), RelayerAlreadySet(s_base.relayerLib));
 
         s_base.relayerLib = relayerLib;
-
         _setIsRelayerAllowed(relayerLib, true);
     }
 
@@ -163,7 +164,8 @@ abstract contract Base is IBase, ConceroClient, ConceroOwnable {
     function setValidatorLib(address validatorLib) external onlyOwner {
         s.Base storage s_base = s.base();
 
-        require(s_base.validatorLib != validatorLib, ValidatorAlreadySet(s_base.validatorLib));
+        require(validatorLib != address(0), ICommonErrors.AddressShouldNotBeZero());
+        require(s_base.validatorLib == address(0), ValidatorAlreadySet(s_base.validatorLib));
 
         s_base.validatorLib = validatorLib;
 

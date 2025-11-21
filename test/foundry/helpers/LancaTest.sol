@@ -51,7 +51,7 @@ abstract contract LancaTest is LancaBaseTest {
 
     function _setRelayerLib(address client) internal {
         vm.prank(s_deployer);
-        Base(payable(client)).setIsRelayerLibAllowed(s_relayerLib, true);
+        Base(payable(client)).setRelayerLib(s_relayerLib);
     }
 
     function _setValidatorLibs(address client) internal {

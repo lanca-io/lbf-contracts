@@ -9,8 +9,8 @@ cache_path = "cache/foundry"
 test = "test/foundry"
 via_ir = false
 
-libs = ["node_modules", "./contracts/"]
-allow_paths = ["node_modules", "./contracts/"]
+libs = ["node_modules", "./src/contracts/"]
+allow_paths = ["node_modules", "./src/contracts/"]
 
 remappings = [
     "@chainlink/=node_modules/@chainlink/",

@@ -19,4 +19,8 @@ abstract contract ConceroOwnable {
     constructor() {
         i_owner = msg.sender;
     }
+
+    function getOwner() public view returns (address) {
+        return i_owner;
+    }
 }
