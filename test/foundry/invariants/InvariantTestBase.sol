@@ -21,6 +21,8 @@ contract InvariantTestBase is LancaTest {
     ChildPool public s_childPool_2;
     ConceroRouterMockWithCall public s_conceroRouterMockWithCall;
     LPToken public s_lpToken;
+    IOUToken public s_iouTokenChildPool_1;
+    IOUToken public s_iouTokenChildPool_2;
 
     address public s_rebalancer = makeAddr("rebalancer");
 
@@ -52,9 +54,14 @@ contract InvariantTestBase is LancaTest {
     function _deployTokens() internal {
         s_lpToken = new LPToken(s_deployer, s_deployer);
 
+        s_iouTokenChildPool_1 = new IOUToken(s_deployer, address(0));
+        s_iouTokenChildPool_2 = new IOUToken(s_deployer, address(0));
+
         vm.label(address(s_usdc), "USDC");
-        vm.label(address(s_iouToken), "IOUToken");
         vm.label(address(s_lpToken), "LPToken");
+        vm.label(address(s_iouToken), "IOUToken-PP");
+        vm.label(address(s_iouTokenChildPool_1), "IOUToken-CP1");
+        vm.label(address(s_iouTokenChildPool_2), "IOUToken-CP2");
     }
 
     function _deployPools() internal {
@@ -71,7 +78,7 @@ contract InvariantTestBase is LancaTest {
 
         s_childPool_1 = new ChildPool(
             address(s_conceroRouterMockWithCall),
-            address(s_iouToken),
+            address(s_iouTokenChildPool_1),
             address(s_usdc),
             USDC_TOKEN_DECIMALS,
             CHILD_POOL_CHAIN_SELECTOR,
@@ -80,7 +87,7 @@ contract InvariantTestBase is LancaTest {
 
         s_childPool_2 = new ChildPool(
             address(s_conceroRouterMockWithCall),
-            address(s_iouToken),
+            address(s_iouTokenChildPool_2),
             address(s_usdc),
             USDC_TOKEN_DECIMALS,
             CHILD_POOL_CHAIN_SELECTOR_2,
@@ -138,9 +145,9 @@ contract InvariantTestBase is LancaTest {
         IERC20(s_usdc).approve(address(s_childPool_1), type(uint256).max);
         IERC20(s_usdc).approve(address(s_childPool_2), type(uint256).max);
         IERC20(s_usdc).approve(address(s_parentPool), type(uint256).max);
-        IERC20(s_iouToken).approve(address(s_childPool_1), type(uint256).max);
-        IERC20(s_iouToken).approve(address(s_childPool_2), type(uint256).max);
         IERC20(s_iouToken).approve(address(s_parentPool), type(uint256).max);
+        IERC20(s_iouTokenChildPool_1).approve(address(s_childPool_1), type(uint256).max);
+        IERC20(s_iouTokenChildPool_2).approve(address(s_childPool_2), type(uint256).max);
         vm.stopPrank();
     }
 
@@ -169,8 +176,14 @@ contract InvariantTestBase is LancaTest {
         s_childPool_2.setLancaKeeper(s_lancaKeeper);
 
         s_iouToken.grantRole(s_iouToken.MINTER_ROLE(), address(s_parentPool));
-        s_iouToken.grantRole(s_iouToken.MINTER_ROLE(), address(s_childPool_1));
-        s_iouToken.grantRole(s_iouToken.MINTER_ROLE(), address(s_childPool_2));
+        s_iouTokenChildPool_1.grantRole(
+            s_iouTokenChildPool_1.MINTER_ROLE(),
+            address(s_childPool_1)
+        );
+        s_iouTokenChildPool_2.grantRole(
+            s_iouTokenChildPool_2.MINTER_ROLE(),
+            address(s_childPool_2)
+        );
 
         s_lpToken.grantRole(s_lpToken.MINTER_ROLE(), address(s_parentPool));
 
@@ -200,6 +213,20 @@ contract InvariantTestBase is LancaTest {
         vm.startPrank(s_rebalancer);
         s_childPool_1.fillDeficit(s_childPool_1.getDeficit());
         s_childPool_2.fillDeficit(s_childPool_2.getDeficit());
+
+        s_conceroRouterMockWithCall.setSrcChainSelector(CHILD_POOL_CHAIN_SELECTOR);
+        s_childPool_1.bridgeIOU{value: 0.0001 ether}(
+            BridgeCodec.toBytes32(s_rebalancer),
+            PARENT_POOL_CHAIN_SELECTOR,
+            s_iouTokenChildPool_1.balanceOf(s_rebalancer)
+        );
+
+        s_conceroRouterMockWithCall.setSrcChainSelector(CHILD_POOL_CHAIN_SELECTOR_2);
+        s_childPool_2.bridgeIOU{value: 0.0001 ether}(
+            BridgeCodec.toBytes32(s_rebalancer),
+            PARENT_POOL_CHAIN_SELECTOR,
+            s_iouTokenChildPool_2.balanceOf(s_rebalancer)
+        );
 
         s_parentPool.takeSurplus(s_iouToken.balanceOf(s_rebalancer));
         vm.stopPrank();

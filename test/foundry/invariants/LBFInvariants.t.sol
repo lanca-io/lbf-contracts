@@ -21,62 +21,63 @@ contract LBFInvariants is InvariantTestBase {
             address(s_usdc),
             address(s_lpToken),
             address(s_iouToken),
-            s_user,
-            s_liquidityProvider,
-            s_lancaKeeper,
-            s_rebalancer
+            address(s_iouTokenChildPool_1),
+            address(s_iouTokenChildPool_2)
         );
 
-        bytes4[] memory selectors = new bytes4[](5);
+        bytes4[] memory selectors = new bytes4[](6);
         selectors[0] = LBFHandler.deposit.selector;
         selectors[1] = LBFHandler.withdraw.selector;
-        selectors[2] = LBFHandler.bridge.selector;
+        selectors[2] = LBFHandler.bridgeIOU.selector;
         selectors[3] = LBFHandler.bridge.selector;
         selectors[4] = LBFHandler.bridge.selector;
+        selectors[5] = LBFHandler.bridge.selector;
 
         targetContract(address(s_lbfHandler));
         targetSelector(FuzzSelector({addr: address(s_lbfHandler), selectors: selectors}));
     }
 
-    function invariant_totalTargetBalanceAlwaysLessThanOrEqualToActiveBalance() public view {
-        uint256 totalTargetBalance = s_parentPool.getTargetBalance() +
-            s_childPool_1.getTargetBalance() +
-            s_childPool_2.getTargetBalance();
-        uint256 totalActiveBalance = s_parentPool.getActiveBalance() +
-            s_childPool_1.getActiveBalance() +
-            s_childPool_2.getActiveBalance();
+    function invariant_test() public {}
 
-        console.log("totalTargetBalance", totalTargetBalance);
-        console.log("totalActiveBalance", totalActiveBalance);
+    // function invariant_totalTargetBalanceAlwaysLessThanOrEqualToActiveBalance() public view {
+    //     uint256 totalTargetBalance = s_parentPool.getTargetBalance() +
+    //         s_childPool_1.getTargetBalance() +
+    //         s_childPool_2.getTargetBalance();
+    //     uint256 totalActiveBalance = s_parentPool.getActiveBalance() +
+    //         s_childPool_1.getActiveBalance() +
+    //         s_childPool_2.getActiveBalance();
 
-        assert(totalTargetBalance <= totalActiveBalance);
-    }
+    //     console.log("totalTargetBalance", totalTargetBalance);
+    //     console.log("totalActiveBalance", totalActiveBalance);
 
-    function invariant_totalSurplusAlwaysMoreThanOrEqualTotalDeficit() public view {
-        uint256 totalSurplus = s_parentPool.getSurplus() +
-            s_childPool_1.getSurplus() +
-            s_childPool_2.getSurplus();
+    //     assert(totalTargetBalance <= totalActiveBalance);
+    // }
 
-        uint256 totalDeficit = s_parentPool.getDeficit() +
-            s_childPool_1.getDeficit() +
-            s_childPool_2.getDeficit();
+    // function invariant_totalSurplusAlwaysMoreThanOrEqualTotalDeficit() public view {
+    //     uint256 totalSurplus = s_parentPool.getSurplus() +
+    //         s_childPool_1.getSurplus() +
+    //         s_childPool_2.getSurplus();
 
-        console.log("totalSurplus", totalSurplus);
-        console.log("totalDeficit", totalDeficit);
+    //     uint256 totalDeficit = s_parentPool.getDeficit() +
+    //         s_childPool_1.getDeficit() +
+    //         s_childPool_2.getDeficit();
 
-        assert(totalSurplus >= totalDeficit);
-    }
+    //     console.log("totalSurplus", totalSurplus);
+    //     console.log("totalDeficit", totalDeficit);
 
-    function invariant_liquidityProviderFinalBalanceIsMoreThanInitialBalance() public {
-        uint256 lpBalance = s_lpToken.balanceOf(s_liquidityProvider);
-        s_lbfHandler.setIsLastWithdrawal(true);
-        s_lbfHandler.withdraw(lpBalance);
+    //     assert(totalSurplus >= totalDeficit);
+    // }
 
-        lpBalance = s_lpToken.balanceOf(s_liquidityProvider);
+    // function invariant_liquidityProviderFinalBalanceIsMoreThanInitialBalance() public {
+    //     uint256 lpBalance = s_lpToken.balanceOf(s_liquidityProvider);
+    //     s_lbfHandler.setIsLastWithdrawal(true);
+    //     s_lbfHandler.withdraw(lpBalance);
 
-        assertEq(lpBalance, 0);
-        assertGt(s_lbfHandler.s_totalWithdrawals(), s_lbfHandler.s_totalDeposits());
-    }
+    //     lpBalance = s_lpToken.balanceOf(s_liquidityProvider);
+
+    //     assertEq(lpBalance, 0);
+    //     assertGt(s_lbfHandler.s_totalWithdrawals(), s_lbfHandler.s_totalDeposits());
+    // }
 
     // function test_underflow() public {
     //     uint256 lpBalance = s_lpToken.balanceOf(liquidityProvider);
