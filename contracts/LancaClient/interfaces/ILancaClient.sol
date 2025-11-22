@@ -7,6 +7,6 @@ interface ILancaClient {
         uint24 srcChainSelector,
         bytes32 sender,
         uint256 amount,
-        bytes memory data
+        bytes calldata payload
     ) external;
 }

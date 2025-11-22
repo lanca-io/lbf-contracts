@@ -124,12 +124,30 @@ abstract contract LancaBridge is ILancaBridge, Base, ReentrancyGuard {
             bytes32 tokenSender,
             uint256 tokenAmount,
             bytes calldata dstChainData,
-            bytes memory payload
+            bytes calldata payload
         ) = messageData.decodeBridgeData();
 
-        (address receiver, uint32 dstGasLimit) = dstChainData.decodeEvmDstChainData();
-
         _handleInflow(tokenAmount, srcChainSelector, nonce);
+
+        _deliverBridge(
+            messageId,
+            tokenAmount,
+            srcChainSelector,
+            tokenSender,
+            dstChainData,
+            payload
+        );
+    }
+
+    function _deliverBridge(
+        bytes32 messageId,
+        uint256 tokenAmount,
+        uint24 srcChainSelector,
+        bytes32 tokenSender,
+        bytes calldata dstChainData,
+        bytes calldata payload
+    ) internal {
+        (address receiver, uint32 dstGasLimit) = dstChainData.decodeEvmDstChainData();
 
         bool shouldCallHook = _validateBridgeParams(dstGasLimit, receiver, payload);
 
@@ -169,7 +187,7 @@ abstract contract LancaBridge is ILancaBridge, Base, ReentrancyGuard {
     function _validateBridgeParams(
         uint32 dstGasLimit,
         address receiver,
-        bytes memory payload
+        bytes calldata payload
     ) internal view returns (bool) {
         bool shouldCallHook = !(dstGasLimit == 0 && payload.length == 0);
 

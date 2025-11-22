@@ -20,7 +20,7 @@ contract TestPoolBase is Base {
         address iouToken,
         uint8 liquidityTokenDecimals,
         uint24 chainSelector
-    ) Base(liquidityToken, conceroRouter, iouToken, liquidityTokenDecimals, chainSelector) {}
+    ) Base(liquidityToken, conceroRouter, iouToken, chainSelector) {}
 
     function setTargetBalance(uint256 newTargetBalance) external {
         s.base().targetBalance = newTargetBalance;

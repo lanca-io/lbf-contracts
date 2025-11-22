@@ -19,7 +19,6 @@ abstract contract ChildPoolBase is LancaTest {
             address(s_conceroRouter),
             address(s_iouToken),
             address(s_usdc),
-            USDC_TOKEN_DECIMALS,
             CHILD_POOL_CHAIN_SELECTOR,
             PARENT_POOL_CHAIN_SELECTOR
         );

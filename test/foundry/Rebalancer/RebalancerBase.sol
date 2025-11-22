@@ -56,11 +56,10 @@ abstract contract RebalancerBase is LancaTest {
 
         s_parentPool = new ParentPoolHarness(
             address(s_usdc),
-            USDC_TOKEN_DECIMALS,
             address(s_lpToken),
+            address(s_iouToken),
             s_conceroRouterWithCall,
             PARENT_POOL_CHAIN_SELECTOR,
-            address(s_iouToken),
             MIN_TARGET_BALANCE
         );
 
@@ -85,7 +84,6 @@ abstract contract RebalancerBase is LancaTest {
             s_conceroRouterWithCall,
             address(s_iouToken),
             address(s_usdc),
-            6,
             childPoolChainSelector_1,
             PARENT_POOL_CHAIN_SELECTOR
         );
@@ -93,7 +91,6 @@ abstract contract RebalancerBase is LancaTest {
             s_conceroRouterWithCall,
             address(s_iouToken),
             address(s_usdc),
-            6,
             childPoolChainSelector_2,
             PARENT_POOL_CHAIN_SELECTOR
         );
@@ -101,7 +98,6 @@ abstract contract RebalancerBase is LancaTest {
             s_conceroRouterWithCall,
             address(s_iouToken),
             address(s_usdc),
-            6,
             childPoolChainSelector_3,
             PARENT_POOL_CHAIN_SELECTOR
         );
@@ -109,7 +105,6 @@ abstract contract RebalancerBase is LancaTest {
             s_conceroRouterWithCall,
             address(s_iouToken),
             address(s_usdc),
-            6,
             childPoolChainSelector_4,
             PARENT_POOL_CHAIN_SELECTOR
         );
@@ -117,7 +112,6 @@ abstract contract RebalancerBase is LancaTest {
             s_conceroRouterWithCall,
             address(s_iouToken),
             address(s_usdc),
-            6,
             childPoolChainSelector_5,
             PARENT_POOL_CHAIN_SELECTOR
         );
@@ -125,7 +119,6 @@ abstract contract RebalancerBase is LancaTest {
             s_conceroRouterWithCall,
             address(s_iouToken),
             address(s_usdc),
-            6,
             childPoolChainSelector_6,
             PARENT_POOL_CHAIN_SELECTOR
         );
@@ -133,7 +126,6 @@ abstract contract RebalancerBase is LancaTest {
             s_conceroRouterWithCall,
             address(s_iouToken),
             address(s_usdc),
-            6,
             childPoolChainSelector_7,
             PARENT_POOL_CHAIN_SELECTOR
         );
@@ -141,7 +133,6 @@ abstract contract RebalancerBase is LancaTest {
             s_conceroRouterWithCall,
             address(s_iouToken),
             address(s_usdc),
-            6,
             childPoolChainSelector_8,
             PARENT_POOL_CHAIN_SELECTOR
         );
@@ -149,7 +140,6 @@ abstract contract RebalancerBase is LancaTest {
             s_conceroRouterWithCall,
             address(s_iouToken),
             address(s_usdc),
-            6,
             childPoolChainSelector_9,
             PARENT_POOL_CHAIN_SELECTOR
         );

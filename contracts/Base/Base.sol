@@ -6,6 +6,7 @@ import {ConceroClient} from "@concero/v2-contracts/contracts/ConceroClient/Conce
 import {MessageCodec} from "@concero/v2-contracts/contracts/common/libraries/MessageCodec.sol";
 import {ConceroOwnable} from "../common/ConceroOwnable.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import {IOUToken} from "../Rebalancer/IOUToken.sol";
 import {IBase} from "./interfaces/IBase.sol";
 import {CommonConstants} from "../common/CommonConstants.sol";
@@ -24,6 +25,7 @@ abstract contract Base is IBase, ConceroClient, ConceroOwnable {
     error RelayerAlreadySet(address currentRelayer);
     error ValidatorIsNotSet();
     error RelayerIsNotSet();
+    error InvalidLiqTokenDecimals();
 
     uint32 private constant SECONDS_IN_DAY = 86400;
 
@@ -46,13 +48,15 @@ abstract contract Base is IBase, ConceroClient, ConceroOwnable {
         address liquidityToken,
         address conceroRouter,
         address iouToken,
-        uint8 liquidityTokenDecimals,
         uint24 chainSelector
     ) ConceroClient(conceroRouter) {
-        i_liquidityToken = liquidityToken;
-        i_liquidityTokenDecimals = liquidityTokenDecimals;
-        i_chainSelector = chainSelector;
+        i_liquidityTokenDecimals = IERC20Metadata(liquidityToken).decimals();
         i_iouToken = IOUToken(iouToken);
+
+        require(i_iouToken.decimals() == i_liquidityTokenDecimals, InvalidLiqTokenDecimals());
+
+        i_liquidityToken = liquidityToken;
+        i_chainSelector = chainSelector;
     }
 
     receive() external payable {}

@@ -39,7 +39,7 @@ contract LancaClientMock is LancaClient {
         uint24 srcChainSelector,
         bytes32 sender,
         uint256 amount,
-        bytes memory data
+        bytes calldata data
     ) internal override {
         if (shouldRevert) {
             revert(revertReason);

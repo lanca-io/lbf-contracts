@@ -114,7 +114,7 @@ library BridgeCodec {
 
     function decodeBridgeData(
         bytes calldata data
-    ) internal pure returns (bytes32, uint256, bytes calldata, bytes memory) {
+    ) internal pure returns (bytes32, uint256, bytes calldata, bytes calldata) {
         uint24 dstChainDataLength = uint24(
             bytes3(data[DST_CHAIN_DATA_OFFSET:DST_CHAIN_DATA_OFFSET + UINT24_LENGTH_BYTES])
         );

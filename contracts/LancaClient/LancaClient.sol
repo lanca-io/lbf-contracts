@@ -27,7 +27,7 @@ abstract contract LancaClient is ILancaClient, ERC165 {
         uint24 srcChainSelector,
         bytes32 sender,
         uint256 amount,
-        bytes memory data
+        bytes calldata data
     ) external {
         require(msg.sender == i_lancaPool, InvalidLancaPool());
         _lancaReceive(id, srcChainSelector, sender, amount, data);
@@ -38,6 +38,6 @@ abstract contract LancaClient is ILancaClient, ERC165 {
         uint24 srcChainSelector,
         bytes32 sender,
         uint256 amount,
-        bytes memory data
+        bytes calldata data
     ) internal virtual;
 }

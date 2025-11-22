@@ -5,6 +5,7 @@ import {ICommonErrors} from "../common/interfaces/ICommonErrors.sol";
 import {IConceroRouter} from "@concero/v2-contracts/contracts/interfaces/IConceroRouter.sol";
 import {MessageCodec} from "@concero/v2-contracts/contracts/common/libraries/MessageCodec.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import {ILancaKeeper} from "./interfaces/ILancaKeeper.sol";
 import {IParentPool} from "./interfaces/IParentPool.sol";
 import {LPToken} from "./LPToken.sol";
@@ -35,14 +36,16 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
 
     constructor(
         address liquidityToken,
-        uint8 liquidityTokenDecimals,
         address lpToken,
+        address iouToken,
         address conceroRouter,
         uint24 chainSelector,
-        address iouToken,
+        // todo: mb move to storage
         uint256 minTargetBalance
-    ) Base(liquidityToken, conceroRouter, iouToken, liquidityTokenDecimals, chainSelector) {
+    ) Base(liquidityToken, conceroRouter, iouToken, chainSelector) {
         i_lpToken = LPToken(lpToken);
+
+        uint8 liquidityTokenDecimals = IERC20Metadata(liquidityToken).decimals();
         require(i_lpToken.decimals() == liquidityTokenDecimals, InvalidLiqTokenDecimals());
 
         i_minTargetBalance = minTargetBalance;
@@ -134,12 +137,13 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
         );
 
         bytes32[] memory pendingWithdrawalIds = s_parentPool.pendingWithdrawalIds;
-        PendingWithdrawal memory pendingWithdrawal;
         uint256 totalLiquidityTokenAmountToWithdraw;
         uint256 totalLancaFee;
 
         for (uint256 i; i < pendingWithdrawalIds.length; ++i) {
-            pendingWithdrawal = s_parentPool.pendingWithdrawals[pendingWithdrawalIds[i]];
+            PendingWithdrawal memory pendingWithdrawal = s_parentPool.pendingWithdrawals[
+                pendingWithdrawalIds[i]
+            ];
             delete s_parentPool.pendingWithdrawals[pendingWithdrawalIds[i]];
 
             (uint256 conceroFee, uint256 rebalanceFee) = getWithdrawalFee(
@@ -280,6 +284,13 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
         return s.parentPool().minDepositAmount;
     }
 
+    function getWithdrawableAmount(
+        uint256 totalPoolsBalance,
+        uint256 lpTokenAmount
+    ) public view returns (uint256) {
+        return _calculateWithdrawableAmount(totalPoolsBalance, lpTokenAmount);
+    }
+
     /*   ADMIN FUNCTIONS   */
 
     function setMinDepositQueueLength(uint16 length) external onlyOwner {
@@ -351,23 +362,20 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
 
         bytes32[] memory depositQueueIds = s_parentPool.depositQueueIds;
         uint256 totalDepositedLiqTokenAmount;
-        uint256 amountToDepositWithFee;
-        uint256 depositFee;
 
         for (uint256 i; i < depositQueueIds.length; ++i) {
             Deposit memory deposit = s_parentPool.depositQueue[depositQueueIds[i]];
 
             delete s_parentPool.depositQueue[depositQueueIds[i]];
 
-            depositFee = getRebalancerFee(deposit.liquidityTokenAmountToDeposit);
-            amountToDepositWithFee = deposit.liquidityTokenAmountToDeposit - depositFee;
+            uint256 depositFee = getRebalancerFee(deposit.liquidityTokenAmountToDeposit);
+            uint256 amountToDepositWithFee = deposit.liquidityTokenAmountToDeposit - depositFee;
 
             uint256 lpTokenAmountToMint = _calculateLpTokenAmountToMint(
                 totalPoolBalanceWithLockedWithdrawals + totalDepositedLiqTokenAmount,
                 amountToDepositWithFee
             );
 
-            // TODO: may be more gas-optimal if you subtract one time outside the cycle
             s_parentPool.totalDepositAmountInQueue -= deposit.liquidityTokenAmountToDeposit;
             LPToken(i_lpToken).mint(deposit.lp, lpTokenAmountToMint);
             totalDepositedLiqTokenAmount += amountToDepositWithFee;

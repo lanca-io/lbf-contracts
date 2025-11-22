@@ -28,18 +28,16 @@ abstract contract LancaBridgeBase is LancaTest {
             address(s_conceroRouter),
             address(s_iouToken),
             address(s_usdc),
-            USDC_TOKEN_DECIMALS,
             CHILD_POOL_CHAIN_SELECTOR,
             PARENT_POOL_CHAIN_SELECTOR
         );
 
         s_parentPool = new ParentPool(
             address(s_usdc),
-            USDC_TOKEN_DECIMALS,
             address(s_lpToken),
+            address(s_iouToken),
             s_conceroRouter,
             PARENT_POOL_CHAIN_SELECTOR,
-            address(s_iouToken),
             MIN_TARGET_BALANCE
         );
         vm.stopPrank();
