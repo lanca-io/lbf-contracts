@@ -40,18 +40,6 @@ contract ParentPoolHarness is ParentPool {
         return s.parentPool().childPoolSnapshots[chainSelector];
     }
 
-    function exposed_getSentNonce(uint24 dstChainSelector) external view returns (uint256) {
-        return bs.bridge().sentNonces[dstChainSelector];
-    }
-
-    function exposed_getTotalSent() external view returns (uint256) {
-        return bs.bridge().totalSent;
-    }
-
-    function exposed_getTotalReceived() external view returns (uint256) {
-        return bs.bridge().totalReceived;
-    }
-
     function exposed_getReceivedBridgeAmount(
         uint24 srcChainSelector,
         uint256 nonce

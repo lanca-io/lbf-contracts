@@ -16,7 +16,7 @@ import {BridgeCodec} from "../common/libraries/BridgeCodec.sol";
 
 abstract contract Base is IBase, ConceroClient, ConceroOwnable {
     using s for s.Base;
-    using s for rs.Rebalancer;
+    using rs for rs.Rebalancer;
     using MessageCodec for bytes;
     using BridgeCodec for bytes32;
     using BridgeCodec for bytes;
@@ -64,7 +64,10 @@ abstract contract Base is IBase, ConceroClient, ConceroOwnable {
     /*   VIEW FUNCTIONS   */
 
     function getActiveBalance() public view virtual returns (uint256) {
-        return IERC20(i_liquidityToken).balanceOf(address(this)) - s.base().totalLancaFeeInLiqToken;
+        return
+            IERC20(i_liquidityToken).balanceOf(address(this)) -
+            s.base().totalLancaFeeInLiqToken -
+            rs.rebalancer().totalRebalancingFeeAmount;
     }
 
     function getSurplus() public view returns (uint256) {

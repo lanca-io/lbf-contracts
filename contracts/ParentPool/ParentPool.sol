@@ -139,6 +139,7 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
         bytes32[] memory pendingWithdrawalIds = s_parentPool.pendingWithdrawalIds;
         uint256 totalLiquidityTokenAmountToWithdraw;
         uint256 totalLancaFee;
+        uint256 totalRebalancingFeeAmount;
 
         for (uint256 i; i < pendingWithdrawalIds.length; ++i) {
             PendingWithdrawal memory pendingWithdrawal = s_parentPool.pendingWithdrawals[
@@ -151,6 +152,7 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
             );
             uint256 amountToWithdrawWithFee = pendingWithdrawal.liqTokenAmountToWithdraw -
                 (conceroFee + rebalanceFee);
+            totalRebalancingFeeAmount += rebalanceFee;
 
             totalLiquidityTokenAmountToWithdraw += pendingWithdrawal.liqTokenAmountToWithdraw;
 
@@ -183,6 +185,8 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
         /* @dev do not clear this array before a loop because
                 clearing it will affect getWithdrawalFee() */
         delete s_parentPool.pendingWithdrawalIds;
+
+        rs.rebalancer().totalRebalancingFeeAmount += totalRebalancingFeeAmount;
 
         s_parentPool.totalWithdrawalAmountLocked -= totalLiquidityTokenAmountToWithdraw;
         s_parentPool.totalLancaFeeInLiqToken += totalLancaFee;
@@ -362,6 +366,7 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
 
         bytes32[] memory depositQueueIds = s_parentPool.depositQueueIds;
         uint256 totalDepositedLiqTokenAmount;
+        uint256 totalDepositFee;
 
         for (uint256 i; i < depositQueueIds.length; ++i) {
             Deposit memory deposit = s_parentPool.depositQueue[depositQueueIds[i]];
@@ -370,6 +375,7 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
 
             uint256 depositFee = getRebalancerFee(deposit.liquidityTokenAmountToDeposit);
             uint256 amountToDepositWithFee = deposit.liquidityTokenAmountToDeposit - depositFee;
+            totalDepositFee += depositFee;
 
             uint256 lpTokenAmountToMint = _calculateLpTokenAmountToMint(
                 totalPoolBalanceWithLockedWithdrawals + totalDepositedLiqTokenAmount,
@@ -389,6 +395,7 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
         }
 
         delete s_parentPool.depositQueueIds;
+        rs.rebalancer().totalRebalancingFeeAmount += totalDepositFee;
 
         return totalDepositedLiqTokenAmount;
     }
