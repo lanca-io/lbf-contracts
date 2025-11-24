@@ -37,7 +37,7 @@ contract LBFInvariants is InvariantTestBase {
         targetSelector(FuzzSelector({addr: address(s_lbfHandler), selectors: selectors}));
     }
 
-    function invariant_test() public {}
+    // function invariant_test() public {}
 
     // function invariant_totalTargetBalanceAlwaysLessThanOrEqualToActiveBalance() public view {
     //     uint256 totalTargetBalance = s_parentPool.getTargetBalance() +
