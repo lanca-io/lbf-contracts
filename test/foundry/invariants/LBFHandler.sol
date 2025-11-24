@@ -36,10 +36,6 @@ contract LBFHandler is Test {
     address internal s_lancaKeeper = makeAddr("lancaKeeper");
     address internal s_rebalancer = makeAddr("rebalancer");
 
-    uint256 public s_totalDeposits;
-    uint256 public s_totalWithdrawals;
-    bool public s_isLastWithdrawal;
-
     address[] internal s_pools;
     IERC20[] internal s_iouTokens;
     mapping(address pool => uint24 dstPoolChainSelector) internal s_dstPoolChainSelectors;
@@ -91,8 +87,6 @@ contract LBFHandler is Test {
         if (usdcBalance < minDepositAmount) return;
         amount = bound(amount, minDepositAmount, usdcBalance);
 
-        s_totalDeposits += amount;
-
         vm.prank(s_liquidityProvider);
         i_parentPool.enterDepositQueue(amount);
 
@@ -105,12 +99,6 @@ contract LBFHandler is Test {
 
         if (lpBalance == 0) return;
         amount = bound(amount, 1, lpBalance);
-
-        if (s_isLastWithdrawal) {
-            amount = lpBalance;
-        }
-
-        s_totalWithdrawals += amount;
 
         vm.prank(s_liquidityProvider);
         i_parentPool.enterWithdrawalQueue(amount);
@@ -262,9 +250,5 @@ contract LBFHandler is Test {
     function _processPendingWithdrawals() internal {
         vm.prank(s_lancaKeeper);
         i_parentPool.processPendingWithdrawals();
-    }
-
-    function setIsLastWithdrawal(bool isLastWithdrawal) external {
-        s_isLastWithdrawal = isLastWithdrawal;
     }
 }

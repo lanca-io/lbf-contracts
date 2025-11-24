@@ -12,8 +12,8 @@ contract ConceroRouterMockWithCall is IConceroRouter, Script {
 
     uint24 public constant PARENT_POOL_CHAIN_SELECTOR = 1000;
     uint24 public s_srcChainSelector = PARENT_POOL_CHAIN_SELECTOR;
-    uint256 public constant NONCE = 1;
     uint256 public s_fee = 0.0001 ether;
+    uint256 public s_nonce;
 
     address public relayerLib = makeAddr("relayerLib");
     address public validatorLib = makeAddr("validatorLib");
@@ -33,7 +33,7 @@ contract ConceroRouterMockWithCall is IConceroRouter, Script {
         bytes memory messageReceipt = messageRequest.toMessageReceiptBytes(
             s_srcChainSelector,
             msg.sender,
-            NONCE
+            ++s_nonce
         );
         address receiver = readAddress(messageRequest.dstChainData);
         messageId = keccak256(messageReceipt);
