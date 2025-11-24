@@ -36,7 +36,6 @@ interface IParentPool {
     error QueuesAreNotFull();
     error LiquidityCapReached(uint256 liqCapAmount);
     error ChildPoolSnapshotsAreNotReady();
-    error InvalidLiqTokenDecimals();
     error InvalidScoreWeights();
     error InvalidLurScoreSensitivity();
     error OnlySelf();

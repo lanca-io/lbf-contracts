@@ -26,7 +26,6 @@ contract SendSnapshot is ChildPoolBase {
             s_conceroRouter,
             address(s_iouToken),
             address(s_usdc),
-            6,
             CHILD_POOL_CHAIN_SELECTOR,
             PARENT_POOL_CHAIN_SELECTOR
         );
@@ -96,7 +95,6 @@ contract SendSnapshot is ChildPoolBase {
             s_conceroRouter,
             address(s_iouToken),
             address(s_usdc),
-            6,
             CHILD_POOL_CHAIN_SELECTOR,
             PARENT_POOL_CHAIN_SELECTOR
         );

@@ -50,13 +50,15 @@ abstract contract Rebalancer is IRebalancer, Base {
         );
 
         uint256 rebalancerFee = getRebalancerFee(iouTokensToBurn);
-        uint256 liquidityTokensToReceive = iouTokensToBurn + rebalancerFee;
+        uint256 totalRebalancingFeeAmount = s.rebalancer().totalRebalancingFeeAmount;
 
-        if (liquidityTokensToReceive > getActiveBalance()) {
-            iouTokensToBurn = (iouTokensToBurn * getActiveBalance()) / liquidityTokensToReceive;
-            rebalancerFee = getRebalancerFee(iouTokensToBurn);
-            liquidityTokensToReceive = iouTokensToBurn + rebalancerFee;
+        if (rebalancerFee > totalRebalancingFeeAmount) {
+            rebalancerFee = totalRebalancingFeeAmount;
         }
+
+        s.rebalancer().totalRebalancingFeeAmount -= rebalancerFee;
+
+        uint256 liquidityTokensToReceive = iouTokensToBurn + rebalancerFee;
 
         i_iouToken.burnFrom(msg.sender, iouTokensToBurn);
         IERC20(i_liquidityToken).safeTransfer(msg.sender, liquidityTokensToReceive);
@@ -107,6 +109,24 @@ abstract contract Rebalancer is IRebalancer, Base {
 
         emit IOUBridged(messageId, msg.sender, dstChainSelector, iouTokenAmount);
         return messageId;
+    }
+
+    /* ADMIN FUNCTIONS */
+
+    function topUpRebalancingFee(uint256 amount) external onlyOwner {
+        IERC20(i_liquidityToken).safeTransferFrom(msg.sender, address(this), amount);
+        s.rebalancer().totalRebalancingFeeAmount += amount;
+    }
+
+    function syncRebalancingFeeWithLiquidity() external onlyOwner {
+        s.Rebalancer storage s_rebalancer = s.rebalancer();
+
+        uint256 maxNeededFee = getRebalancerFee(getSurplus());
+
+        if (s_rebalancer.totalRebalancingFeeAmount > maxNeededFee) {
+            uint256 excess = s_rebalancer.totalRebalancingFeeAmount - maxNeededFee;
+            s_rebalancer.totalRebalancingFeeAmount = maxNeededFee;
+        }
     }
 
     /* VIEW FUNCTIONS */

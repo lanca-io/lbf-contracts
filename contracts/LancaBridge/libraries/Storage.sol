@@ -9,9 +9,6 @@ library Namespaces {
 
 library Storage {
     struct Bridge {
-        uint256 totalSent;
-        uint256 totalReceived;
-        mapping(uint24 dstChainSelector => uint256) sentNonces;
         mapping(uint24 srcChainSelector => mapping(uint256 nonce => uint256 tokenAmount)) receivedBridges;
     }
 

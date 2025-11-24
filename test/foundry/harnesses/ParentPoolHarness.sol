@@ -12,20 +12,18 @@ contract ParentPoolHarness is ParentPool {
 
     constructor(
         address liquidityToken,
-        uint8 liquidityTokenDecimals,
         address lpToken,
+        address iouToken,
         address conceroRouter,
         uint24 chainSelector,
-        address iouToken,
         uint256 minTargetBalance
     )
         ParentPool(
             liquidityToken,
-            liquidityTokenDecimals,
             lpToken,
+            iouToken,
             conceroRouter,
             chainSelector,
-            iouToken,
             minTargetBalance
         )
     {}
@@ -40,18 +38,6 @@ contract ParentPoolHarness is ParentPool {
         uint24 chainSelector
     ) public view returns (ChildPoolSnapshot memory) {
         return s.parentPool().childPoolSnapshots[chainSelector];
-    }
-
-    function exposed_getSentNonce(uint24 dstChainSelector) external view returns (uint256) {
-        return bs.bridge().sentNonces[dstChainSelector];
-    }
-
-    function exposed_getTotalSent() external view returns (uint256) {
-        return bs.bridge().totalSent;
-    }
-
-    function exposed_getTotalReceived() external view returns (uint256) {
-        return bs.bridge().totalReceived;
     }
 
     function exposed_getReceivedBridgeAmount(

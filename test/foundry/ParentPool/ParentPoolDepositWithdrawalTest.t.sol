@@ -8,6 +8,8 @@ import {IParentPool} from "contracts/ParentPool/interfaces/IParentPool.sol";
 import {MockERC20} from "../mocks/MockERC20.sol";
 import {Vm} from "forge-std/src/Vm.sol";
 
+import {console} from "forge-std/src/console.sol";
+
 contract ParentPoolDepositWithdrawalTest is ParentPoolBase {
     function setUp() public override {
         super.setUp();
@@ -1265,5 +1267,48 @@ contract ParentPoolDepositWithdrawalTest is ParentPoolBase {
             user3UsdcBefore,
             "User 3 should receive USDC from withdrawal"
         );
+    }
+
+    function testFuzz_DepositArbitration(uint96 depositAmount) public {
+        vm.assume(depositAmount > s_parentPool.getMinDepositAmount());
+
+        address user2 = makeAddr("user2");
+
+        _setQueuesLength(0, 0);
+        deal(address(s_usdc), user2, depositAmount);
+        deal(address(s_usdc), s_user, depositAmount);
+
+        vm.startPrank(s_user);
+        s_usdc.approve(address(s_parentPool), type(uint256).max);
+        s_parentPool.enterDepositQueue(depositAmount);
+        vm.stopPrank();
+
+        _fillChildPoolSnapshots();
+        _triggerDepositWithdrawProcess();
+
+        vm.startPrank(user2);
+        s_usdc.approve(address(s_parentPool), type(uint256).max);
+        s_parentPool.enterDepositQueue(depositAmount);
+        vm.stopPrank();
+
+        _fillChildPoolSnapshots();
+        _triggerDepositWithdrawProcess();
+
+        uint256 user1Withdrawable = s_parentPool.getWithdrawableAmount(
+            s_parentPool.getActiveBalance(),
+            s_lpToken.balanceOf(s_user)
+        );
+
+        uint256 user2Withdrawable = s_parentPool.getWithdrawableAmount(
+            s_parentPool.getActiveBalance(),
+            s_lpToken.balanceOf(user2)
+        );
+
+        console.log(user1Withdrawable);
+        console.log(user2Withdrawable);
+
+        console.log(user1Withdrawable - user2Withdrawable);
+
+        assert(user1Withdrawable == user2Withdrawable);
     }
 }

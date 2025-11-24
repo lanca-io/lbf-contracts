@@ -1,19 +1,19 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.28;
 
-import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
-import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
-import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import {IConceroRouter} from "@concero/v2-contracts/contracts/interfaces/IConceroRouter.sol";
-import {MessageCodec} from "@concero/v2-contracts/contracts/common/libraries/MessageCodec.sol";
-import {ILancaBridge} from "./interfaces/ILancaBridge.sol";
 import {Base, IERC20} from "../Base/Base.sol";
-import {ICommonErrors} from "../common/interfaces/ICommonErrors.sol";
-import {ILancaClient} from "../LancaClient/interfaces/ILancaClient.sol";
-import {Storage as s} from "../Base/libraries/Storage.sol";
-import {Storage as rs} from "../Rebalancer/libraries/Storage.sol";
-import {Storage as bs} from "./libraries/Storage.sol";
 import {BridgeCodec} from "../common/libraries/BridgeCodec.sol";
+import {ICommonErrors} from "../common/interfaces/ICommonErrors.sol";
+import {IConceroRouter} from "@concero/v2-contracts/contracts/interfaces/IConceroRouter.sol";
+import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
+import {ILancaBridge} from "./interfaces/ILancaBridge.sol";
+import {ILancaClient} from "../LancaClient/interfaces/ILancaClient.sol";
+import {MessageCodec} from "@concero/v2-contracts/contracts/common/libraries/MessageCodec.sol";
+import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {Storage as bs} from "./libraries/Storage.sol";
+import {Storage as rs} from "../Rebalancer/libraries/Storage.sol";
+import {Storage as s} from "../Base/libraries/Storage.sol";
 
 abstract contract LancaBridge is ILancaBridge, Base, ReentrancyGuard {
     using SafeERC20 for IERC20;
@@ -34,7 +34,6 @@ abstract contract LancaBridge is ILancaBridge, Base, ReentrancyGuard {
         bytes calldata dstChainData,
         bytes calldata payload
     ) external payable returns (bytes32 messageId) {
-        bs.Bridge storage s_bridge = bs.bridge();
         s.Base storage s_base = s.base();
 
         bytes32 dstPool = s_base.dstPools[dstChainSelector];
@@ -54,7 +53,7 @@ abstract contract LancaBridge is ILancaBridge, Base, ReentrancyGuard {
                 s_base
             );
 
-            s_bridge.totalSent += amountAfterFee;
+            s_base.totalLiqTokenSent += amountAfterFee;
             s_base.flowByDay[getTodayStartTimestamp()].inflow += amountAfterFee;
         }
 
@@ -124,12 +123,30 @@ abstract contract LancaBridge is ILancaBridge, Base, ReentrancyGuard {
             bytes32 tokenSender,
             uint256 tokenAmount,
             bytes calldata dstChainData,
-            bytes memory payload
+            bytes calldata payload
         ) = messageData.decodeBridgeData();
 
-        (address receiver, uint32 dstGasLimit) = dstChainData.decodeEvmDstChainData();
-
         _handleInflow(tokenAmount, srcChainSelector, nonce);
+
+        _deliverBridge(
+            messageId,
+            tokenAmount,
+            srcChainSelector,
+            tokenSender,
+            dstChainData,
+            payload
+        );
+    }
+
+    function _deliverBridge(
+        bytes32 messageId,
+        uint256 tokenAmount,
+        uint24 srcChainSelector,
+        bytes32 tokenSender,
+        bytes calldata dstChainData,
+        bytes calldata payload
+    ) internal {
+        (address receiver, uint32 dstGasLimit) = dstChainData.decodeEvmDstChainData();
 
         bool shouldCallHook = _validateBridgeParams(dstGasLimit, receiver, payload);
 
@@ -150,15 +167,19 @@ abstract contract LancaBridge is ILancaBridge, Base, ReentrancyGuard {
 
     function _handleInflow(uint256 tokenAmount, uint24 srcChainSelector, uint256 nonce) internal {
         bs.Bridge storage s_bridge = bs.bridge();
+        s.Base storage s_base = s.base();
 
         require(getActiveBalance() >= tokenAmount, ICommonErrors.InvalidAmount());
 
         uint256 existingAmount = s_bridge.receivedBridges[srcChainSelector][nonce];
 
         if (existingAmount == 0) {
-            s_bridge.totalReceived += tokenAmount;
+            s_base.totalLiqTokenReceived += tokenAmount;
         } else {
-            s_bridge.totalReceived = s_bridge.totalReceived - existingAmount + tokenAmount;
+            s_base.totalLiqTokenReceived =
+                s_base.totalLiqTokenReceived -
+                existingAmount +
+                tokenAmount;
             emit SrcBridgeReorged(srcChainSelector, existingAmount);
         }
 
@@ -169,7 +190,7 @@ abstract contract LancaBridge is ILancaBridge, Base, ReentrancyGuard {
     function _validateBridgeParams(
         uint32 dstGasLimit,
         address receiver,
-        bytes memory payload
+        bytes calldata payload
     ) internal view returns (bool) {
         bool shouldCallHook = !(dstGasLimit == 0 && payload.length == 0);
 
@@ -198,6 +219,7 @@ abstract contract LancaBridge is ILancaBridge, Base, ReentrancyGuard {
         uint256 totalLancaFee = getLpFee(tokenAmount) + bridgeFee + rebalancerFee;
 
         s.base().totalLancaFeeInLiqToken += bridgeFee;
+        rs.rebalancer().totalRebalancingFeeAmount += rebalancerFee;
 
         return tokenAmount - totalLancaFee;
     }

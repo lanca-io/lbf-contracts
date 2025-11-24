@@ -6,6 +6,7 @@ import {ConceroClient} from "@concero/v2-contracts/contracts/ConceroClient/Conce
 import {MessageCodec} from "@concero/v2-contracts/contracts/common/libraries/MessageCodec.sol";
 import {ConceroOwnable} from "../common/ConceroOwnable.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import {IOUToken} from "../Rebalancer/IOUToken.sol";
 import {IBase} from "./interfaces/IBase.sol";
 import {CommonConstants} from "../common/CommonConstants.sol";
@@ -15,7 +16,7 @@ import {BridgeCodec} from "../common/libraries/BridgeCodec.sol";
 
 abstract contract Base is IBase, ConceroClient, ConceroOwnable {
     using s for s.Base;
-    using s for rs.Rebalancer;
+    using rs for rs.Rebalancer;
     using MessageCodec for bytes;
     using BridgeCodec for bytes32;
     using BridgeCodec for bytes;
@@ -24,6 +25,7 @@ abstract contract Base is IBase, ConceroClient, ConceroOwnable {
     error RelayerAlreadySet(address currentRelayer);
     error ValidatorIsNotSet();
     error RelayerIsNotSet();
+    error InvalidLiqTokenDecimals();
 
     uint32 private constant SECONDS_IN_DAY = 86400;
 
@@ -46,13 +48,15 @@ abstract contract Base is IBase, ConceroClient, ConceroOwnable {
         address liquidityToken,
         address conceroRouter,
         address iouToken,
-        uint8 liquidityTokenDecimals,
         uint24 chainSelector
     ) ConceroClient(conceroRouter) {
-        i_liquidityToken = liquidityToken;
-        i_liquidityTokenDecimals = liquidityTokenDecimals;
-        i_chainSelector = chainSelector;
+        i_liquidityTokenDecimals = IERC20Metadata(liquidityToken).decimals();
         i_iouToken = IOUToken(iouToken);
+
+        require(i_iouToken.decimals() == i_liquidityTokenDecimals, InvalidLiqTokenDecimals());
+
+        i_liquidityToken = liquidityToken;
+        i_chainSelector = chainSelector;
     }
 
     receive() external payable {}
@@ -60,7 +64,10 @@ abstract contract Base is IBase, ConceroClient, ConceroOwnable {
     /*   VIEW FUNCTIONS   */
 
     function getActiveBalance() public view virtual returns (uint256) {
-        return IERC20(i_liquidityToken).balanceOf(address(this)) - s.base().totalLancaFeeInLiqToken;
+        return
+            IERC20(i_liquidityToken).balanceOf(address(this)) -
+            s.base().totalLancaFeeInLiqToken -
+            rs.rebalancer().totalRebalancingFeeAmount;
     }
 
     function getSurplus() public view returns (uint256) {
