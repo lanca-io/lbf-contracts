@@ -12,6 +12,7 @@ import {LancaTest} from "../helpers/LancaTest.sol";
 import {ParentPool} from "../../../contracts/ParentPool/ParentPool.sol";
 import {ChildPool} from "../../../contracts/ChildPool/ChildPool.sol";
 import {IParentPool} from "../../../contracts/ParentPool/interfaces/IParentPool.sol";
+import {Rebalancer} from "../../../contracts/Rebalancer/Rebalancer.sol";
 import {Vm} from "forge-std/src/Vm.sol";
 import {IBase} from "../../../contracts/Base/interfaces/IBase.sol";
 import {ConceroRouterMockWithCall} from "../mocks/ConceroRouterMockWithCall.sol";
@@ -48,6 +49,8 @@ abstract contract RebalancerBase is LancaTest {
     ChildPool public s_childPool_7;
     ChildPool public s_childPool_8;
     ChildPool public s_childPool_9;
+
+    ChildPool[] public s_childPools;
 
     function setUp() public virtual {
         vm.startPrank(s_deployer);
@@ -144,6 +147,16 @@ abstract contract RebalancerBase is LancaTest {
             PARENT_POOL_CHAIN_SELECTOR
         );
 
+        s_childPools.push(s_childPool_1);
+        s_childPools.push(s_childPool_2);
+        s_childPools.push(s_childPool_3);
+        s_childPools.push(s_childPool_4);
+        s_childPools.push(s_childPool_5);
+        s_childPools.push(s_childPool_6);
+        s_childPools.push(s_childPool_7);
+        s_childPools.push(s_childPool_8);
+        s_childPools.push(s_childPool_9);
+
         vm.startPrank(s_deployer);
         s_childPool_1.setDstPool(PARENT_POOL_CHAIN_SELECTOR, address(s_parentPool).toBytes32());
         s_childPool_2.setDstPool(PARENT_POOL_CHAIN_SELECTOR, address(s_parentPool).toBytes32());
@@ -154,7 +167,6 @@ abstract contract RebalancerBase is LancaTest {
         s_childPool_7.setDstPool(PARENT_POOL_CHAIN_SELECTOR, address(s_parentPool).toBytes32());
         s_childPool_8.setDstPool(PARENT_POOL_CHAIN_SELECTOR, address(s_parentPool).toBytes32());
         s_childPool_9.setDstPool(PARENT_POOL_CHAIN_SELECTOR, address(s_parentPool).toBytes32());
-
         vm.stopPrank();
 
         _setRelayerLib(address(s_childPool_1));
@@ -324,9 +336,9 @@ abstract contract RebalancerBase is LancaTest {
         uint24[] memory childPoolChainSelectors = s_parentPool.getChildPoolChainSelectors();
 
         for (uint256 i; i < childPoolChainSelectors.length; i++) {
-            uint256 balance = s_childPool_1.getTargetBalance();
-            uint256 dailyInflow = s_childPool_1.getYesterdayFlow().inflow;
-            uint256 dailyOutflow = s_childPool_1.getYesterdayFlow().outflow;
+            uint256 balance = s_childPools[i].getTargetBalance();
+            uint256 dailyInflow = s_childPools[i].getYesterdayFlow().inflow;
+            uint256 dailyOutflow = s_childPools[i].getYesterdayFlow().outflow;
 
             s_parentPool.exposed_setChildPoolSnapshot(
                 childPoolChainSelectors[i],
@@ -576,5 +588,13 @@ abstract contract RebalancerBase is LancaTest {
     function _setLibs() internal {
         _setRelayerLib(address(s_parentPool));
         _setValidatorLibs(address(s_parentPool));
+    }
+
+    function _topUpRebalancingFee(address pool, uint256 amount) internal {
+        vm.startPrank(s_deployer);
+        MockERC20(address(s_usdc)).mint(s_deployer, amount);
+        MockERC20(address(s_usdc)).approve(pool, amount);
+        Rebalancer(payable(pool)).topUpRebalancingFee(amount);
+        vm.stopPrank();
     }
 }

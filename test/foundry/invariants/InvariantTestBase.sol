@@ -68,11 +68,10 @@ contract InvariantTestBase is LancaTest {
         vm.startPrank(s_deployer);
         s_parentPool = new ParentPoolHarness(
             address(s_usdc),
-            6,
             address(s_lpToken),
+            address(s_iouToken),
             address(s_conceroRouterMockWithCall),
             PARENT_POOL_CHAIN_SELECTOR,
-            address(s_iouToken),
             MIN_TARGET_BALANCE
         );
 
@@ -80,7 +79,6 @@ contract InvariantTestBase is LancaTest {
             address(s_conceroRouterMockWithCall),
             address(s_iouTokenChildPool_1),
             address(s_usdc),
-            USDC_TOKEN_DECIMALS,
             CHILD_POOL_CHAIN_SELECTOR,
             PARENT_POOL_CHAIN_SELECTOR
         );
@@ -89,7 +87,6 @@ contract InvariantTestBase is LancaTest {
             address(s_conceroRouterMockWithCall),
             address(s_iouTokenChildPool_2),
             address(s_usdc),
-            USDC_TOKEN_DECIMALS,
             CHILD_POOL_CHAIN_SELECTOR_2,
             PARENT_POOL_CHAIN_SELECTOR
         );

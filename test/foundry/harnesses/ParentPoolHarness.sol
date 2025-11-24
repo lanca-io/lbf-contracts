@@ -84,4 +84,12 @@ contract ParentPoolHarness is ParentPool {
     function exposed_setDstPool(uint24 chainSelector, bytes32 dstPool) public {
         pbs.base().dstPools[chainSelector] = dstPool;
     }
+
+    function exposed_getLancaFeeInLiqToken() public view returns (uint256) {
+        return s.parentPool().totalLancaFeeInLiqToken;
+    }
+
+    function exposed_getRebalancingFeeInLiqToken() public view returns (uint256) {
+        return rs.rebalancer().totalRebalancingFeeAmount;
+    }
 }
