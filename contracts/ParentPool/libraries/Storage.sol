@@ -36,6 +36,7 @@ library Storage {
         uint64 lurScoreWeight; // has the scale i_liquidityTokenDecimals
         uint64 ndrScoreWeight; // has the scale i_liquidityTokenDecimals
         uint64 minDepositAmount;
+        uint64 minWithdrawalAmount;
     }
 
     /* SLOT-BASED STORAGE ACCESS */

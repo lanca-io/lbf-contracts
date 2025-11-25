@@ -365,6 +365,8 @@ contract ParentPoolDepositWithdrawalTest is ParentPoolBase {
         // deposit amount 100.000000 USDC
         // get LP after deposit -> amountToDeposit - rebalancerFee = 99.990000 LP
 
+        _setMinWithdrawalAmount(_addDecimals(99));
+
         uint256 lpBalanceBefore = s_lpToken.balanceOf(s_user);
         uint256 amountToDeposit = 100 * LIQ_TOKEN_SCALE_FACTOR; // 100 USDC
 
@@ -818,6 +820,8 @@ contract ParentPoolDepositWithdrawalTest is ParentPoolBase {
         // (x2) users withdraw 100 LP -> 100 USDC
         // user1 USDC balance should be equal to user2 USDC balance after withdrawal
 
+        _setMinWithdrawalAmount(_addDecimals(99));
+
         // ----------- deposit for 3 users -------------
         uint256 amountToDeposit = 100 * LIQ_TOKEN_SCALE_FACTOR;
         address[3] memory users = [makeAddr("user1"), makeAddr("user2"), makeAddr("user3")];
@@ -1072,7 +1076,7 @@ contract ParentPoolDepositWithdrawalTest is ParentPoolBase {
         depositAmountUser2 = bound(depositAmountUser2, _addDecimals(100), _addDecimals(5_000));
         withdrawalAmountLP = bound(
             withdrawalAmountLP,
-            _takeRebalancerFee(_addDecimals(1)),
+            _addDecimals(100),
             _takeRebalancerFee(_addDecimals(7_000))
         );
         uint256 childPoolBalance = _addDecimals(1_000);

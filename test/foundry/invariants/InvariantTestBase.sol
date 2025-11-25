@@ -35,6 +35,7 @@ contract InvariantTestBase is LancaTest {
     uint256 public constant INITIAL_TVL = 10_000e6;
 
     uint64 public constant MIN_DEPOSIT_AMOUNT = 1e6;
+    uint64 public constant MIN_WITHDRAWAL_AMOUNT = 100e6;
     uint256 public constant LIQUIDITY_CAP =
         LIQUIDITY_PROVIDER_INITIAL_BALANCE + USER_INITIAL_BALANCE;
 
@@ -161,6 +162,7 @@ contract InvariantTestBase is LancaTest {
     function _setVars() internal {
         vm.startPrank(s_deployer);
         s_parentPool.setMinDepositAmount(MIN_DEPOSIT_AMOUNT);
+        s_parentPool.setMinWithdrawalAmount(MIN_WITHDRAWAL_AMOUNT);
         s_parentPool.setLancaKeeper(s_lancaKeeper);
         s_parentPool.setLurScoreSensitivity(uint64(5 * LIQ_TOKEN_SCALE_FACTOR));
         s_parentPool.setScoresWeights(

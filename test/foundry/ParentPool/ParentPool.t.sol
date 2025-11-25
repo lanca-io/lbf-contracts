@@ -100,44 +100,57 @@ contract ParentPoolTest is ParentPoolBase {
 
     /** -- Enter Withdrawal Queue -- */
 
-    function test_enterWithdrawalQueue_RevertsAmountIsZero() public {
-        vm.expectRevert(ICommonErrors.AmountIsZero.selector);
+    function test_enterWithdrawalQueue_RevertsMinWithdrawalAmountNotSet() public {
+        vm.prank(s_deployer);
+        s_parentPool.setMinWithdrawalAmount(0);
 
-        vm.prank(s_user);
+        vm.expectRevert(ICommonErrors.MinWithdrawalAmountNotSet.selector);
+        s_parentPool.enterWithdrawalQueue(_addDecimals(100));
+    }
+
+    function test_enterWithdrawalQueue_RevertsWithdrawalAmountIsTooLow() public {
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                ICommonErrors.WithdrawalAmountIsTooLow.selector,
+                0,
+                _addDecimals(100)
+            )
+        );
+
         s_parentPool.enterWithdrawalQueue(0);
     }
 
     function test_enterWithdrawalQueue_RevertsWithdrawalQueueIsFull() public {
         _setQueuesLength(0, 0);
-        _enterDepositQueue(s_user, _addDecimals(1000));
+        _enterDepositQueue(s_user, _addDecimals(100_000));
 
         _fillChildPoolSnapshots();
         _triggerDepositWithdrawProcess();
 
         for (uint256 i; i < 250; i++) {
-            _enterWithdrawalQueue(s_user, _addDecimals(1));
+            _enterWithdrawalQueue(s_user, _addDecimals(100));
         }
 
         vm.expectRevert(IParentPool.WithdrawalQueueIsFull.selector);
 
         vm.prank(s_user);
-        s_parentPool.enterWithdrawalQueue(1);
+        s_parentPool.enterWithdrawalQueue(_addDecimals(100));
     }
 
     function test_enterWithdrawalQueue_EmitsWithdrawalQueued() public {
         _baseSetup();
-        _mintLpToken(s_user, _addDecimals(1));
+        _mintLpToken(s_user, _addDecimals(100));
 
         vm.prank(s_user);
-        s_lpToken.approve(address(s_parentPool), _addDecimals(1));
+        s_lpToken.approve(address(s_parentPool), _addDecimals(100));
 
         bytes32 withdrawalId = keccak256(abi.encodePacked(s_user, block.number, uint256(1)));
 
         vm.expectEmit(true, true, true, true);
-        emit IParentPool.WithdrawalQueued(withdrawalId, s_user, _addDecimals(1));
+        emit IParentPool.WithdrawalQueued(withdrawalId, s_user, _addDecimals(100));
 
         vm.prank(s_user);
-        s_parentPool.enterWithdrawalQueue(_addDecimals(1));
+        s_parentPool.enterWithdrawalQueue(_addDecimals(100));
     }
 
     /** -- Trigger Deposit Withdraw Process -- */
@@ -372,9 +385,9 @@ contract ParentPoolTest is ParentPoolBase {
         assertEq(s_parentPool.getPendingWithdrawalIds().length, 0);
         _setQueuesLength(0, 0);
 
-        _mintLpToken(s_user, _addDecimals(100));
-        _enterWithdrawalQueue(s_user, _addDecimals(50));
-        _enterWithdrawalQueue(s_user, _addDecimals(50));
+        _mintLpToken(s_user, _addDecimals(1000));
+        _enterWithdrawalQueue(s_user, _addDecimals(500));
+        _enterWithdrawalQueue(s_user, _addDecimals(500));
         _fillChildPoolSnapshots();
         _triggerDepositWithdrawProcess();
 
@@ -419,6 +432,15 @@ contract ParentPoolTest is ParentPoolBase {
         vm.prank(s_deployer);
         s_parentPool.setMinDepositAmount(uint64(_addDecimals(50)));
         assertEq(s_parentPool.getMinDepositAmount(), _addDecimals(50));
+    }
+
+    function test_getMinWithdrawalAmount() public {
+        assertEq(s_parentPool.getMinWithdrawalAmount(), _addDecimals(100));
+
+        vm.prank(s_deployer);
+        s_parentPool.setMinWithdrawalAmount(uint64(_addDecimals(50)));
+
+        assertEq(s_parentPool.getMinWithdrawalAmount(), _addDecimals(50));
     }
 
     /** -- Test Admin Functions Unauthorized Caller -- */

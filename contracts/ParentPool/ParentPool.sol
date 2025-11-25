@@ -86,9 +86,14 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
     }
 
     function enterWithdrawalQueue(uint256 lpTokenAmount) external {
-        require(lpTokenAmount > 0, ICommonErrors.AmountIsZero());
-
         s.ParentPool storage s_parentPool = s.parentPool();
+
+        uint64 minWithdrawalAmount = s_parentPool.minWithdrawalAmount;
+        require(minWithdrawalAmount > 0, ICommonErrors.MinWithdrawalAmountNotSet());
+        require(
+            lpTokenAmount >= minWithdrawalAmount,
+            ICommonErrors.WithdrawalAmountIsTooLow(lpTokenAmount, minWithdrawalAmount)
+        );
 
         require(s_parentPool.withdrawalQueueIds.length < MAX_QUEUE_LENGTH, WithdrawalQueueIsFull());
 
@@ -288,6 +293,10 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
         return s.parentPool().minDepositAmount;
     }
 
+    function getMinWithdrawalAmount() external view returns (uint64) {
+        return s.parentPool().minWithdrawalAmount;
+    }
+
     function getWithdrawableAmount(
         uint256 totalPoolsBalance,
         uint256 lpTokenAmount
@@ -351,6 +360,10 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
 
     function setMinDepositAmount(uint64 newMinDepositAmount) external onlyOwner {
         s.parentPool().minDepositAmount = newMinDepositAmount;
+    }
+
+    function setMinWithdrawalAmount(uint64 newMinWithdrawalAmount) external onlyOwner {
+        s.parentPool().minWithdrawalAmount = newMinWithdrawalAmount;
     }
 
     function setAverageConceroMessageFee(uint96 averageConceroMessageFee) external onlyOwner {

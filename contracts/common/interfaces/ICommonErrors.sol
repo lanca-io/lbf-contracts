@@ -10,7 +10,9 @@ interface ICommonErrors {
     error AddressShouldNotBeZero();
     error AmountIsZero();
     error DepositAmountIsTooLow(uint256 depositAmount, uint64 minDepositAmount);
+    error WithdrawalAmountIsTooLow(uint256 withdrawalAmount, uint64 minWithdrawalAmount);
     error FunctionNotImplemented();
     error MinDepositAmountNotSet();
+    error MinWithdrawalAmountNotSet();
     error LengthMismatch();
 }
