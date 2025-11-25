@@ -226,6 +226,12 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
         return s.parentPool().supportedChainSelectors;
     }
 
+    function getChildPoolSnapshot(
+        uint24 chainSelector
+    ) public view returns (ChildPoolSnapshot memory) {
+        return s.parentPool().childPoolSnapshots[chainSelector];
+    }
+
     function isReadyToTriggerDepositWithdrawProcess() external view returns (bool) {
         (bool success, ) = _getTotalPoolsBalance();
         return success && areQueuesFull();

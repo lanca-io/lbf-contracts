@@ -21,14 +21,16 @@ contract ReceiveSnapshot is ParentPoolBase {
         vm.warp(NOW_TIMESTAMP);
     }
 
-    function test_ReceiveSnapshot_Success() public {
-        uint256 activeBalance = 100e6;
-        uint256 inflow = 200e6;
-        uint256 outflow = 300e6;
-        uint256 iouTotalSent = 400e6;
-        uint256 iouTotalReceived = 500e6;
-        uint256 iouTotalSupply = 600e6;
-
+    function testFuzz_ReceiveSnapshot_Success(
+        uint256 activeBalance,
+        uint256 inflow,
+        uint256 outflow,
+        uint256 iouTotalSent,
+        uint256 iouTotalReceived,
+        uint256 iouTotalSupply,
+        uint256 totalLiqTokenSent,
+        uint256 totalLiqTokenReceived
+    ) public {
         IBase.LiqTokenDailyFlow memory dailyFlow = IBase.LiqTokenDailyFlow({
             inflow: inflow,
             outflow: outflow
@@ -41,19 +43,19 @@ contract ReceiveSnapshot is ParentPoolBase {
             iouTotalReceived: iouTotalReceived,
             iouTotalSupply: iouTotalSupply,
             timestamp: uint32(block.timestamp),
-            totalLiqTokenSent: 4,
-            totalLiqTokenReceived: 5
+            totalLiqTokenSent: totalLiqTokenSent,
+            totalLiqTokenReceived: totalLiqTokenReceived
         });
 
         IConceroRouter.MessageRequest memory messageRequest = _buildMessageRequest(
             BridgeCodec.encodeChildPoolSnapshotData(
-                activeBalance,
-                dailyFlow.inflow,
-                dailyFlow.outflow,
-                iouTotalSent,
-                iouTotalReceived,
-                iouTotalSupply,
-                uint32(block.timestamp),
+                snapshot.balance,
+                snapshot.dailyFlow.inflow,
+                snapshot.dailyFlow.outflow,
+                snapshot.iouTotalSent,
+                snapshot.iouTotalReceived,
+                snapshot.iouTotalSupply,
+                snapshot.timestamp,
                 snapshot.totalLiqTokenSent,
                 snapshot.totalLiqTokenReceived,
                 USDC_TOKEN_DECIMALS
@@ -61,8 +63,6 @@ contract ReceiveSnapshot is ParentPoolBase {
             PARENT_POOL_CHAIN_SELECTOR,
             address(s_parentPool)
         );
-
-        console.logBytes(messageRequest.payload);
 
         vm.prank(s_conceroRouter);
         s_parentPool.conceroReceive(
@@ -76,18 +76,27 @@ contract ReceiveSnapshot is ParentPoolBase {
             s_relayerLib
         );
 
-        IParentPool.ChildPoolSnapshot memory receivedSnapshot = s_parentPool
-            .exposed_getChildPoolSnapshot(childPoolChainSelector_1);
+        IParentPool.ChildPoolSnapshot memory receivedSnapshot = s_parentPool.getChildPoolSnapshot(
+            childPoolChainSelector_1
+        );
 
-        assertEq(receivedSnapshot.balance, activeBalance);
-        assertEq(receivedSnapshot.dailyFlow.inflow, inflow);
-        assertEq(receivedSnapshot.dailyFlow.outflow, outflow);
-        assertEq(receivedSnapshot.iouTotalSent, iouTotalSent);
-        assertEq(receivedSnapshot.iouTotalReceived, iouTotalReceived);
-        assertEq(receivedSnapshot.iouTotalSupply, iouTotalSupply);
-        assertEq(receivedSnapshot.timestamp, uint32(block.timestamp));
-        assertEq(receivedSnapshot.totalLiqTokenSent, snapshot.totalLiqTokenSent);
-        assertEq(receivedSnapshot.totalLiqTokenReceived, snapshot.totalLiqTokenReceived);
+        assertEq(receivedSnapshot.balance, snapshot.balance, "balance");
+        assertEq(receivedSnapshot.dailyFlow.inflow, snapshot.dailyFlow.inflow, "inflow");
+        assertEq(receivedSnapshot.dailyFlow.outflow, snapshot.dailyFlow.outflow, "outflow");
+        assertEq(receivedSnapshot.iouTotalSent, snapshot.iouTotalSent, "iouTotalSent");
+        assertEq(receivedSnapshot.iouTotalReceived, snapshot.iouTotalReceived, "iouTotalReceived");
+        assertEq(receivedSnapshot.iouTotalSupply, snapshot.iouTotalSupply, "iouTotalSupply");
+        assertEq(receivedSnapshot.timestamp, snapshot.timestamp, "timestamp");
+        assertEq(
+            receivedSnapshot.totalLiqTokenSent,
+            snapshot.totalLiqTokenSent,
+            "totalLiqTokenSent"
+        );
+        assertEq(
+            receivedSnapshot.totalLiqTokenReceived,
+            snapshot.totalLiqTokenReceived,
+            "totalLiqTokenReceived"
+        );
     }
 
     function test_ReceiveSnapshot_CannotBeUsedTwice() public {
@@ -100,7 +109,7 @@ contract ReceiveSnapshot is ParentPoolBase {
             childPoolChainSelector_1,
             _getChildPoolSnapshot(_addDecimals(1_500), 0, 0)
         );
-        IParentPool.ChildPoolSnapshot memory snapshot = s_parentPool.exposed_getChildPoolSnapshot(
+        IParentPool.ChildPoolSnapshot memory snapshot = s_parentPool.getChildPoolSnapshot(
             childPoolChainSelector_1
         );
         assertEq(snapshot.timestamp, NOW_TIMESTAMP);
@@ -109,7 +118,7 @@ contract ReceiveSnapshot is ParentPoolBase {
 
         _triggerDepositWithdrawProcess();
 
-        snapshot = s_parentPool.exposed_getChildPoolSnapshot(childPoolChainSelector_1);
+        snapshot = s_parentPool.getChildPoolSnapshot(childPoolChainSelector_1);
 
         // The snapshot timestamp should be 0 because it cannot be used twice
         assertEq(snapshot.timestamp, 0);
@@ -117,7 +126,7 @@ contract ReceiveSnapshot is ParentPoolBase {
     }
 
     function test_ReceiveSnapshot_CannotBeReceivedFromInvalidSender() public {
-        IParentPool.ChildPoolSnapshot memory snapshot = s_parentPool.exposed_getChildPoolSnapshot(
+        IParentPool.ChildPoolSnapshot memory snapshot = s_parentPool.getChildPoolSnapshot(
             childPoolChainSelector_1
         );
 

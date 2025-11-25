@@ -34,12 +34,6 @@ contract ParentPoolHarness is ParentPool {
         return s.parentPool().childPoolTargetBalances[chainSelector];
     }
 
-    function exposed_getChildPoolSnapshot(
-        uint24 chainSelector
-    ) public view returns (ChildPoolSnapshot memory) {
-        return s.parentPool().childPoolSnapshots[chainSelector];
-    }
-
     function exposed_getReceivedBridgeAmount(
         uint24 srcChainSelector,
         uint256 nonce
