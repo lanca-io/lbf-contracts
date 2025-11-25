@@ -192,6 +192,7 @@ contract BaseTest is LancaTest {
         address newRelayerLib
     ) public {
         vm.assume(relayerLib != address(0));
+        vm.assume(newRelayerLib != address(0));
         s_base.setRelayerLib(relayerLib);
 
         vm.expectRevert(abi.encodeWithSelector(Base.RelayerAlreadySet.selector, relayerLib));
@@ -266,6 +267,7 @@ contract BaseTest is LancaTest {
         address newValidatorLib
     ) public {
         vm.assume(validatorLib != address(0));
+        vm.assume(newValidatorLib != address(0));
         s_base.setValidatorLib(validatorLib);
 
         vm.expectRevert(abi.encodeWithSelector(Base.ValidatorAlreadySet.selector, validatorLib));
