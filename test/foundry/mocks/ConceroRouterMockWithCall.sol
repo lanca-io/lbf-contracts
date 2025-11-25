@@ -11,7 +11,9 @@ contract ConceroRouterMockWithCall is IConceroRouter, Script {
     using MessageCodec for bytes;
 
     uint24 public constant PARENT_POOL_CHAIN_SELECTOR = 1000;
+    uint24 public s_srcChainSelector = PARENT_POOL_CHAIN_SELECTOR;
     uint256 public constant NONCE = 1;
+    uint256 public s_fee = 0.0001 ether;
 
     address public relayerLib = makeAddr("relayerLib");
     address public validatorLib = makeAddr("validatorLib");
@@ -29,7 +31,7 @@ contract ConceroRouterMockWithCall is IConceroRouter, Script {
         validatorLibs[0] = validatorLib;
 
         bytes memory messageReceipt = messageRequest.toMessageReceiptBytes(
-            PARENT_POOL_CHAIN_SELECTOR,
+            s_srcChainSelector,
             msg.sender,
             NONCE
         );
@@ -37,7 +39,7 @@ contract ConceroRouterMockWithCall is IConceroRouter, Script {
         messageId = keccak256(messageReceipt);
 
         ConceroClient(receiver).conceroReceive(
-            messageRequest.toMessageReceiptBytes(PARENT_POOL_CHAIN_SELECTOR, msg.sender, NONCE),
+            messageReceipt,
             validationChecks,
             validatorLibs,
             relayerLib
@@ -52,8 +54,8 @@ contract ConceroRouterMockWithCall is IConceroRouter, Script {
         return _getFee();
     }
 
-    function _getFee() internal pure returns (uint256) {
-        return 0.0001 ether;
+    function _getFee() internal view returns (uint256) {
+        return s_fee;
     }
 
     // TODO: mb remove it
@@ -72,4 +74,8 @@ contract ConceroRouterMockWithCall is IConceroRouter, Script {
         address,
         uint32
     ) external {}
+
+    function setSrcChainSelector(uint24 srcChainSelector) external {
+        s_srcChainSelector = srcChainSelector;
+    }
 }

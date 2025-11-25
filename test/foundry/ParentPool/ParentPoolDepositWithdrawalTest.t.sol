@@ -42,7 +42,7 @@ contract ParentPoolDepositWithdrawalTest is ParentPoolBase {
 
     /** -- Test Target Balances calculation -- */
 
-    function test_initialDepositAndUpdateTargetBalances(uint256 amountToDepositPerUser) public {
+    function testFuzz_initialDepositAndUpdateTargetBalances(uint256 amountToDepositPerUser) public {
         vm.assume(
             amountToDepositPerUser > s_parentPool.getMinDepositAmount() &&
                 amountToDepositPerUser < MAX_DEPOSIT_AMOUNT
@@ -70,11 +70,7 @@ contract ParentPoolDepositWithdrawalTest is ParentPoolBase {
 
         uint256 expectedPoolTargetBalance = totalDeposited / (childPoolChainSelectors.length + 1);
 
-        vm.assertApproxEqRel(
-            s_parentPool.getActiveBalance(),
-            totalDeposited + s_parentPool.getRebalancerFee(totalDeposited),
-            1e11
-        );
+        vm.assertApproxEqRel(s_parentPool.getActiveBalance(), totalDeposited, 1e11);
         vm.assertEq(expectedPoolTargetBalance, s_parentPool.getTargetBalance());
 
         for (uint256 i; i < childPoolChainSelectors.length; ++i) {
@@ -270,15 +266,13 @@ contract ParentPoolDepositWithdrawalTest is ParentPoolBase {
 
         _processPendingWithdrawals();
 
-        uint256 rebalancerFee = s_parentPool.getRebalancerFee(_addDecimals(2_000));
-
         uint256 parentPoolTargetBalanceAfter = s_parentPool.getTargetBalance();
         uint256 parentPoolActiveBalanceAfter = s_parentPool.getActiveBalance();
         assertEq(parentPoolTargetBalanceAfter, parentPoolTargetBalanceBefore);
-        assertEq(parentPoolActiveBalanceAfter, parentPoolActiveBalanceBefore + rebalancerFee);
+        assertEq(parentPoolActiveBalanceAfter, parentPoolActiveBalanceBefore);
 
         assertEq(s_parentPool.getDeficit(), 0);
-        assertEq(s_parentPool.getSurplus(), rebalancerFee);
+        assertEq(s_parentPool.getSurplus(), 0);
     }
 
     function test_recalculateTargetBalancesWhenFullWithdrawal() public {

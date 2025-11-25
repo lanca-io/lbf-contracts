@@ -4,6 +4,8 @@ pragma solidity 0.8.28;
 import {IConceroRouter} from "@concero/v2-contracts/contracts/interfaces/IConceroRouter.sol";
 
 contract ConceroRouterMock is IConceroRouter {
+    uint256 internal s_fee = 0.0001 ether;
+
     error InvalidFeeValue();
 
     function conceroSend(
@@ -20,8 +22,8 @@ contract ConceroRouterMock is IConceroRouter {
         return _getFee();
     }
 
-    function _getFee() internal pure returns (uint256) {
-        return 0.0001 ether;
+    function _getFee() internal view returns (uint256) {
+        return s_fee;
     }
 
     function retryMessageSubmission(

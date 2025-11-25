@@ -21,7 +21,7 @@ contract Rebalancer is RebalancerBase {
         vm.warp(NOW_TIMESTAMP);
     }
 
-    function test_fillDeficitAndSendBridgeIou(
+    function testFuzz_fillDeficitAndSendBridgeIou(
         uint256 parentPoolBaseBalance,
         uint256 deficit
     ) public {
@@ -113,10 +113,7 @@ contract Rebalancer is RebalancerBase {
         vm.stopPrank();
         uint256 usdcBalanceAfter = s_usdc.balanceOf(s_user);
 
-        assertEq(
-            usdcBalanceAfter - usdcBalanceBefore,
-            surplusToTake + s_parentPool.getRebalancerFee(surplusToTake)
-        );
+        assertEq(usdcBalanceAfter - usdcBalanceBefore, surplusToTake);
     }
 
     // /* -- Rebalancer fee -- */
@@ -172,8 +169,17 @@ contract Rebalancer is RebalancerBase {
 
         _fillDeficit(s_parentPool.getDeficit());
         uint256 iouBalanceAfterFillDeficit = s_iouToken.balanceOf(s_operator);
+        uint256 rebalancerFee = s_parentPool.getRebalancerFee(iouBalanceAfterFillDeficit);
 
         _processPendingWithdrawals();
+
+        /**
+         * @dev We need to top up the rebalancer fee for the child pools
+         * because a full withdrawal does not leave any liquidity in the child pools
+         * to pay the rebalancer fee.
+         */
+        _topUpRebalancingFee(address(s_childPool_1), rebalancerFee / 2);
+        _topUpRebalancingFee(address(s_childPool_2), rebalancerFee / 2);
 
         vm.startPrank(s_operator);
         s_iouToken.approve(address(s_childPool_1), type(uint256).max);
@@ -183,12 +189,9 @@ contract Rebalancer is RebalancerBase {
         s_childPool_2.takeSurplus(s_childPool_2.getSurplus());
         vm.stopPrank();
 
-        _takeSurplus(s_iouToken.balanceOf(s_operator));
-
-        uint256 rebalancerFee = s_parentPool.getRebalancerFee(iouBalanceAfterFillDeficit);
         uint256 usdcBalanceAfter = s_usdc.balanceOf(s_operator);
 
-        assertApproxEqRel(usdcBalanceAfter - usdcBalanceBefore, rebalancerFee, 1e13);
+        assertEq(usdcBalanceAfter - usdcBalanceBefore, rebalancerFee);
     }
 
     function test_RebalancerFee_ParentPoolRemaining() public {
@@ -254,11 +257,13 @@ contract Rebalancer is RebalancerBase {
         s_childPool_9.takeSurplus(s_childPool_9.getSurplus());
         vm.stopPrank();
 
-        _takeSurplus(s_iouToken.balanceOf(s_operator));
-
-        // 10 USDC is accrued to LP because the calculation is based on the balance of the entire pool
-        // 10 USDC is remaining in the ParentPool
-        assertApproxEqRel(s_usdc.balanceOf(address(s_parentPool)), _addDecimals(10), 1e12); // 0.0001%
+        assertEq(s_parentPool.getActiveBalance(), 0);
+        assertEq(s_parentPool.exposed_getLancaFeeInLiqToken(), 0);
+        assertApproxEqRel(
+            s_parentPool.exposed_getRebalancingFeeInLiqToken(),
+            _addDecimals(110),
+            1e13
+        );
     }
 
     function test_RebalancerFee_ExtraProfit() public {

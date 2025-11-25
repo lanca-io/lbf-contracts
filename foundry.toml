@@ -19,3 +19,8 @@ remappings = [
     "forge-std/=node_modules/forge-std/",
     "contracts/=contracts/",
 ]
+
+[invariant]
+runs = 100
+depth = 100
+fail_on_revert = true

@@ -127,6 +127,7 @@ abstract contract Rebalancer is IRebalancer, Base {
         uint256 maxNeededFee = getRebalancerFee(getSurplus());
 
         if (s_rebalancer.totalRebalancingFeeAmount > maxNeededFee) {
+            // TODO: mb transfer excess to owner
             uint256 excess = s_rebalancer.totalRebalancingFeeAmount - maxNeededFee;
             s_rebalancer.totalRebalancingFeeAmount = maxNeededFee;
         }

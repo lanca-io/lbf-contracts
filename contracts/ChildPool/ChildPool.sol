@@ -36,7 +36,6 @@ contract ChildPool is Rebalancer, LancaBridge {
 
     function sendSnapshotToParentPool() external payable onlyLancaKeeper {
         pbs.Base storage s_base = pbs.base();
-        rs.Rebalancer storage s_rebalancer = rs.rebalancer();
 
         bytes32 parentPool = s_base.dstPools[i_parentPoolChainSelector];
         require(
@@ -70,7 +69,6 @@ contract ChildPool is Rebalancer, LancaBridge {
 
     function getSnapshotMessageFee() external view returns (uint256) {
         pbs.Base storage s_base = pbs.base();
-        rs.Rebalancer storage s_rebalancer = rs.rebalancer();
 
         address[] memory validatorLibs = new address[](1);
         validatorLibs[0] = s_base.validatorLib;
