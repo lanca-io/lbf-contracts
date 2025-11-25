@@ -29,9 +29,11 @@ library BridgeCodec {
         IOU_TOTAL_SENT_OFFSET + BYTES32_LENGTH_BYTES;
     uint8 internal constant IOU_TOTAL_SUPPLY = IOU_TOTAL_RECEIVED_OFFSET + BYTES32_LENGTH_BYTES;
     uint8 internal constant TIMESTAMP_OFFSET = IOU_TOTAL_SUPPLY + BYTES32_LENGTH_BYTES;
-    uint8 internal constant TOTAL_LIQ_SENT_OFFSET = TIMESTAMP_OFFSET + UINT32_LENGTH_BYTES;
-    uint8 internal constant TOTAL_LIQ_RECEIVED_OFFSET =
+    uint16 internal constant TOTAL_LIQ_SENT_OFFSET = TIMESTAMP_OFFSET + UINT32_LENGTH_BYTES;
+    uint16 internal constant TOTAL_LIQ_RECEIVED_OFFSET =
         TOTAL_LIQ_SENT_OFFSET + BYTES32_LENGTH_BYTES;
+    uint16 internal constant SNAPSHOT_DECIMALS_OFFSET =
+        TOTAL_LIQ_RECEIVED_OFFSET + BYTES32_LENGTH_BYTES;
 
     function toAddress(bytes32 addr) internal pure returns (address) {
         return address(bytes20(addr));
@@ -173,13 +175,15 @@ library BridgeCodec {
                     bytes32(data[IOU_TOTAL_RECEIVED_OFFSET:IOU_TOTAL_SUPPLY])
                 ),
                 iouTotalSupply: uint256(bytes32(data[IOU_TOTAL_SUPPLY:TIMESTAMP_OFFSET])),
+                timestamp: uint32(bytes4(data[TIMESTAMP_OFFSET:TOTAL_LIQ_SENT_OFFSET])),
                 totalLiqTokenSent: uint256(
                     bytes32(data[TOTAL_LIQ_SENT_OFFSET:TOTAL_LIQ_RECEIVED_OFFSET])
                 ),
-                totalLiqTokenReceived: uint256(bytes32(data[TOTAL_LIQ_RECEIVED_OFFSET:])),
-                timestamp: uint32(bytes4(data[TIMESTAMP_OFFSET:TOTAL_LIQ_SENT_OFFSET]))
+                totalLiqTokenReceived: uint256(
+                    bytes32(data[TOTAL_LIQ_RECEIVED_OFFSET:SNAPSHOT_DECIMALS_OFFSET])
+                )
             }),
-            uint8(bytes1(data[TOTAL_LIQ_RECEIVED_OFFSET:]))
+            uint8(bytes1(data[SNAPSHOT_DECIMALS_OFFSET:]))
         );
     }
 

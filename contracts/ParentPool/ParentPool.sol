@@ -19,6 +19,8 @@ import {LancaBridge} from "../LancaBridge/LancaBridge.sol";
 import {BridgeCodec} from "../common/libraries/BridgeCodec.sol";
 import {IBase} from "../Base/interfaces/IBase.sol";
 
+import {console} from "forge-std/src/console.sol";
+
 contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
     using s for s.ParentPool;
     using rs for rs.Rebalancer;
@@ -729,7 +731,12 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
         (ChildPoolSnapshot memory snapshot, uint8 srcDecimals) = messageData
             .decodeChildPoolSnapshot();
 
+        console.log(srcDecimals);
+
         snapshot.balance = _toLocalDecimals(snapshot.balance, srcDecimals);
+
+        console.log(snapshot.balance);
+
         snapshot.dailyFlow = IBase.LiqTokenDailyFlow({
             inflow: _toLocalDecimals(snapshot.dailyFlow.inflow, srcDecimals),
             outflow: _toLocalDecimals(snapshot.dailyFlow.outflow, srcDecimals)
