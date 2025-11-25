@@ -52,10 +52,10 @@ contract InvariantTestBase is LancaTest {
     }
 
     function _deployTokens() internal {
-        s_lpToken = new LPToken(s_deployer, s_deployer);
+        s_lpToken = new LPToken(s_deployer, s_deployer, USDC_TOKEN_DECIMALS);
 
-        s_iouTokenChildPool_1 = new IOUToken(s_deployer, address(0));
-        s_iouTokenChildPool_2 = new IOUToken(s_deployer, address(0));
+        s_iouTokenChildPool_1 = new IOUToken(s_deployer, address(0), USDC_TOKEN_DECIMALS);
+        s_iouTokenChildPool_2 = new IOUToken(s_deployer, address(0), USDC_TOKEN_DECIMALS);
 
         vm.label(address(s_usdc), "USDC");
         vm.label(address(s_lpToken), "LPToken");
@@ -162,10 +162,10 @@ contract InvariantTestBase is LancaTest {
         vm.startPrank(s_deployer);
         s_parentPool.setMinDepositAmount(MIN_DEPOSIT_AMOUNT);
         s_parentPool.setLancaKeeper(s_lancaKeeper);
-        s_parentPool.setLurScoreSensitivity(uint64(5 * LIQ_TOKEN_SCALE_FACTOR));
+        s_parentPool.setLurScoreSensitivity(uint64(5 * USDC_TOKEN_DECIMALS_SCALE));
         s_parentPool.setScoresWeights(
-            uint64((7 * LIQ_TOKEN_SCALE_FACTOR) / 10),
-            uint64((3 * LIQ_TOKEN_SCALE_FACTOR) / 10)
+            uint64((7 * USDC_TOKEN_DECIMALS_SCALE) / 10),
+            uint64((3 * USDC_TOKEN_DECIMALS_SCALE) / 10)
         );
         s_parentPool.setLiquidityCap(LIQUIDITY_CAP);
 

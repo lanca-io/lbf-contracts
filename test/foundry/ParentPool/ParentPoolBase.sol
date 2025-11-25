@@ -36,8 +36,8 @@ abstract contract ParentPoolBase is LancaTest {
 
     function setUp() public virtual {
         vm.startPrank(s_deployer);
-        s_iouToken = new IOUToken(s_deployer, address(this));
-        s_lpToken = new LPToken(s_deployer, address(this));
+        s_iouToken = new IOUToken(s_deployer, address(this), USDC_TOKEN_DECIMALS);
+        s_lpToken = new LPToken(s_deployer, address(this), USDC_TOKEN_DECIMALS);
         s_parentPool = new ParentPoolHarness(
             address(s_usdc),
             address(s_lpToken),
@@ -258,10 +258,10 @@ abstract contract ParentPoolBase is LancaTest {
 
     function _setTargetBalanceCalculationVars() internal {
         vm.startPrank(s_deployer);
-        s_parentPool.setLurScoreSensitivity(uint64(5 * LIQ_TOKEN_SCALE_FACTOR));
+        s_parentPool.setLurScoreSensitivity(uint64(5 * USDC_TOKEN_DECIMALS_SCALE));
         s_parentPool.setScoresWeights(
-            uint64((7 * LIQ_TOKEN_SCALE_FACTOR) / 10),
-            uint64((3 * LIQ_TOKEN_SCALE_FACTOR) / 10)
+            uint64((7 * USDC_TOKEN_DECIMALS_SCALE) / 10),
+            uint64((3 * USDC_TOKEN_DECIMALS_SCALE) / 10)
         );
         vm.stopPrank();
     }
@@ -283,7 +283,7 @@ abstract contract ParentPoolBase is LancaTest {
 	(Parent)   10     1k     	1k           	0k           0k
         */
 
-        uint256 defaultTargetBalance = 1_000 * LIQ_TOKEN_SCALE_FACTOR;
+        uint256 defaultTargetBalance = 1_000 * USDC_TOKEN_DECIMALS_SCALE;
         uint24[] memory childPoolChainSelectors = s_parentPool.getChildPoolChainSelectors();
 
         for (uint256 i; i < childPoolChainSelectors.length; ++i) {
@@ -313,27 +313,27 @@ abstract contract ParentPoolBase is LancaTest {
         */
         uint256[3][4] memory childPoolsSetupData = [
             [
-                85_000 * LIQ_TOKEN_SCALE_FACTOR,
-                140_000 * LIQ_TOKEN_SCALE_FACTOR,
-                150_000 * LIQ_TOKEN_SCALE_FACTOR
+                85_000 * USDC_TOKEN_DECIMALS_SCALE,
+                140_000 * USDC_TOKEN_DECIMALS_SCALE,
+                150_000 * USDC_TOKEN_DECIMALS_SCALE
             ],
             [
-                95_000 * LIQ_TOKEN_SCALE_FACTOR,
-                180_000 * LIQ_TOKEN_SCALE_FACTOR,
-                200_000 * LIQ_TOKEN_SCALE_FACTOR
+                95_000 * USDC_TOKEN_DECIMALS_SCALE,
+                180_000 * USDC_TOKEN_DECIMALS_SCALE,
+                200_000 * USDC_TOKEN_DECIMALS_SCALE
             ],
             [
-                110_000 * LIQ_TOKEN_SCALE_FACTOR,
-                50_000 * LIQ_TOKEN_SCALE_FACTOR,
-                40_000 * LIQ_TOKEN_SCALE_FACTOR
+                110_000 * USDC_TOKEN_DECIMALS_SCALE,
+                50_000 * USDC_TOKEN_DECIMALS_SCALE,
+                40_000 * USDC_TOKEN_DECIMALS_SCALE
             ],
             [
-                90_000 * LIQ_TOKEN_SCALE_FACTOR,
-                70_000 * LIQ_TOKEN_SCALE_FACTOR,
-                90_000 * LIQ_TOKEN_SCALE_FACTOR
+                90_000 * USDC_TOKEN_DECIMALS_SCALE,
+                70_000 * USDC_TOKEN_DECIMALS_SCALE,
+                90_000 * USDC_TOKEN_DECIMALS_SCALE
             ]
         ];
-        uint256 defaultTargetBalance = 100_000 * LIQ_TOKEN_SCALE_FACTOR;
+        uint256 defaultTargetBalance = 100_000 * USDC_TOKEN_DECIMALS_SCALE;
 
         for (uint256 i; i < _getChildPoolsChainSelectors().length; ++i) {
             s_parentPool.exposed_setChildPoolSnapshot(
@@ -351,8 +351,8 @@ abstract contract ParentPoolBase is LancaTest {
         }
         s_parentPool.exposed_setTargetBalance(defaultTargetBalance);
         s_parentPool.exposed_setYesterdayFlow(
-            60_000 * LIQ_TOKEN_SCALE_FACTOR,
-            80_000 * LIQ_TOKEN_SCALE_FACTOR
+            60_000 * USDC_TOKEN_DECIMALS_SCALE,
+            80_000 * USDC_TOKEN_DECIMALS_SCALE
         );
     }
 
@@ -378,7 +378,7 @@ abstract contract ParentPoolBase is LancaTest {
     }
 
     function _addDecimals(uint256 amount) internal pure returns (uint256) {
-        return amount * LIQ_TOKEN_SCALE_FACTOR;
+        return amount * USDC_TOKEN_DECIMALS_SCALE;
     }
 
     function _getUsers(uint256 amount) internal returns (address[] memory) {

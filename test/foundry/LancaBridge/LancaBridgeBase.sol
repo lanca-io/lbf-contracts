@@ -15,19 +15,18 @@ import {BridgeCodec} from "contracts/common/libraries/BridgeCodec.sol";
 
 abstract contract LancaBridgeBase is LancaTest {
     using BridgeCodec for address;
+    using MessageCodec for IConceroRouter.MessageRequest;
 
     ChildPool public s_childPool;
     ParentPool public s_parentPool;
-    LPToken public s_lpToken;
+    LPToken public s_lpToken = new LPToken(address(this), address(this), USDC_TOKEN_DECIMALS);
 
     function setUp() public virtual {
-        s_lpToken = new LPToken(address(this), address(this));
-
         vm.startPrank(s_deployer);
         s_childPool = new ChildPool(
             address(s_conceroRouter),
-            address(s_iouToken),
-            address(s_usdc),
+            address(s_18DecIouToken),
+            address(s_18DecUsdc),
             CHILD_POOL_CHAIN_SELECTOR,
             PARENT_POOL_CHAIN_SELECTOR
         );
@@ -67,8 +66,11 @@ abstract contract LancaBridgeBase is LancaTest {
         MockERC20(address(s_usdc)).mint(s_user, 10_000_000e6);
         MockERC20(address(s_usdc)).mint(s_liquidityProvider, 50_000_000e6);
         MockERC20(address(s_usdc)).mint(s_operator, 1_000_000e6);
-        MockERC20(address(s_usdc)).mint(address(s_childPool), INITIAL_POOL_LIQUIDITY);
+        //        MockERC20(address(s_usdc)).mint(address(s_childPool), INITIAL_POOL_LIQUIDITY);
         vm.stopPrank();
+
+        deal(address(s_18DecUsdc), address(s_childPool), 1_000_000 * (10 ** STD_TOKEN_DECIMALS));
+        deal(address(s_18DecUsdc), s_user, 1_000_000 * (10 ** STD_TOKEN_DECIMALS));
     }
 
     function _approveUSDCForAll() internal {
@@ -84,6 +86,9 @@ abstract contract LancaBridgeBase is LancaTest {
         vm.prank(s_user);
         IERC20(s_usdc).approve(address(s_parentPool), type(uint256).max);
 
+        vm.prank(s_user);
+        IERC20(s_18DecUsdc).approve(address(s_childPool), type(uint256).max);
+
         vm.prank(s_liquidityProvider);
         IERC20(s_usdc).approve(address(s_parentPool), type(uint256).max);
 
@@ -96,5 +101,36 @@ abstract contract LancaBridgeBase is LancaTest {
         _setValidatorLibs(address(s_parentPool));
         _setRelayerLib(address(s_childPool));
         _setValidatorLibs(address(s_childPool));
+    }
+
+    function _receiveBridge(
+        address pool,
+        uint256 amount,
+        address receiver,
+        uint32 dstChainGasLimit
+    ) internal {
+        IConceroRouter.MessageRequest memory messageRequest = _buildMessageRequest(
+            BridgeCodec.encodeBridgeData(
+                s_user,
+                amount,
+                USDC_TOKEN_DECIMALS,
+                MessageCodec.encodeEvmDstChainData(receiver, dstChainGasLimit),
+                ""
+            ),
+            PARENT_POOL_CHAIN_SELECTOR,
+            address(s_parentPool)
+        );
+
+        vm.prank(s_conceroRouter);
+        s_parentPool.conceroReceive(
+            messageRequest.toMessageReceiptBytes(
+                CHILD_POOL_CHAIN_SELECTOR,
+                address(s_childPool),
+                NONCE
+            ),
+            s_validationChecks,
+            s_validatorLibs,
+            s_relayerLib
+        );
     }
 }

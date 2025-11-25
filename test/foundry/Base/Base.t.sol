@@ -41,7 +41,7 @@ contract BaseTest is LancaTest {
     TestPoolBase public s_base;
 
     function setUp() public {
-        s_iouToken = new IOUToken(address(this), address(0));
+        s_iouToken = new IOUToken(address(this), address(0), USDC_TOKEN_DECIMALS);
 
         // Deploy TestPoolBase with mock token
         s_base = new TestPoolBase(

@@ -11,9 +11,15 @@ import {ICommonErrors} from "contracts/common/interfaces/ICommonErrors.sol";
 import {LancaClientMock} from "../mocks/LancaClientMock.sol";
 import {LancaBridgeBase} from "./LancaBridgeBase.sol";
 import {BridgeCodec} from "contracts/common/libraries/BridgeCodec.sol";
+import {Decimals} from "contracts/common/libraries/Decimals.sol";
+
+import {MockERC20} from "../mocks/MockERC20.sol";
+
+import {console} from "forge-std/src/console.sol";
 
 contract ReceiveToken is LancaBridgeBase {
     using MessageCodec for IConceroRouter.MessageRequest;
+    using Decimals for uint256;
 
     function setUp() public override {
         super.setUp();
@@ -57,14 +63,14 @@ contract ReceiveToken is LancaBridgeBase {
     function test_ReceiveTokenToChildPool_gas() public {
         vm.pauseGasMetering();
 
-        uint256 bridgeAmount = 100e6;
+        uint256 bridgeAmount = 100 * STD_TOKEN_DECIMALS_SCALE;
         address dstUser = makeAddr("dstUser");
 
         IConceroRouter.MessageRequest memory messageRequest = _buildMessageRequest(
             BridgeCodec.encodeBridgeData(
                 s_user,
                 bridgeAmount,
-                USDC_TOKEN_DECIMALS,
+                STD_TOKEN_DECIMALS,
                 MessageCodec.encodeEvmDstChainData(dstUser, 0),
                 ""
             ),
@@ -86,8 +92,8 @@ contract ReceiveToken is LancaBridgeBase {
         );
     }
 
-    function test_ReceiveTokenToParentPool_Success() public {
-        uint256 bridgeAmount = 100e6;
+    function testFuzz_ReceiveTokenToParentPool_Success(uint64 bridgeAmount) public {
+        deal(address(s_usdc), address(s_parentPool), bridgeAmount);
         address dstUser = makeAddr("dstUser");
 
         uint256 parentPoolBalanceBefore = IERC20(s_usdc).balanceOf(address(s_parentPool));
@@ -102,7 +108,7 @@ contract ReceiveToken is LancaBridgeBase {
             BridgeCodec.encodeBridgeData(
                 s_user,
                 bridgeAmount,
-                USDC_TOKEN_DECIMALS,
+                STD_TOKEN_DECIMALS,
                 MessageCodec.encodeEvmDstChainData(dstUser, 0),
                 ""
             ),
@@ -110,8 +116,13 @@ contract ReceiveToken is LancaBridgeBase {
             address(s_parentPool)
         );
 
+        uint256 bridgeAmountInUsdcTokenDecimals = uint256(bridgeAmount).toDecimals(
+            STD_TOKEN_DECIMALS,
+            USDC_TOKEN_DECIMALS
+        );
+
         vm.expectEmit(false, true, true, true);
-        emit ILancaBridge.BridgeDelivered(DEFAULT_MESSAGE_ID, bridgeAmount);
+        emit ILancaBridge.BridgeDelivered(DEFAULT_MESSAGE_ID, bridgeAmountInUsdcTokenDecimals);
 
         vm.prank(s_conceroRouter);
         s_parentPool.conceroReceive(
@@ -129,20 +140,33 @@ contract ReceiveToken is LancaBridgeBase {
         uint256 dstUserBalanceAfter = IERC20(s_usdc).balanceOf(dstUser);
         uint256 activeBalanceAfter = s_parentPool.getActiveBalance();
 
-        assertEq(parentPoolBalanceAfter, parentPoolBalanceBefore - bridgeAmount);
-        assertEq(dstUserBalanceAfter, dstUserBalanceBefore + bridgeAmount);
-        assertEq(activeBalanceAfter, activeBalanceBefore - bridgeAmount);
+        assertEq(parentPoolBalanceAfter, parentPoolBalanceBefore - bridgeAmountInUsdcTokenDecimals);
+        assertEq(dstUserBalanceAfter, dstUserBalanceBefore + bridgeAmountInUsdcTokenDecimals);
+        assertEq(activeBalanceAfter, activeBalanceBefore - bridgeAmountInUsdcTokenDecimals);
 
         vm.warp(block.timestamp + 1 days);
-        assertEq(s_parentPool.getYesterdayFlow().outflow, flowBefore.outflow + bridgeAmount);
+        assertEq(
+            s_parentPool.getYesterdayFlow().outflow,
+            flowBefore.outflow + bridgeAmountInUsdcTokenDecimals
+        );
     }
 
-    function test_ReceiveTokenToChildPool_Success() public {
-        uint256 bridgeAmount = 100e6;
+    function testFuzz_ReceiveTokenToChildPool_Success(uint64 bridgeAmountInStdDecimals) public {
+        uint256 amountInUsdcDecimals = uint256(bridgeAmountInStdDecimals).toDecimals(
+            STD_TOKEN_DECIMALS,
+            USDC_TOKEN_DECIMALS
+        );
+        vm.assume(amountInUsdcDecimals > 0);
+
         address dstUser = makeAddr("dstUser");
 
-        uint256 childPoolBalanceBefore = IERC20(s_usdc).balanceOf(address(s_childPool));
-        uint256 dstUserBalanceBefore = IERC20(s_usdc).balanceOf(dstUser);
+        uint256 truncatedBridgeAmount = amountInUsdcDecimals.toDecimals(
+            USDC_TOKEN_DECIMALS,
+            STD_TOKEN_DECIMALS
+        );
+
+        uint256 childPoolBalanceBefore = s_18DecUsdc.balanceOf(address(s_childPool));
+        uint256 dstUserBalanceBefore = s_18DecUsdc.balanceOf(dstUser);
         uint256 activeBalanceBefore = s_childPool.getActiveBalance();
         IBase.LiqTokenDailyFlow memory flowBefore = IBase.LiqTokenDailyFlow({
             inflow: s_childPool.getYesterdayFlow().inflow,
@@ -152,7 +176,7 @@ contract ReceiveToken is LancaBridgeBase {
         IConceroRouter.MessageRequest memory messageRequest = _buildMessageRequest(
             BridgeCodec.encodeBridgeData(
                 s_user,
-                bridgeAmount,
+                amountInUsdcDecimals,
                 USDC_TOKEN_DECIMALS,
                 MessageCodec.encodeEvmDstChainData(dstUser, 0),
                 ""
@@ -162,7 +186,7 @@ contract ReceiveToken is LancaBridgeBase {
         );
 
         vm.expectEmit(false, true, true, true);
-        emit ILancaBridge.BridgeDelivered(DEFAULT_MESSAGE_ID, bridgeAmount);
+        emit ILancaBridge.BridgeDelivered(DEFAULT_MESSAGE_ID, truncatedBridgeAmount);
 
         vm.prank(s_conceroRouter);
         s_childPool.conceroReceive(
@@ -176,16 +200,19 @@ contract ReceiveToken is LancaBridgeBase {
             s_relayerLib
         );
 
-        uint256 childPoolBalanceAfter = IERC20(s_usdc).balanceOf(address(s_childPool));
-        uint256 dstUserBalanceAfter = IERC20(s_usdc).balanceOf(dstUser);
+        uint256 childPoolBalanceAfter = s_18DecUsdc.balanceOf(address(s_childPool));
+        uint256 dstUserBalanceAfter = s_18DecUsdc.balanceOf(dstUser);
         uint256 activeBalanceAfter = s_childPool.getActiveBalance();
 
-        assertEq(childPoolBalanceAfter, childPoolBalanceBefore - bridgeAmount);
-        assertEq(dstUserBalanceAfter, dstUserBalanceBefore + bridgeAmount);
-        assertEq(activeBalanceAfter, activeBalanceBefore - bridgeAmount);
+        assertEq(childPoolBalanceAfter, childPoolBalanceBefore - truncatedBridgeAmount);
+        assertEq(dstUserBalanceAfter, dstUserBalanceBefore + truncatedBridgeAmount);
+        assertEq(activeBalanceAfter, activeBalanceBefore - truncatedBridgeAmount);
 
         vm.warp(block.timestamp + 1 days);
-        assertEq(s_childPool.getYesterdayFlow().outflow, flowBefore.outflow + bridgeAmount);
+        assertEq(
+            s_childPool.getYesterdayFlow().outflow,
+            flowBefore.outflow + truncatedBridgeAmount
+        );
     }
 
     function test_handleConceroReceiveBridgeLiquidity_RevertsInvalidAmount() public {
@@ -456,4 +483,18 @@ contract ReceiveToken is LancaBridgeBase {
         assertEq(IERC20(s_usdc).balanceOf(address(s_parentPool)), parentPoolBalanceBefore);
         assertEq(IERC20(s_usdc).balanceOf(address(lancaClient)), clientBalanceBefore);
     }
+
+    //    function testFuzz_receiveTokenLowerSrcDecimals(uint256 bridgeAmount) public {
+    //        s_childPool = new ChildPool(
+    //            s_conceroRouter,
+    //            s_18DecIouToken,
+    //            s_18DecUsdc,
+    //            CHILD_POOL_CHAIN_SELECTOR,
+    //            PARENT_POOL_CHAIN_SELECTOR
+    //        );
+    //
+    //        uint256 userBalanceBefore = s_18DecUsdc.balanceOf(s_user);
+    //
+    //        _receiveBridge(s_childPool, bridgeAmount, s_user, 0);
+    //    }
 }

@@ -10,8 +10,9 @@ import {ILancaKeeper} from "contracts/ParentPool/interfaces/ILancaKeeper.sol";
 import {IBase} from "contracts/Base/interfaces/IBase.sol";
 import {ParentPool, IParentPool, ParentPoolBase, LPToken} from "./ParentPoolBase.sol";
 import {Base} from "contracts/Base/Base.sol";
-
 import {MockERC20} from "../mocks/MockERC20.sol";
+
+import {console} from "forge-std/src/console.sol";
 
 contract ParentPoolTest is ParentPoolBase {
     using MessageCodec for IConceroRouter.MessageRequest;
@@ -248,7 +249,7 @@ contract ParentPoolTest is ParentPoolBase {
         vm.prank(s_deployer);
         s_parentPool.setLurScoreSensitivity(0);
 
-        // Should be from 1.1 * LIQ_TOKEN_SCALE_FACTOR to 9.9 * LIQ_TOKEN_SCALE_FACTOR
+        // Should be from 1.1 * USDC_TOKEN_DECIMALS_SCALE to 9.9 * USDC_TOKEN_DECIMALS_SCALE
 
         vm.expectRevert(IParentPool.InvalidLurScoreSensitivity.selector);
 
@@ -267,7 +268,7 @@ contract ParentPoolTest is ParentPoolBase {
         vm.prank(s_deployer);
         s_parentPool.setScoresWeights(0, 0);
 
-        // Total weight should be 100% (1 * LIQ_TOKEN_SCALE_FACTOR)
+        // Total weight should be 100% (1 * USDC_TOKEN_DECIMALS_SCALE)
 
         vm.expectRevert(IParentPool.InvalidScoreWeights.selector);
 
@@ -382,27 +383,27 @@ contract ParentPoolTest is ParentPoolBase {
     }
 
     function test_getLurScoreSensitivity() public {
-        assertEq(s_parentPool.getLurScoreSensitivity(), uint64(5 * LIQ_TOKEN_SCALE_FACTOR));
+        assertEq(s_parentPool.getLurScoreSensitivity(), uint64(5 * USDC_TOKEN_DECIMALS_SCALE));
 
         vm.prank(s_deployer);
-        s_parentPool.setLurScoreSensitivity(uint64(4 * LIQ_TOKEN_SCALE_FACTOR));
-        assertEq(s_parentPool.getLurScoreSensitivity(), uint64(4 * LIQ_TOKEN_SCALE_FACTOR));
+        s_parentPool.setLurScoreSensitivity(uint64(4 * USDC_TOKEN_DECIMALS_SCALE));
+        assertEq(s_parentPool.getLurScoreSensitivity(), uint64(4 * USDC_TOKEN_DECIMALS_SCALE));
     }
 
     function test_getScoresWeights() public {
         (uint64 lurScoreWeight, uint64 ndrScoreWeight) = s_parentPool.getScoresWeights();
-        assertEq(lurScoreWeight, uint64((7 * LIQ_TOKEN_SCALE_FACTOR) / 10));
-        assertEq(ndrScoreWeight, uint64((3 * LIQ_TOKEN_SCALE_FACTOR) / 10));
+        assertEq(lurScoreWeight, uint64((7 * USDC_TOKEN_DECIMALS_SCALE) / 10));
+        assertEq(ndrScoreWeight, uint64((3 * USDC_TOKEN_DECIMALS_SCALE) / 10));
 
         vm.prank(s_deployer);
         s_parentPool.setScoresWeights(
-            uint64((6 * LIQ_TOKEN_SCALE_FACTOR) / 10),
-            uint64((4 * LIQ_TOKEN_SCALE_FACTOR) / 10)
+            uint64((6 * USDC_TOKEN_DECIMALS_SCALE) / 10),
+            uint64((4 * USDC_TOKEN_DECIMALS_SCALE) / 10)
         );
 
         (lurScoreWeight, ndrScoreWeight) = s_parentPool.getScoresWeights();
-        assertEq(lurScoreWeight, uint64((6 * LIQ_TOKEN_SCALE_FACTOR) / 10));
-        assertEq(ndrScoreWeight, uint64((4 * LIQ_TOKEN_SCALE_FACTOR) / 10));
+        assertEq(lurScoreWeight, uint64((6 * USDC_TOKEN_DECIMALS_SCALE) / 10));
+        assertEq(ndrScoreWeight, uint64((4 * USDC_TOKEN_DECIMALS_SCALE) / 10));
     }
 
     function test_getLiquidityCap() public {

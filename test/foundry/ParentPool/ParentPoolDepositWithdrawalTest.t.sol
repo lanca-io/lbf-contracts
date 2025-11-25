@@ -85,11 +85,11 @@ contract ParentPoolDepositWithdrawalTest is ParentPoolBase {
         vm.prank(s_deployer);
         s_parentPool.setMinWithdrawalQueueLength(0);
 
-        _mintUsdc(address(s_parentPool), 110_000 * LIQ_TOKEN_SCALE_FACTOR);
+        _mintUsdc(address(s_parentPool), 110_000 * USDC_TOKEN_DECIMALS_SCALE);
 
         _setupParentPoolWithWhitePaperExample();
 
-        uint256 remainingAmount = 10_000 * LIQ_TOKEN_SCALE_FACTOR;
+        uint256 remainingAmount = 10_000 * USDC_TOKEN_DECIMALS_SCALE;
         uint256 amountToDepositPerUser = remainingAmount / s_parentPool.getMinDepositQueueLength();
         _fillDepositWithdrawalQueue(
             amountToDepositPerUser + s_parentPool.getRebalancerFee(amountToDepositPerUser),
@@ -100,10 +100,10 @@ contract ParentPoolDepositWithdrawalTest is ParentPoolBase {
         s_parentPool.triggerDepositWithdrawProcess();
 
         uint256[4] memory childPoolsExpectedTargetBalances = [
-            (103806730177 * LIQ_TOKEN_SCALE_FACTOR) / 1000000,
-            (109881337396 * LIQ_TOKEN_SCALE_FACTOR) / 1000000,
-            (89273197519 * LIQ_TOKEN_SCALE_FACTOR) / 1000000,
-            (99187718579 * LIQ_TOKEN_SCALE_FACTOR) / 1000000
+            (103806730177 * USDC_TOKEN_DECIMALS_SCALE) / 1000000,
+            (109881337396 * USDC_TOKEN_DECIMALS_SCALE) / 1000000,
+            (89273197519 * USDC_TOKEN_DECIMALS_SCALE) / 1000000,
+            (99187718579 * USDC_TOKEN_DECIMALS_SCALE) / 1000000
         ];
 
         for (uint256 i; i < _getChildPoolsChainSelectors().length; ++i) {
@@ -113,7 +113,8 @@ contract ParentPoolDepositWithdrawalTest is ParentPoolBase {
             );
         }
 
-        uint256 expectedParentPoolTargetBalance = (97851016227 * LIQ_TOKEN_SCALE_FACTOR) / 1000000;
+        uint256 expectedParentPoolTargetBalance = (97851016227 * USDC_TOKEN_DECIMALS_SCALE) /
+            1000000;
         assertEq(s_parentPool.getTargetBalance(), expectedParentPoolTargetBalance);
     }
 
@@ -125,16 +126,16 @@ contract ParentPoolDepositWithdrawalTest is ParentPoolBase {
 
         assertEq(s_parentPool.isReadyToProcessPendingWithdrawals(), false);
 
-        uint256 lpUserBalance = 500_000 * LIQ_TOKEN_SCALE_FACTOR;
+        uint256 lpUserBalance = 500_000 * USDC_TOKEN_DECIMALS_SCALE;
         _mintLpToken(s_user, lpUserBalance);
 
         vm.prank(s_user);
         s_lpToken.approve(address(s_parentPool), type(uint256).max);
 
-        _mintUsdc(address(s_parentPool), 130_000 * LIQ_TOKEN_SCALE_FACTOR);
+        _mintUsdc(address(s_parentPool), 130_000 * USDC_TOKEN_DECIMALS_SCALE);
         _setupParentPoolWithWhitePaperExample();
 
-        uint256 remainingAmount = 10_000 * LIQ_TOKEN_SCALE_FACTOR;
+        uint256 remainingAmount = 10_000 * USDC_TOKEN_DECIMALS_SCALE;
         uint256 amountToWithdrawPerUser = remainingAmount /
             s_parentPool.getMinWithdrawalQueueLength();
         _fillDepositWithdrawalQueue(0, amountToWithdrawPerUser);
@@ -143,12 +144,13 @@ contract ParentPoolDepositWithdrawalTest is ParentPoolBase {
         s_parentPool.triggerDepositWithdrawProcess();
 
         uint256[4] memory childPoolsExpectedTargetBalances = [
-            (103765207505 * LIQ_TOKEN_SCALE_FACTOR) / 1000000,
-            (109837384883 * LIQ_TOKEN_SCALE_FACTOR) / 1000000,
-            (89237488257 * LIQ_TOKEN_SCALE_FACTOR) / 1000000,
-            (99148043512 * LIQ_TOKEN_SCALE_FACTOR) / 1000000
+            (103765207505 * USDC_TOKEN_DECIMALS_SCALE) / 1000000,
+            (109837384883 * USDC_TOKEN_DECIMALS_SCALE) / 1000000,
+            (89237488257 * USDC_TOKEN_DECIMALS_SCALE) / 1000000,
+            (99148043512 * USDC_TOKEN_DECIMALS_SCALE) / 1000000
         ];
-        uint256 expectedParentPoolTargetBalance = (97811875840 * LIQ_TOKEN_SCALE_FACTOR) / 1000000;
+        uint256 expectedParentPoolTargetBalance = (97811875840 * USDC_TOKEN_DECIMALS_SCALE) /
+            1000000;
 
         for (uint256 i; i < _getChildPoolsChainSelectors().length; ++i) {
             assertEq(
@@ -310,7 +312,7 @@ contract ParentPoolDepositWithdrawalTest is ParentPoolBase {
         _fillChildPoolSnapshots();
 
         uint256 lpBalanceBefore = s_lpToken.balanceOf(s_user);
-        uint256 amountToDeposit = 100 * LIQ_TOKEN_SCALE_FACTOR;
+        uint256 amountToDeposit = 100 * USDC_TOKEN_DECIMALS_SCALE;
 
         vm.prank(s_user);
         s_parentPool.enterDepositQueue(amountToDeposit);
@@ -334,7 +336,7 @@ contract ParentPoolDepositWithdrawalTest is ParentPoolBase {
 
         _fillChildPoolSnapshots();
 
-        uint256 amountToWithdraw = 100 * LIQ_TOKEN_SCALE_FACTOR;
+        uint256 amountToWithdraw = 100 * USDC_TOKEN_DECIMALS_SCALE;
 
         address[3] memory users = [makeAddr("user1"), makeAddr("user2"), makeAddr("user3")];
         uint256[3] memory balancesBefore = [uint256(0), uint256(0), uint256(0)];
@@ -366,7 +368,7 @@ contract ParentPoolDepositWithdrawalTest is ParentPoolBase {
         // get LP after deposit -> amountToDeposit - rebalancerFee = 99.990000 LP
 
         uint256 lpBalanceBefore = s_lpToken.balanceOf(s_user);
-        uint256 amountToDeposit = 100 * LIQ_TOKEN_SCALE_FACTOR; // 100 USDC
+        uint256 amountToDeposit = 100 * USDC_TOKEN_DECIMALS_SCALE; // 100 USDC
 
         vm.prank(s_user);
         s_parentPool.enterDepositQueue(amountToDeposit);
@@ -819,7 +821,7 @@ contract ParentPoolDepositWithdrawalTest is ParentPoolBase {
         // user1 USDC balance should be equal to user2 USDC balance after withdrawal
 
         // ----------- deposit for 3 users -------------
-        uint256 amountToDeposit = 100 * LIQ_TOKEN_SCALE_FACTOR;
+        uint256 amountToDeposit = 100 * USDC_TOKEN_DECIMALS_SCALE;
         address[3] memory users = [makeAddr("user1"), makeAddr("user2"), makeAddr("user3")];
 
         for (uint256 i; i < users.length; i++) {

@@ -12,9 +12,16 @@ import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
 contract IOUToken is ERC20, ERC20Burnable, AccessControl {
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
 
-    constructor(address admin, address minter) ERC20("LancaIOU-USDC", "LIOU-USDC") {
+    uint8 internal immutable i_decimals;
+
+    constructor(
+        address admin,
+        address minter,
+        uint8 _decimals
+    ) ERC20("LancaIOU-USDC", "LIOU-USDC") {
         _grantRole(DEFAULT_ADMIN_ROLE, admin);
         _grantRole(MINTER_ROLE, minter);
+        i_decimals = _decimals;
     }
 
     function mint(address to, uint256 amount) external onlyRole(MINTER_ROLE) {
@@ -26,6 +33,6 @@ contract IOUToken is ERC20, ERC20Burnable, AccessControl {
     }
 
     function decimals() public view virtual override returns (uint8) {
-        return 6;
+        return i_decimals;
     }
 }

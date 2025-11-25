@@ -29,8 +29,8 @@ contract TokensTest is Test {
         user2 = makeAddr("user2");
         unauthorized = makeAddr("unauthorized");
 
-        iouToken = new IOUToken(admin, minter);
-        lpToken = new LPToken(admin, minter);
+        iouToken = new IOUToken(admin, minter, 6);
+        lpToken = new LPToken(admin, minter, 6);
     }
 
     /* -- IOUToken Tests -- */
