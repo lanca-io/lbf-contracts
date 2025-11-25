@@ -32,6 +32,7 @@ contract ReceiveToken is LancaBridgeBase {
             BridgeCodec.encodeBridgeData(
                 s_user,
                 bridgeAmount,
+                USDC_TOKEN_DECIMALS,
                 MessageCodec.encodeEvmDstChainData(dstUser, 0),
                 ""
             ),
@@ -63,6 +64,7 @@ contract ReceiveToken is LancaBridgeBase {
             BridgeCodec.encodeBridgeData(
                 s_user,
                 bridgeAmount,
+                USDC_TOKEN_DECIMALS,
                 MessageCodec.encodeEvmDstChainData(dstUser, 0),
                 ""
             ),
@@ -100,6 +102,7 @@ contract ReceiveToken is LancaBridgeBase {
             BridgeCodec.encodeBridgeData(
                 s_user,
                 bridgeAmount,
+                USDC_TOKEN_DECIMALS,
                 MessageCodec.encodeEvmDstChainData(dstUser, 0),
                 ""
             ),
@@ -150,6 +153,7 @@ contract ReceiveToken is LancaBridgeBase {
             BridgeCodec.encodeBridgeData(
                 s_user,
                 bridgeAmount,
+                USDC_TOKEN_DECIMALS,
                 MessageCodec.encodeEvmDstChainData(dstUser, 0),
                 ""
             ),
@@ -192,6 +196,7 @@ contract ReceiveToken is LancaBridgeBase {
             BridgeCodec.encodeBridgeData(
                 s_user,
                 bridgeAmount,
+                USDC_TOKEN_DECIMALS,
                 MessageCodec.encodeEvmDstChainData(dstUser, 0),
                 ""
             ),
@@ -223,6 +228,7 @@ contract ReceiveToken is LancaBridgeBase {
         bytes memory firstMessage = BridgeCodec.encodeBridgeData(
             s_user,
             originalAmount,
+            USDC_TOKEN_DECIMALS,
             MessageCodec.encodeEvmDstChainData(dstUser, 0),
             ""
         );
@@ -248,6 +254,7 @@ contract ReceiveToken is LancaBridgeBase {
         bytes memory reorgMessage = BridgeCodec.encodeBridgeData(
             s_user,
             newAmount,
+            USDC_TOKEN_DECIMALS,
             MessageCodec.encodeEvmDstChainData(dstUser, 0),
             ""
         );
@@ -294,6 +301,7 @@ contract ReceiveToken is LancaBridgeBase {
             BridgeCodec.encodeBridgeData(
                 s_user,
                 bridgeAmount,
+                USDC_TOKEN_DECIMALS,
                 MessageCodec.encodeEvmDstChainData(address(lancaClient), dstGasLimit),
                 dstCallData
             ),
@@ -341,6 +349,7 @@ contract ReceiveToken is LancaBridgeBase {
             BridgeCodec.encodeBridgeData(
                 s_user,
                 bridgeAmount,
+                USDC_TOKEN_DECIMALS,
                 MessageCodec.encodeEvmDstChainData(invalidReceiver, dstGasLimit),
                 dstCallData
             ),
@@ -376,6 +385,7 @@ contract ReceiveToken is LancaBridgeBase {
             BridgeCodec.encodeBridgeData(
                 s_user,
                 bridgeAmount,
+                USDC_TOKEN_DECIMALS,
                 MessageCodec.encodeEvmDstChainData(dstUser, dstGasLimit),
                 dstCallData
             ),
@@ -421,6 +431,7 @@ contract ReceiveToken is LancaBridgeBase {
             BridgeCodec.encodeBridgeData(
                 s_user,
                 bridgeAmount,
+                USDC_TOKEN_DECIMALS,
                 MessageCodec.encodeEvmDstChainData(address(lancaClient), dstGasLimit),
                 dstCallData
             ),

@@ -1,19 +1,17 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.28;
 
-library Namespaces {
+library Storage {
     bytes32 internal constant BRIDGE_NAMESPACE =
         keccak256(abi.encode(uint256(keccak256(abi.encodePacked("lanca.bridge.storage"))) - 1)) &
             ~bytes32(uint256(0xff));
-}
 
-library Storage {
     struct Bridge {
-        mapping(uint24 srcChainSelector => mapping(uint256 nonce => uint256 tokenAmount)) receivedBridges;
+        mapping(uint24 srcChainSelector => mapping(uint256 nonce => uint256 tokenAmount)) receivedBridges; // LD
     }
 
     function bridge() internal pure returns (Bridge storage s) {
-        bytes32 slot = Namespaces.BRIDGE_NAMESPACE;
+        bytes32 slot = BRIDGE_NAMESPACE;
         assembly {
             s.slot := slot
         }

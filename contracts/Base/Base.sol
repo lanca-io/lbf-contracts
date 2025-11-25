@@ -13,6 +13,7 @@ import {CommonConstants} from "../common/CommonConstants.sol";
 import {Storage as rs} from "../Rebalancer/libraries/Storage.sol";
 import {Storage as s} from "./libraries/Storage.sol";
 import {BridgeCodec} from "../common/libraries/BridgeCodec.sol";
+import {Decimals} from "./libraries/Decimals.sol";
 
 abstract contract Base is IBase, ConceroClient, ConceroOwnable {
     using s for s.Base;
@@ -20,6 +21,7 @@ abstract contract Base is IBase, ConceroClient, ConceroOwnable {
     using MessageCodec for bytes;
     using BridgeCodec for bytes32;
     using BridgeCodec for bytes;
+    using Decimals for uint256;
 
     error ValidatorAlreadySet(address currentValidator);
     error RelayerAlreadySet(address currentRelayer);
@@ -29,10 +31,10 @@ abstract contract Base is IBase, ConceroClient, ConceroOwnable {
 
     uint32 private constant SECONDS_IN_DAY = 86400;
 
+    uint24 internal immutable i_chainSelector;
     address internal immutable i_liquidityToken;
     IOUToken internal immutable i_iouToken;
     uint8 internal immutable i_liquidityTokenDecimals;
-    uint24 internal immutable i_chainSelector;
 
     modifier onlyLancaKeeper() {
         s.Base storage s_base = s.base();
@@ -193,6 +195,13 @@ abstract contract Base is IBase, ConceroClient, ConceroOwnable {
     }
 
     /*   INTERNAL FUNCTIONS   */
+
+    function _toLocalDecimals(
+        uint256 amountInSrcDecimals,
+        uint8 srcDecimals
+    ) internal view returns (uint256) {
+        return amountInSrcDecimals.toDecimals(srcDecimals, i_liquidityTokenDecimals);
+    }
 
     function _conceroReceive(bytes calldata messageReceipt) internal override {
         s.Base storage s_base = s.base();

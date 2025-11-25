@@ -54,7 +54,8 @@ contract ReceiveSnapshot is ParentPoolBase {
                 iouTotalSupply,
                 uint32(block.timestamp),
                 0,
-                0
+                0,
+                USDC_TOKEN_DECIMALS
             ),
             PARENT_POOL_CHAIN_SELECTOR,
             address(s_parentPool)

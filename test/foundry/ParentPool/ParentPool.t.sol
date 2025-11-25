@@ -517,7 +517,7 @@ contract ParentPoolTest is ParentPoolBase {
 
     function test_handleConceroReceiveUpdateTargetBalance_RevertsFunctionNotImplemented() public {
         IConceroRouter.MessageRequest memory messageRequest = _buildMessageRequest(
-            BridgeCodec.encodeUpdateTargetBalanceData(0),
+            BridgeCodec.encodeUpdateTargetBalanceData(0, USDC_TOKEN_DECIMALS),
             PARENT_POOL_CHAIN_SELECTOR,
             address(s_parentPool)
         );

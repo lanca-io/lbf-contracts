@@ -24,7 +24,7 @@ abstract contract Rebalancer is IRebalancer, Base {
     using BridgeCodec for address;
     using BridgeCodec for bytes;
 
-    uint32 private constant DEFAULT_GAS_LIMIT = 300_000;
+    uint32 private constant DEFAULT_GAS_LIMIT = 150_000;
 
     function fillDeficit(uint256 liquidityAmountToFill) external {
         require(liquidityAmountToFill > 0, ICommonErrors.AmountIsZero());
@@ -97,11 +97,14 @@ abstract contract Rebalancer is IRebalancer, Base {
             relayerLib: s_base.relayerLib,
             validatorConfigs: new bytes[](1),
             relayerConfig: new bytes(0),
-            payload: BridgeCodec.encodeBridgeIouData(receiver, iouTokenAmount)
+            payload: BridgeCodec.encodeBridgeIouData(
+                receiver,
+                iouTokenAmount,
+                i_liquidityTokenDecimals
+            )
         });
 
-        uint256 messageFee = IConceroRouter(i_conceroRouter).getMessageFee(messageRequest);
-        bytes32 messageId = IConceroRouter(i_conceroRouter).conceroSend{value: messageFee}(
+        bytes32 messageId = IConceroRouter(i_conceroRouter).conceroSend{value: msg.value}(
             messageRequest
         );
 
@@ -161,7 +164,11 @@ abstract contract Rebalancer is IRebalancer, Base {
                     relayerLib: s_base.relayerLib,
                     validatorConfigs: new bytes[](1),
                     relayerConfig: new bytes(0),
-                    payload: BridgeCodec.encodeBridgeIouData(msg.sender.toBytes32(), 1)
+                    payload: BridgeCodec.encodeBridgeIouData(
+                        msg.sender.toBytes32(),
+                        1,
+                        i_liquidityTokenDecimals
+                    )
                 })
             );
     }
@@ -173,7 +180,10 @@ abstract contract Rebalancer is IRebalancer, Base {
         uint24 sourceChainSelector,
         bytes calldata messageData
     ) internal override {
-        (bytes32 receiver, uint256 iouTokenAmount) = messageData.decodeBridgeIouData();
+        (bytes32 receiver, uint256 iouTokenAmount, uint8 srcDecimals) = messageData
+            .decodeBridgeIouData();
+
+        iouTokenAmount = _toLocalDecimals(iouTokenAmount, srcDecimals);
 
         i_iouToken.mint(receiver.toAddress(), iouTokenAmount);
 

@@ -16,7 +16,7 @@ contract ChildPoolTest is ChildPoolBase {
 
     function testFuzz_handleConceroReceiveUpdateTargetBalance(uint256 newTargetBalance) public {
         IConceroRouter.MessageRequest memory messageRequest = _buildMessageRequest(
-            BridgeCodec.encodeUpdateTargetBalanceData(newTargetBalance),
+            BridgeCodec.encodeUpdateTargetBalanceData(newTargetBalance, USDC_TOKEN_DECIMALS),
             CHILD_POOL_CHAIN_SELECTOR,
             address(s_childPool)
         );
@@ -38,7 +38,7 @@ contract ChildPoolTest is ChildPoolBase {
 
     function test_handleConceroReceiveSnapshot_RevertsFunctionNotImplemented() public {
         IConceroRouter.MessageRequest memory messageRequest = _buildMessageRequest(
-            BridgeCodec.encodeChildPoolSnapshotData(1, 1, 1, 1, 1, 1, 1, 1, 1),
+            BridgeCodec.encodeChildPoolSnapshotData(1, 1, 1, 1, 1, 1, 1, 1, 1, 1),
             CHILD_POOL_CHAIN_SELECTOR,
             address(s_childPool)
         );

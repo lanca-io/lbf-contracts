@@ -17,6 +17,7 @@ import {Storage as rs} from "../Rebalancer/libraries/Storage.sol";
 import {Storage as s} from "./libraries/Storage.sol";
 import {LancaBridge} from "../LancaBridge/LancaBridge.sol";
 import {BridgeCodec} from "../common/libraries/BridgeCodec.sol";
+import {IBase} from "../Base/interfaces/IBase.sol";
 
 contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
     using s for s.ParentPool;
@@ -639,7 +640,10 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
             relayerLib: s_base.relayerLib,
             validatorConfigs: new bytes[](1),
             relayerConfig: new bytes(0),
-            payload: BridgeCodec.encodeUpdateTargetBalanceData(newTargetBalance)
+            payload: BridgeCodec.encodeUpdateTargetBalanceData(
+                newTargetBalance,
+                i_liquidityTokenDecimals
+            )
         });
 
         uint256 messageFee = IConceroRouter(i_conceroRouter).getMessageFee(messageRequest);
@@ -722,8 +726,24 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
         uint24 sourceChainSelector,
         bytes calldata messageData
     ) internal override {
-        s.parentPool().childPoolSnapshots[sourceChainSelector] = messageData
+        (ChildPoolSnapshot memory snapshot, uint8 srcDecimals) = messageData
             .decodeChildPoolSnapshot();
+
+        snapshot.balance = _toLocalDecimals(snapshot.balance, srcDecimals);
+        snapshot.dailyFlow = IBase.LiqTokenDailyFlow({
+            inflow: _toLocalDecimals(snapshot.dailyFlow.inflow, srcDecimals),
+            outflow: _toLocalDecimals(snapshot.dailyFlow.outflow, srcDecimals)
+        });
+        snapshot.iouTotalSent = _toLocalDecimals(snapshot.iouTotalSent, srcDecimals);
+        snapshot.iouTotalReceived = _toLocalDecimals(snapshot.iouTotalReceived, srcDecimals);
+        snapshot.iouTotalSupply = _toLocalDecimals(snapshot.iouTotalSupply, srcDecimals);
+        snapshot.totalLiqTokenSent = _toLocalDecimals(snapshot.totalLiqTokenSent, srcDecimals);
+        snapshot.totalLiqTokenReceived = _toLocalDecimals(
+            snapshot.totalLiqTokenReceived,
+            srcDecimals
+        );
+
+        s.parentPool().childPoolSnapshots[sourceChainSelector] = snapshot;
     }
 
     function _handleConceroReceiveUpdateTargetBalance(bytes calldata) internal pure override {

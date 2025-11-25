@@ -10,14 +10,16 @@ library BridgeCodec {
 
     uint8 internal constant VERSION = 1;
 
-    uint8 internal constant BYTES32_LENGTH_BYTES = 32;
+    uint8 internal constant UINT8_LENGTH_BYTES = 1;
     uint8 internal constant UINT24_LENGTH_BYTES = 3;
     uint8 internal constant UINT32_LENGTH_BYTES = 4;
+    uint8 internal constant BYTES32_LENGTH_BYTES = 32;
 
     uint8 internal constant TYPE_OFFSET = 1;
-    uint8 internal constant SENDER_OFFSET = 2;
-    uint8 internal constant AMOUNT_OFFSET = SENDER_OFFSET + BYTES32_LENGTH_BYTES;
-    uint8 internal constant DST_CHAIN_DATA_OFFSET = AMOUNT_OFFSET + BYTES32_LENGTH_BYTES;
+    uint8 internal constant AMOUNT_OFFSET = 2;
+    uint8 internal constant DECIMALS_OFFSET = AMOUNT_OFFSET + BYTES32_LENGTH_BYTES;
+    uint8 internal constant SENDER_OFFSET = DECIMALS_OFFSET + UINT8_LENGTH_BYTES;
+    uint8 internal constant DST_CHAIN_DATA_OFFSET = SENDER_OFFSET + BYTES32_LENGTH_BYTES;
 
     uint8 internal constant ACTIVE_BALANCE_OFFSET = 2;
     uint8 internal constant INFLOW_FLOW_OFFSET = ACTIVE_BALANCE_OFFSET + BYTES32_LENGTH_BYTES;
@@ -46,9 +48,11 @@ library BridgeCodec {
     function encodeBridgeData(
         address sender,
         uint256 amount,
+        uint8 decimals,
         bytes memory dstChainData,
         bytes memory payload
     ) internal pure returns (bytes memory) {
+        // TODO: move to OZ lib
         require(payload.length <= type(uint24).max, PayloadToBig());
         require(dstChainData.length <= type(uint24).max, DstChainDataToBig());
 
@@ -56,8 +60,9 @@ library BridgeCodec {
             abi.encodePacked(
                 IBase.ConceroMessageType.BRIDGE,
                 VERSION,
-                toBytes32(sender),
                 amount,
+                decimals,
+                toBytes32(sender),
                 uint24(dstChainData.length),
                 dstChainData,
                 uint24(payload.length),
@@ -67,9 +72,17 @@ library BridgeCodec {
 
     function encodeBridgeIouData(
         bytes32 receiver,
-        uint256 amount
+        uint256 amount,
+        uint8 decimals
     ) internal pure returns (bytes memory) {
-        return abi.encodePacked(IBase.ConceroMessageType.BRIDGE_IOU, VERSION, receiver, amount);
+        return
+            abi.encodePacked(
+                IBase.ConceroMessageType.BRIDGE_IOU,
+                VERSION,
+                amount,
+                decimals,
+                receiver
+            );
     }
 
     function encodeChildPoolSnapshotData(
@@ -81,7 +94,8 @@ library BridgeCodec {
         uint256 iouTotalSupply,
         uint32 timestamp,
         uint256 totalLiquidityTokenSent,
-        uint256 totalLiquidityTokenReceived
+        uint256 totalLiquidityTokenReceived,
+        uint8 decimals
     ) internal pure returns (bytes memory) {
         return
             abi.encodePacked(
@@ -95,18 +109,21 @@ library BridgeCodec {
                 iouTotalSupply,
                 timestamp,
                 totalLiquidityTokenSent,
-                totalLiquidityTokenReceived
+                totalLiquidityTokenReceived,
+                decimals
             );
     }
 
     function encodeUpdateTargetBalanceData(
-        uint256 newTargetBalance
+        uint256 newTargetBalance,
+        uint8 decimals
     ) internal pure returns (bytes memory) {
         return
             abi.encodePacked(
                 IBase.ConceroMessageType.UPDATE_TARGET_BALANCE,
                 VERSION,
-                newTargetBalance
+                newTargetBalance,
+                decimals
             );
     }
 
@@ -114,31 +131,35 @@ library BridgeCodec {
 
     function decodeBridgeData(
         bytes calldata data
-    ) internal pure returns (bytes32, uint256, bytes calldata, bytes calldata) {
+    ) internal pure returns (uint256, uint8, bytes32, bytes calldata, bytes calldata) {
         uint24 dstChainDataLength = uint24(
             bytes3(data[DST_CHAIN_DATA_OFFSET:DST_CHAIN_DATA_OFFSET + UINT24_LENGTH_BYTES])
         );
         uint24 dstChainDataEnd = DST_CHAIN_DATA_OFFSET + dstChainDataLength + UINT24_LENGTH_BYTES;
 
         return (
-            bytes32(data[SENDER_OFFSET:SENDER_OFFSET + BYTES32_LENGTH_BYTES]),
-            uint256(bytes32(data[AMOUNT_OFFSET:AMOUNT_OFFSET + BYTES32_LENGTH_BYTES])),
+            uint256(bytes32(data[AMOUNT_OFFSET:DECIMALS_OFFSET])),
+            uint8(bytes1(data[DECIMALS_OFFSET:SENDER_OFFSET])),
+            bytes32(data[SENDER_OFFSET:DST_CHAIN_DATA_OFFSET]),
             data[DST_CHAIN_DATA_OFFSET + UINT24_LENGTH_BYTES:dstChainDataEnd],
             data[dstChainDataEnd + UINT24_LENGTH_BYTES:]
         );
     }
 
-    function decodeBridgeIouData(bytes calldata data) internal pure returns (bytes32, uint256) {
+    function decodeBridgeIouData(
+        bytes calldata data
+    ) internal pure returns (bytes32, uint256, uint8) {
         return (
             bytes32(data[SENDER_OFFSET:SENDER_OFFSET + BYTES32_LENGTH_BYTES]),
-            uint256(bytes32(data[AMOUNT_OFFSET:AMOUNT_OFFSET + BYTES32_LENGTH_BYTES]))
+            uint256(bytes32(data[AMOUNT_OFFSET:AMOUNT_OFFSET + BYTES32_LENGTH_BYTES])),
+            uint8(bytes1(data[DECIMALS_OFFSET:DECIMALS_OFFSET + UINT8_LENGTH_BYTES]))
         );
     }
 
     function decodeChildPoolSnapshot(
         bytes calldata data
-    ) internal pure returns (IParentPool.ChildPoolSnapshot memory) {
-        return
+    ) internal pure returns (IParentPool.ChildPoolSnapshot memory, uint8 decimals) {
+        return (
             IParentPool.ChildPoolSnapshot({
                 balance: uint256(bytes32(data[ACTIVE_BALANCE_OFFSET:INFLOW_FLOW_OFFSET])),
                 dailyFlow: IBase.LiqTokenDailyFlow({
@@ -157,10 +178,17 @@ library BridgeCodec {
                 ),
                 totalLiqTokenReceived: uint256(bytes32(data[TOTAL_LIQ_RECEIVED_OFFSET:])),
                 timestamp: uint32(bytes4(data[TIMESTAMP_OFFSET:TOTAL_LIQ_SENT_OFFSET]))
-            });
+            }),
+            uint8(bytes1(data[TOTAL_LIQ_RECEIVED_OFFSET:]))
+        );
     }
 
-    function decodeUpdateTargetBalanceData(bytes calldata data) internal pure returns (uint256) {
-        return uint256(bytes32(data[SENDER_OFFSET:]));
+    function decodeUpdateTargetBalanceData(
+        bytes calldata data
+    ) internal pure returns (uint256, uint8) {
+        return (
+            uint256(bytes32(data[AMOUNT_OFFSET:DECIMALS_OFFSET])),
+            uint8(bytes1(data[DECIMALS_OFFSET:]))
+        );
     }
 }

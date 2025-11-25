@@ -9,8 +9,8 @@ library Storage {
 
     struct Rebalancer {
         uint256 totalRebalancingFeeAmount; // LD
-        uint256 totalIouSent;
-        uint256 totalIouReceived;
+        uint256 totalIouSent; // LD
+        uint256 totalIouReceived; // LD
     }
 
     function rebalancer() internal pure returns (Rebalancer storage r) {
