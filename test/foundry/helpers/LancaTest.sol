@@ -6,6 +6,7 @@ import {Base} from "contracts/Base/Base.sol";
 import {IBase} from "contracts/Base/interfaces/IBase.sol";
 import {IConceroRouter} from "@concero/v2-contracts/contracts/interfaces/IConceroRouter.sol";
 import {MessageCodec} from "@concero/v2-contracts/contracts/common/libraries/MessageCodec.sol";
+import {ParentPool} from "contracts/ParentPool/ParentPool.sol";
 
 abstract contract LancaTest is LancaBaseTest {
     function _buildMessageRequest(
@@ -57,5 +58,10 @@ abstract contract LancaTest is LancaBaseTest {
     function _setValidatorLibs(address client) internal {
         vm.prank(s_deployer);
         Base(payable(client)).setValidatorLib(s_validatorLib);
+    }
+
+    function _setAverageConceroMessageFee(address parentPool) internal {
+        vm.prank(s_deployer);
+        ParentPool(payable(parentPool)).setAverageConceroMessageFee(AVERAGE_CONCERO_MESSAGE_FEE);
     }
 }

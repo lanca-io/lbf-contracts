@@ -374,7 +374,7 @@ contract Rebalancer is RebalancerBase {
         _processPendingWithdrawals();
 
         // 800 USDC should be in the ParentPool
-        assertApproxEqRel(s_usdc.balanceOf(address(s_parentPool)), _addDecimals(800), 1e15);
+        assertEq(s_parentPool.getActiveBalance(), _addDecimals(800));
 
         // User1 should have 2000 USDC
         assertEq(

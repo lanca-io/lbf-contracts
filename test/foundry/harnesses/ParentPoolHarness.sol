@@ -55,6 +55,18 @@ contract ParentPoolHarness is ParentPool {
         return s.parentPool().remainingWithdrawalAmount;
     }
 
+    function exposed_getLancaFeeInLiqToken() public view returns (uint256) {
+        return pbs.base().totalLancaFeeInLiqToken;
+    }
+
+    function exposed_getRebalancingFeeInLiqToken() public view returns (uint256) {
+        return rs.rebalancer().totalRebalancingFeeAmount;
+    }
+
+    function exposed_getConceroRouter() public view returns (address) {
+        return i_conceroRouter;
+    }
+
     /* SETTERS */
 
     function exposed_setChildPoolSnapshot(
@@ -77,19 +89,7 @@ contract ParentPoolHarness is ParentPool {
         pbs.base().flowByDay[getYesterdayStartTimestamp()].outflow = outflow;
     }
 
-    function exposed_getConceroRouter() public view returns (address) {
-        return i_conceroRouter;
-    }
-
     function exposed_setDstPool(uint24 chainSelector, bytes32 dstPool) public {
         pbs.base().dstPools[chainSelector] = dstPool;
-    }
-
-    function exposed_getLancaFeeInLiqToken() public view returns (uint256) {
-        return s.parentPool().totalLancaFeeInLiqToken;
-    }
-
-    function exposed_getRebalancingFeeInLiqToken() public view returns (uint256) {
-        return rs.rebalancer().totalRebalancingFeeAmount;
     }
 }

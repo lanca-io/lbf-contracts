@@ -15,6 +15,7 @@ abstract contract LancaBaseTest is Test {
 
     uint24 public constant PARENT_POOL_CHAIN_SELECTOR = 1000;
     uint24 public constant CHILD_POOL_CHAIN_SELECTOR = 100;
+    uint96 public constant AVERAGE_CONCERO_MESSAGE_FEE = 0.1e6;
     uint256 public constant INITIAL_POOL_LIQUIDITY = 1_000_000e6;
     uint256 internal constant MIN_TARGET_BALANCE = 10_000e6;
     uint256 internal constant LIQ_TOKEN_SCALE_FACTOR = 1e6;

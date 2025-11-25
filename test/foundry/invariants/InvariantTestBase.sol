@@ -168,6 +168,7 @@ contract InvariantTestBase is LancaTest {
             uint64((3 * LIQ_TOKEN_SCALE_FACTOR) / 10)
         );
         s_parentPool.setLiquidityCap(LIQUIDITY_CAP);
+        s_parentPool.setAverageConceroMessageFee(AVERAGE_CONCERO_MESSAGE_FEE);
 
         s_childPool_1.setLancaKeeper(s_lancaKeeper);
         s_childPool_2.setLancaKeeper(s_lancaKeeper);
