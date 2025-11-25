@@ -351,6 +351,27 @@ contract ParentPoolTest is ParentPoolBase {
         assertEq(s_parentPool.isReadyToProcessPendingWithdrawals(), true);
     }
 
+    function test_setAverageConceroMessageFee_Success() public {
+        uint96 averageConceroMessageFee = 1e6;
+
+        vm.prank(s_deployer);
+        s_parentPool.setAverageConceroMessageFee(averageConceroMessageFee);
+
+        _baseSetupWithLPMinting();
+        address user1 = _getUsers(1)[0];
+
+        _enterWithdrawalQueue(user1, _takeRebalancerFee(_addDecimals(2_000)));
+        _fillChildPoolSnapshots(_addDecimals(1000));
+        _triggerDepositWithdrawProcess();
+
+        (uint256 conceroFee, ) = s_parentPool.getWithdrawalFee(_addDecimals(2_000));
+
+        _fillDeficit(_addDecimals(1_800));
+        _processPendingWithdrawals();
+
+        assertEq(s_parentPool.exposed_getLancaFeeInLiqToken(), conceroFee);
+    }
+
     function test_getActiveBalance() public {
         assertEq(s_parentPool.getActiveBalance(), 0);
 

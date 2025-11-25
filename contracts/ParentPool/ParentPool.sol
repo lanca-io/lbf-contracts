@@ -194,7 +194,7 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
         rs.rebalancer().totalRebalancingFeeAmount += totalRebalancingFeeAmount;
 
         s_parentPool.totalWithdrawalAmountLocked -= totalLiquidityTokenAmountToWithdraw;
-        s_parentPool.totalLancaFeeInLiqToken += totalLancaFee;
+        pbs.base().totalLancaFeeInLiqToken += totalLancaFee;
     }
 
     function safeTransferWrapper(address token, address to, uint256 amount) external {
