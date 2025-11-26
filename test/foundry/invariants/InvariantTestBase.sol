@@ -34,8 +34,8 @@ contract InvariantTestBase is LancaTest {
     uint256 public constant REBALANCER_INITIAL_BALANCE = 10_000e6;
     uint256 public constant INITIAL_TVL = 10_000e6;
 
-    uint64 public constant MIN_DEPOSIT_AMOUNT = 1e6;
-    uint64 public constant MIN_WITHDRAWAL_AMOUNT = 100e6;
+    uint64 public constant MIN_DEPOSIT_AMOUNT = 10e6;
+    uint64 public constant MIN_WITHDRAWAL_AMOUNT = 9e6;
     uint256 public constant LIQUIDITY_CAP =
         LIQUIDITY_PROVIDER_INITIAL_BALANCE + USER_INITIAL_BALANCE;
 

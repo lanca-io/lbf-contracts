@@ -96,9 +96,10 @@ contract LBFHandler is Test {
 
     function withdraw(uint256 amount) external {
         uint256 lpBalance = i_lp.balanceOf(s_liquidityProvider);
+        uint256 minWithdrawalAmount = i_parentPool.getMinWithdrawalAmount();
 
-        if (lpBalance == 0) return;
-        amount = bound(amount, 1, lpBalance);
+        if (lpBalance < minWithdrawalAmount) return;
+        amount = bound(amount, minWithdrawalAmount, lpBalance);
 
         vm.prank(s_liquidityProvider);
         i_parentPool.enterWithdrawalQueue(amount);
