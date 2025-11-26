@@ -36,6 +36,8 @@ contract LBFHandler is Test {
     address internal s_lancaKeeper = makeAddr("lancaKeeper");
     address internal s_rebalancer = makeAddr("rebalancer");
 
+    uint256 public s_lpFeeAcc;
+
     address[] internal s_pools;
     IERC20[] internal s_iouTokens;
     mapping(address pool => uint24 dstPoolChainSelector) internal s_dstPoolChainSelectors;
@@ -128,6 +130,8 @@ contract LBFHandler is Test {
         if (amount > userBalance) {
             amount = userBalance;
         }
+
+        s_lpFeeAcc += i_parentPool.getLpFee(amount);
 
         _bridge(srcPool, dstPool, amount);
 
@@ -246,6 +250,8 @@ contract LBFHandler is Test {
 
         vm.prank(s_lancaKeeper);
         i_parentPool.triggerDepositWithdrawProcess();
+
+        s_lpFeeAcc = 0;
     }
 
     function _processPendingWithdrawals() internal {

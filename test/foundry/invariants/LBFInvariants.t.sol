@@ -8,6 +8,8 @@ import {ConceroRouterMockWithCall} from "../mocks/ConceroRouterMockWithCall.sol"
 import {InvariantTestBase} from "./InvariantTestBase.sol";
 import {LBFHandler} from "./LBFHandler.sol";
 
+import {console} from "forge-std/src/console.sol";
+
 contract LBFInvariants is InvariantTestBase {
     LBFHandler public s_lbfHandler;
 
@@ -58,6 +60,35 @@ contract LBFInvariants is InvariantTestBase {
             s_childPool_1.getDeficit() +
             s_childPool_2.getDeficit();
 
-        assert(totalSurplus >= totalDeficit);
+        uint256 iouTotal = s_iouToken.totalSupply() +
+            s_iouTokenChildPool_1.totalSupply() +
+            s_iouTokenChildPool_2.totalSupply();
+
+        /** @dev lpFeeAcc description:
+         * The invariant test always selects functions in a random order.
+         * Therefore, if the targetBalance has not been updated in all pools (i.e., the last call was not triggerDepositWithdrawProcess),
+         * then the LP fee is included in totalSurplus, as it is still combined with the overall liquidity.
+         */
+        uint256 lpFeeAcc = s_lbfHandler.s_lpFeeAcc();
+
+        totalSurplus = totalSurplus >= lpFeeAcc ? totalSurplus - lpFeeAcc : totalSurplus;
+        totalDeficit = totalDeficit + iouTotal;
+
+        assertApproxEqAbs(totalSurplus, totalDeficit, 10);
     }
+
+    // TODO LP balance >= active balance
+    // function invariant_lpBalanceAlwaysMoreThanOrEqualToActiveBalance() public view {
+    //     uint256 lpBalance = s_lpToken.balanceOf(s_liquidityProvider);
+    //     uint256 activeBalance = s_parentPool.getActiveBalance() +
+    //         s_childPool_1.getActiveBalance() +
+    //         s_childPool_2.getActiveBalance();
+
+    //     console.log("lpBalance", lpBalance);
+    //     console.log("activeBalance", activeBalance);
+
+    //     uint256 lpRequired = lpBalance * activeBalance / s_lpToken.totalSupply();
+
+    //     assert(lpRequired >= activeBalance);
+    // }
 }
