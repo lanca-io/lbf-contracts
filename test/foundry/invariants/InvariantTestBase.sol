@@ -7,11 +7,13 @@ import {ChildPool} from "contracts/ChildPool/ChildPool.sol";
 import {LPToken} from "contracts/ParentPool/LPToken.sol";
 import {IOUToken} from "contracts/Rebalancer/IOUToken.sol";
 import {MockERC20} from "../mocks/MockERC20.sol";
+import {MockIOU} from "../mocks/MockIOU.sol";
 import {Base} from "contracts/Base/Base.sol";
 import {ParentPoolHarness} from "../harnesses/ParentPoolHarness.sol";
 import {ConceroRouterMockWithCall} from "../mocks/ConceroRouterMockWithCall.sol";
 import {LancaTest} from "../helpers/LancaTest.sol";
 import {BridgeCodec} from "contracts/common/libraries/BridgeCodec.sol";
+import {Decimals} from "contracts/Base/libraries/Decimals.sol";
 
 contract InvariantTestBase is LancaTest {
     using BridgeCodec for address;
@@ -21,8 +23,10 @@ contract InvariantTestBase is LancaTest {
     ChildPool public s_childPool_2;
     ConceroRouterMockWithCall public s_conceroRouterMockWithCall;
     LPToken public s_lpToken;
-    IOUToken public s_iouTokenChildPool_1;
-    IOUToken public s_iouTokenChildPool_2;
+    MockIOU public s_iouTokenChildPool_1;
+    MockIOU public s_iouTokenChildPool_2;
+    IERC20 public s_usdcWithDec8ChildPool_1;
+    IERC20 public s_usdcWithDec18ChildPool_2;
 
     address public s_rebalancer = makeAddr("rebalancer");
 
@@ -39,6 +43,10 @@ contract InvariantTestBase is LancaTest {
     uint256 public constant LIQUIDITY_CAP =
         LIQUIDITY_PROVIDER_INITIAL_BALANCE + USER_INITIAL_BALANCE;
 
+    uint8 public constant USDC_DEC_6 = 6;
+    uint8 public constant USDC_DEC_8 = 8;
+    uint8 public constant USDC_DEC_18 = 18;
+
     function setUp() public virtual {
         s_conceroRouterMockWithCall = new ConceroRouterMockWithCall();
 
@@ -53,16 +61,21 @@ contract InvariantTestBase is LancaTest {
     }
 
     function _deployTokens() internal {
+        s_usdcWithDec8ChildPool_1 = new MockERC20("USD Coin", "USDC", USDC_DEC_8);
+        s_usdcWithDec18ChildPool_2 = new MockERC20("USD Coin", "USDC", USDC_DEC_18);
+
         s_lpToken = new LPToken(s_deployer, s_deployer);
 
-        s_iouTokenChildPool_1 = new IOUToken(s_deployer, address(0));
-        s_iouTokenChildPool_2 = new IOUToken(s_deployer, address(0));
+        s_iouTokenChildPool_1 = new MockIOU(s_deployer, address(0), USDC_DEC_8);
+        s_iouTokenChildPool_2 = new MockIOU(s_deployer, address(0), USDC_DEC_18);
 
-        vm.label(address(s_usdc), "USDC");
+        vm.label(address(s_usdc), "USDC-6");
+        vm.label(address(s_usdcWithDec8ChildPool_1), "USDC-8");
+        vm.label(address(s_usdcWithDec18ChildPool_2), "USDC-18");
         vm.label(address(s_lpToken), "LPToken");
         vm.label(address(s_iouToken), "IOUToken-PP");
-        vm.label(address(s_iouTokenChildPool_1), "IOUToken-CP1");
-        vm.label(address(s_iouTokenChildPool_2), "IOUToken-CP2");
+        vm.label(address(s_iouTokenChildPool_1), "IOUToken-CP1-8");
+        vm.label(address(s_iouTokenChildPool_2), "IOUToken-CP2-18");
     }
 
     function _deployPools() internal {
@@ -79,7 +92,7 @@ contract InvariantTestBase is LancaTest {
         s_childPool_1 = new ChildPool(
             address(s_conceroRouterMockWithCall),
             address(s_iouTokenChildPool_1),
-            address(s_usdc),
+            address(s_usdcWithDec8ChildPool_1),
             CHILD_POOL_CHAIN_SELECTOR,
             PARENT_POOL_CHAIN_SELECTOR
         );
@@ -87,7 +100,7 @@ contract InvariantTestBase is LancaTest {
         s_childPool_2 = new ChildPool(
             address(s_conceroRouterMockWithCall),
             address(s_iouTokenChildPool_2),
-            address(s_usdc),
+            address(s_usdcWithDec18ChildPool_2),
             CHILD_POOL_CHAIN_SELECTOR_2,
             PARENT_POOL_CHAIN_SELECTOR
         );
@@ -120,17 +133,38 @@ contract InvariantTestBase is LancaTest {
         vm.deal(address(s_childPool_1), 100 ether);
         vm.deal(address(s_childPool_2), 100 ether);
 
+        uint256 userAmount = USER_INITIAL_BALANCE / 3;
+
         vm.startPrank(s_deployer);
-        MockERC20(address(s_usdc)).mint(s_user, USER_INITIAL_BALANCE);
+        MockERC20(address(s_usdc)).mint(s_user, userAmount);
+        MockERC20(address(s_usdcWithDec8ChildPool_1)).mint(
+            s_user,
+            Decimals.toDecimals(userAmount, USDC_DEC_6, USDC_DEC_8)
+        );
+        MockERC20(address(s_usdcWithDec18ChildPool_2)).mint(
+            s_user,
+            Decimals.toDecimals(userAmount, USDC_DEC_6, USDC_DEC_18)
+        );
+
         MockERC20(address(s_usdc)).mint(s_liquidityProvider, LIQUIDITY_PROVIDER_INITIAL_BALANCE);
+
         MockERC20(address(s_usdc)).mint(s_rebalancer, REBALANCER_INITIAL_BALANCE);
+        MockERC20(address(s_usdcWithDec8ChildPool_1)).mint(
+            s_rebalancer,
+            Decimals.toDecimals(REBALANCER_INITIAL_BALANCE, USDC_DEC_6, USDC_DEC_8)
+        );
+        MockERC20(address(s_usdcWithDec18ChildPool_2)).mint(
+            s_rebalancer,
+            Decimals.toDecimals(REBALANCER_INITIAL_BALANCE, USDC_DEC_6, USDC_DEC_18)
+        );
+
         vm.stopPrank();
     }
 
     function _approveTokensForAll() internal {
         vm.startPrank(s_user);
-        IERC20(s_usdc).approve(address(s_childPool_1), type(uint256).max);
-        IERC20(s_usdc).approve(address(s_childPool_2), type(uint256).max);
+        IERC20(s_usdcWithDec8ChildPool_1).approve(address(s_childPool_1), type(uint256).max);
+        IERC20(s_usdcWithDec18ChildPool_2).approve(address(s_childPool_2), type(uint256).max);
         IERC20(s_usdc).approve(address(s_parentPool), type(uint256).max);
         vm.stopPrank();
 
@@ -140,9 +174,10 @@ contract InvariantTestBase is LancaTest {
         vm.stopPrank();
 
         vm.startPrank(s_rebalancer);
-        IERC20(s_usdc).approve(address(s_childPool_1), type(uint256).max);
-        IERC20(s_usdc).approve(address(s_childPool_2), type(uint256).max);
+        IERC20(s_usdcWithDec8ChildPool_1).approve(address(s_childPool_1), type(uint256).max);
+        IERC20(s_usdcWithDec18ChildPool_2).approve(address(s_childPool_2), type(uint256).max);
         IERC20(s_usdc).approve(address(s_parentPool), type(uint256).max);
+
         IERC20(s_iouToken).approve(address(s_parentPool), type(uint256).max);
         IERC20(s_iouTokenChildPool_1).approve(address(s_childPool_1), type(uint256).max);
         IERC20(s_iouTokenChildPool_2).approve(address(s_childPool_2), type(uint256).max);

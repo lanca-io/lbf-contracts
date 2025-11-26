@@ -3,23 +3,32 @@
 pragma solidity 0.8.28;
 
 import {Test} from "forge-std/src/Test.sol";
+
+import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {ChildPool} from "contracts/ChildPool/ChildPool.sol";
-import {ParentPoolHarness} from "../harnesses/ParentPoolHarness.sol";
-import {ConceroRouterMockWithCall} from "../mocks/ConceroRouterMockWithCall.sol";
-import {Base} from "contracts/Base/Base.sol";
-import {Rebalancer} from "contracts/Rebalancer/Rebalancer.sol";
-import {ILancaBridge} from "contracts/LancaBridge/interfaces/ILancaBridge.sol";
 import {MessageCodec} from "@concero/v2-contracts/contracts/common/libraries/MessageCodec.sol";
+
 import {BridgeCodec} from "contracts/common/libraries/BridgeCodec.sol";
+import {Decimals} from "contracts/Base/libraries/Decimals.sol";
+import {ILancaBridge} from "contracts/LancaBridge/interfaces/ILancaBridge.sol";
+import {Base} from "contracts/Base/Base.sol";
+import {ChildPool} from "contracts/ChildPool/ChildPool.sol";
+import {Rebalancer} from "contracts/Rebalancer/Rebalancer.sol";
+
+import {ConceroRouterMockWithCall} from "../mocks/ConceroRouterMockWithCall.sol";
+import {ParentPoolHarness} from "../harnesses/ParentPoolHarness.sol";
 
 contract LBFHandler is Test {
+    using Decimals for uint256;
+
     ParentPoolHarness internal immutable i_parentPool;
     ChildPool internal immutable i_childPool_1;
     ChildPool internal immutable i_childPool_2;
     ConceroRouterMockWithCall internal immutable i_conceroRouter;
 
     IERC20 internal immutable i_usdc;
+    IERC20 internal immutable i_usdcWithDec8ChildPool_1;
+    IERC20 internal immutable i_usdcWithDec18ChildPool_2;
     IERC20 internal immutable i_lp;
     IERC20 internal immutable i_iou;
     IERC20 internal immutable i_iouChildPool_1;
@@ -36,12 +45,19 @@ contract LBFHandler is Test {
     address internal s_lancaKeeper = makeAddr("lancaKeeper");
     address internal s_rebalancer = makeAddr("rebalancer");
 
-    uint256 public s_lpFeeAcc;
-
     address[] internal s_pools;
     IERC20[] internal s_iouTokens;
+
+    struct Token {
+        IERC20 token;
+        uint8 decimals;
+    }
+
+    mapping(address pool => uint256 lpFeeAcc) public s_lpFeeAccByPool;
+
     mapping(address pool => uint24 dstPoolChainSelector) internal s_dstPoolChainSelectors;
-    mapping(address pool => IERC20 iouToken) internal s_iouTokensByPool;
+    mapping(address pool => Token iouToken) internal s_iouTokensByPool;
+    mapping(address pool => Token usdcToken) internal s_usdcTokensByPool;
 
     constructor(
         address parentPool,
@@ -49,6 +65,8 @@ contract LBFHandler is Test {
         address childPool2,
         address conceroRouter,
         address usdc,
+        address usdcWithDec8ChildPool1,
+        address usdcWithDec18ChildPool2,
         address lp,
         address iou,
         address iouChildPool1,
@@ -59,6 +77,9 @@ contract LBFHandler is Test {
         i_childPool_2 = ChildPool(payable(childPool2));
 
         i_usdc = IERC20(usdc);
+        i_usdcWithDec8ChildPool_1 = IERC20(usdcWithDec8ChildPool1);
+        i_usdcWithDec18ChildPool_2 = IERC20(usdcWithDec18ChildPool2);
+
         i_lp = IERC20(lp);
         i_iou = IERC20(iou);
         i_iouChildPool_1 = IERC20(iouChildPool1);
@@ -75,9 +96,14 @@ contract LBFHandler is Test {
         s_dstPoolChainSelectors[address(i_parentPool)] = PARENT_POOL_CHAIN_SELECTOR;
         s_dstPoolChainSelectors[address(i_childPool_1)] = CHILD_POOL_CHAIN_SELECTOR_1;
         s_dstPoolChainSelectors[address(i_childPool_2)] = CHILD_POOL_CHAIN_SELECTOR_2;
-        s_iouTokensByPool[address(i_parentPool)] = i_iou;
-        s_iouTokensByPool[address(i_childPool_1)] = i_iouChildPool_1;
-        s_iouTokensByPool[address(i_childPool_2)] = i_iouChildPool_2;
+
+        s_iouTokensByPool[address(i_parentPool)] = _getToken(i_iou);
+        s_iouTokensByPool[address(i_childPool_1)] = _getToken(i_iouChildPool_1);
+        s_iouTokensByPool[address(i_childPool_2)] = _getToken(i_iouChildPool_2);
+
+        s_usdcTokensByPool[address(i_parentPool)] = _getToken(i_usdc);
+        s_usdcTokensByPool[address(i_childPool_1)] = _getToken(i_usdcWithDec8ChildPool_1);
+        s_usdcTokensByPool[address(i_childPool_2)] = _getToken(i_usdcWithDec18ChildPool_2);
 
         i_conceroRouter = ConceroRouterMockWithCall(conceroRouter);
     }
@@ -120,16 +146,19 @@ contract LBFHandler is Test {
 
         if (srcPool == dstPool) return;
 
-        uint256 activeBalance = Base(payable(dstPool)).getActiveBalance();
-        if (activeBalance == 0) return;
+        uint256 dstActiveBalance = Base(payable(dstPool)).getActiveBalance().toDecimals(
+            s_usdcTokensByPool[dstPool].decimals,
+            s_usdcTokensByPool[srcPool].decimals
+        );
+        if (dstActiveBalance == 0) return;
 
-        amount = bound(amount, 0, activeBalance);
-        uint256 userBalance = i_usdc.balanceOf(s_user);
+        amount = bound(amount, 0, dstActiveBalance);
+        uint256 userBalance = s_usdcTokensByPool[srcPool].token.balanceOf(s_user);
         if (amount > userBalance) {
             amount = userBalance;
         }
 
-        s_lpFeeAcc += i_parentPool.getLpFee(amount);
+        s_lpFeeAccByPool[srcPool] += Base(payable(srcPool)).getLpFee(amount);
 
         _bridge(srcPool, dstPool, amount);
     }
@@ -142,17 +171,32 @@ contract LBFHandler is Test {
 
         if (srcPool == dstPool) return;
 
-        uint256 srcIOUBalance = s_iouTokensByPool[srcPool].balanceOf(s_rebalancer);
-        uint256 dstIOUBalance = s_iouTokensByPool[dstPool].balanceOf(s_rebalancer);
-        uint256 srcSurplus = Base(payable(srcPool)).getSurplus();
-        uint256 dstSurplus = Base(payable(dstPool)).getSurplus();
+        uint256 srcIOUBalance = s_iouTokensByPool[srcPool].token.balanceOf(s_rebalancer);
+        uint256 dstIOUBalance = s_iouTokensByPool[dstPool].token.balanceOf(s_rebalancer).toDecimals(
+            s_iouTokensByPool[dstPool].decimals,
+            s_iouTokensByPool[srcPool].decimals
+        );
 
+        uint256 srcSurplus = Base(payable(srcPool)).getSurplus();
+        uint256 dstSurplus = Base(payable(dstPool)).getSurplus().toDecimals(
+            s_iouTokensByPool[dstPool].decimals,
+            s_iouTokensByPool[srcPool].decimals
+        );
+
+        uint256 localSurplus;
+        uint256 localIOUBalance;
         if (dstSurplus >= srcIOUBalance && srcIOUBalance > 0) {
-            _bridgeIOU(srcPool, dstPool, srcIOUBalance);
-            _takeLocalSurplus(dstPool, srcIOUBalance, dstSurplus);
+            _bridgeIOU(srcPool, dstPool); // bridge srcIOUBalance to DST pool
+
+            localSurplus = Base(payable(dstPool)).getSurplus();
+            localIOUBalance = s_iouTokensByPool[dstPool].token.balanceOf(s_rebalancer);
+            _takeLocalSurplus(dstPool, localSurplus, localIOUBalance);
         } else if (srcSurplus >= dstIOUBalance && dstIOUBalance > 0) {
-            _bridgeIOU(dstPool, srcPool, dstIOUBalance);
-            _takeLocalSurplus(srcPool, dstIOUBalance, dstSurplus);
+            _bridgeIOU(dstPool, srcPool); // bridge dstIOUBalance to SRC pool
+
+            localSurplus = srcSurplus;
+            localIOUBalance = srcIOUBalance;
+            _takeLocalSurplus(srcPool, localSurplus, localIOUBalance);
         } else {
             return;
         }
@@ -161,26 +205,34 @@ contract LBFHandler is Test {
     function fillDeficits() external {
         vm.startPrank(s_rebalancer);
 
-        uint256 deficit = i_parentPool.getDeficit();
-        uint256 usdcBalance = i_usdc.balanceOf(s_rebalancer);
-        deficit = deficit > usdcBalance ? usdcBalance : deficit;
+        uint256 parentPoolDeficit = i_parentPool.getDeficit();
+        uint256 childPool1Deficit = i_childPool_1.getDeficit();
+        uint256 childPool2Deficit = i_childPool_2.getDeficit();
 
-        if (deficit > 0) {
-            i_parentPool.fillDeficit(deficit);
+        uint256 parentPoolUsdcBalance = i_usdc.balanceOf(s_rebalancer);
+        uint256 childPool1UsdcBalance = i_usdcWithDec8ChildPool_1.balanceOf(s_rebalancer);
+        uint256 childPool2UsdcBalance = i_usdcWithDec18ChildPool_2.balanceOf(s_rebalancer);
+
+        parentPoolDeficit = parentPoolDeficit > parentPoolUsdcBalance
+            ? parentPoolUsdcBalance
+            : parentPoolDeficit;
+        childPool1Deficit = childPool1Deficit > childPool1UsdcBalance
+            ? childPool1UsdcBalance
+            : childPool1Deficit;
+        childPool2Deficit = childPool2Deficit > childPool2UsdcBalance
+            ? childPool2UsdcBalance
+            : childPool2Deficit;
+
+        if (parentPoolDeficit > 0) {
+            i_parentPool.fillDeficit(parentPoolDeficit);
         }
 
-        usdcBalance = usdcBalance - deficit;
-        deficit = i_childPool_1.getDeficit();
-        deficit = deficit > usdcBalance ? usdcBalance : deficit;
-        if (deficit > 0) {
-            i_childPool_1.fillDeficit(deficit);
+        if (childPool1Deficit > 0) {
+            i_childPool_1.fillDeficit(childPool1Deficit);
         }
 
-        usdcBalance = usdcBalance - deficit;
-        deficit = i_childPool_2.getDeficit();
-        deficit = deficit > usdcBalance ? usdcBalance : deficit;
-        if (deficit > 0) {
-            i_childPool_2.fillDeficit(deficit);
+        if (childPool2Deficit > 0) {
+            i_childPool_2.fillDeficit(childPool2Deficit);
         }
 
         vm.stopPrank();
@@ -199,7 +251,8 @@ contract LBFHandler is Test {
         );
     }
 
-    function _bridgeIOU(address srcPool, address dstPool, uint256 amount) internal {
+    function _bridgeIOU(address srcPool, address dstPool) internal {
+        uint256 amount = s_iouTokensByPool[srcPool].token.balanceOf(s_rebalancer);
         i_conceroRouter.setSrcChainSelector(s_dstPoolChainSelectors[srcPool]);
 
         vm.prank(s_rebalancer);
@@ -247,11 +300,21 @@ contract LBFHandler is Test {
         vm.prank(s_lancaKeeper);
         i_parentPool.triggerDepositWithdrawProcess();
 
-        s_lpFeeAcc = 0;
+        _removeLpFeeAcc();
     }
 
     function _processPendingWithdrawals() internal {
         vm.prank(s_lancaKeeper);
         i_parentPool.processPendingWithdrawals();
+    }
+
+    function _removeLpFeeAcc() internal {
+        s_lpFeeAccByPool[address(i_parentPool)] = 0;
+        s_lpFeeAccByPool[address(i_childPool_1)] = 0;
+        s_lpFeeAccByPool[address(i_childPool_2)] = 0;
+    }
+
+    function _getToken(IERC20 token) internal view returns (Token memory) {
+        return Token({token: token, decimals: IERC20Metadata(address(token)).decimals()});
     }
 }
