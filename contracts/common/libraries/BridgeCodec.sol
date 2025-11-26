@@ -3,10 +3,10 @@ pragma solidity ^0.8.28;
 
 import {IParentPool} from "../../ParentPool/interfaces/IParentPool.sol";
 import {IBase} from "../../Base/interfaces/IBase.sol";
+import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
 library BridgeCodec {
-    error PayloadToBig();
-    error DstChainDataToBig();
+    using SafeCast for uint256;
 
     uint8 internal constant VERSION = 1;
 
@@ -54,10 +54,6 @@ library BridgeCodec {
         bytes memory dstChainData,
         bytes memory payload
     ) internal pure returns (bytes memory) {
-        // TODO: move to OZ lib
-        require(payload.length <= type(uint24).max, PayloadToBig());
-        require(dstChainData.length <= type(uint24).max, DstChainDataToBig());
-
         return
             abi.encodePacked(
                 IBase.ConceroMessageType.BRIDGE,
@@ -65,9 +61,9 @@ library BridgeCodec {
                 amount,
                 decimals,
                 toBytes32(sender),
-                uint24(dstChainData.length),
+                dstChainData.length.toUint24(),
                 dstChainData,
-                uint24(payload.length),
+                payload.length.toUint24(),
                 payload
             );
     }
