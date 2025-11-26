@@ -9,13 +9,13 @@ library Storage {
             ~bytes32(uint256(0xff));
 
     struct Base {
-        uint256 targetBalance;
+        uint256 targetBalance; // LD
         uint256 totalLancaFeeInLiqToken; // LD
         address lancaKeeper;
-        mapping(uint32 timestamp => IBase.LiqTokenDailyFlow flow) flowByDay; // SD
+        mapping(uint32 timestamp => IBase.LiqTokenDailyFlow flow) flowByDay; // LD
         mapping(uint24 chainSelector => bytes32 dstPool) dstPools;
-        uint256 totalLiqTokenSent; // SD
-        uint256 totalLiqTokenReceived; // SD
+        uint256 totalLiqTokenSent; // LD
+        uint256 totalLiqTokenReceived; // LD
         address relayerLib;
         address validatorLib;
     }

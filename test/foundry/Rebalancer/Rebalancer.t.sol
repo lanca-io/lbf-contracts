@@ -85,7 +85,7 @@ contract Rebalancer is RebalancerBase {
         uint256 iouBalanceBefore = s_iouToken.balanceOf(s_user);
 
         IConceroRouter.MessageRequest memory messageRequest = _buildMessageRequest(
-            BridgeCodec.encodeBridgeIouData(s_user.toBytes32(), surplusToTake),
+            BridgeCodec.encodeBridgeIouData(s_user.toBytes32(), surplusToTake, USDC_TOKEN_DECIMALS),
             PARENT_POOL_CHAIN_SELECTOR,
             address(s_parentPool)
         );

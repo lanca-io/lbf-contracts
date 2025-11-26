@@ -39,9 +39,8 @@ contract ReceiveSnapshot is ParentPoolBase {
             iouTotalReceived: iouTotalReceived,
             iouTotalSupply: iouTotalSupply,
             timestamp: uint32(block.timestamp),
-            //todo: fill it
-            totalLiqTokenSent: 0,
-            totalLiqTokenReceived: 0
+            totalLiqTokenSent: 4,
+            totalLiqTokenReceived: 5
         });
 
         IConceroRouter.MessageRequest memory messageRequest = _buildMessageRequest(
@@ -53,8 +52,9 @@ contract ReceiveSnapshot is ParentPoolBase {
                 iouTotalReceived,
                 iouTotalSupply,
                 uint32(block.timestamp),
-                0,
-                0
+                snapshot.totalLiqTokenSent,
+                snapshot.totalLiqTokenReceived,
+                USDC_TOKEN_DECIMALS
             ),
             PARENT_POOL_CHAIN_SELECTOR,
             address(s_parentPool)
@@ -82,6 +82,8 @@ contract ReceiveSnapshot is ParentPoolBase {
         assertEq(receivedSnapshot.iouTotalReceived, iouTotalReceived);
         assertEq(receivedSnapshot.iouTotalSupply, iouTotalSupply);
         assertEq(receivedSnapshot.timestamp, uint32(block.timestamp));
+        assertEq(receivedSnapshot.totalLiqTokenSent, snapshot.totalLiqTokenSent);
+        assertEq(receivedSnapshot.totalLiqTokenReceived, snapshot.totalLiqTokenReceived);
     }
 
     function test_ReceiveSnapshot_CannotBeUsedTwice() public {

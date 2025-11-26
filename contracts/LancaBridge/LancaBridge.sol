@@ -1,21 +1,21 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.28;
 
-import {Base, IERC20} from "../Base/Base.sol";
+import {Base} from "../Base/Base.sol";
 import {BridgeCodec} from "../common/libraries/BridgeCodec.sol";
 import {ICommonErrors} from "../common/interfaces/ICommonErrors.sol";
 import {IConceroRouter} from "@concero/v2-contracts/contracts/interfaces/IConceroRouter.sol";
 import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {ILancaBridge} from "./interfaces/ILancaBridge.sol";
 import {ILancaClient} from "../LancaClient/interfaces/ILancaClient.sol";
 import {MessageCodec} from "@concero/v2-contracts/contracts/common/libraries/MessageCodec.sol";
-import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Storage as bs} from "./libraries/Storage.sol";
 import {Storage as rs} from "../Rebalancer/libraries/Storage.sol";
 import {Storage as s} from "../Base/libraries/Storage.sol";
 
-abstract contract LancaBridge is ILancaBridge, Base, ReentrancyGuard {
+abstract contract LancaBridge is ILancaBridge, Base {
     using SafeERC20 for IERC20;
     using BridgeCodec for address;
     using BridgeCodec for bytes32;
@@ -25,8 +25,7 @@ abstract contract LancaBridge is ILancaBridge, Base, ReentrancyGuard {
     using rs for rs.Rebalancer;
     using bs for bs.Bridge;
 
-    // TODO: mb decrease and move to constructor
-    uint32 internal constant BRIDGE_GAS_OVERHEAD = 300_000;
+    uint32 internal constant BRIDGE_GAS_OVERHEAD = 100_000;
 
     function bridge(
         uint256 tokenAmount,
@@ -85,6 +84,7 @@ abstract contract LancaBridge is ILancaBridge, Base, ReentrancyGuard {
             payload: BridgeCodec.encodeBridgeData(
                 msg.sender,
                 tokenAmount,
+                i_liquidityTokenDecimals,
                 userDstChainData,
                 payload
             )
@@ -120,11 +120,14 @@ abstract contract LancaBridge is ILancaBridge, Base, ReentrancyGuard {
         bytes calldata messageData
     ) internal override {
         (
-            bytes32 tokenSender,
             uint256 tokenAmount,
+            uint8 decimals,
+            bytes32 tokenSender,
             bytes calldata dstChainData,
             bytes calldata payload
         ) = messageData.decodeBridgeData();
+
+        tokenAmount = _toLocalDecimals(tokenAmount, decimals);
 
         _handleInflow(tokenAmount, srcChainSelector, nonce);
 
@@ -251,7 +254,13 @@ abstract contract LancaBridge is ILancaBridge, Base, ReentrancyGuard {
                     relayerLib: s_base.relayerLib,
                     validatorConfigs: new bytes[](1),
                     relayerConfig: new bytes(0),
-                    payload: BridgeCodec.encodeBridgeData(msg.sender, 1, dstChainData, payload)
+                    payload: BridgeCodec.encodeBridgeData(
+                        msg.sender,
+                        1,
+                        i_liquidityTokenDecimals,
+                        dstChainData,
+                        payload
+                    )
                 })
             );
     }

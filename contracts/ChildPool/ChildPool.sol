@@ -108,14 +108,16 @@ contract ChildPool is Rebalancer, LancaBridge {
                 i_iouToken.totalSupply(),
                 uint32(block.timestamp),
                 s_base.totalLiqTokenSent,
-                s_base.totalLiqTokenReceived
+                s_base.totalLiqTokenReceived,
+                i_liquidityTokenDecimals
             );
     }
 
     function _handleConceroReceiveUpdateTargetBalance(
         bytes calldata messageData
     ) internal override {
-        pbs.base().targetBalance = messageData.decodeUpdateTargetBalanceData();
+        (uint256 amount, uint8 srcDecimals) = messageData.decodeUpdateTargetBalanceData();
+        pbs.base().targetBalance = _toLocalDecimals(amount, srcDecimals);
     }
 
     function _handleConceroReceiveSnapshot(uint24, bytes calldata) internal pure override {
