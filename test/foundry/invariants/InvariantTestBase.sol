@@ -7,13 +7,12 @@ import {ChildPool} from "contracts/ChildPool/ChildPool.sol";
 import {LPToken} from "contracts/ParentPool/LPToken.sol";
 import {IOUToken} from "contracts/Rebalancer/IOUToken.sol";
 import {MockERC20} from "../mocks/MockERC20.sol";
-import {MockIOU} from "../mocks/MockIOU.sol";
 import {Base} from "contracts/Base/Base.sol";
 import {ParentPoolHarness} from "../harnesses/ParentPoolHarness.sol";
 import {ConceroRouterMockWithCall} from "../mocks/ConceroRouterMockWithCall.sol";
 import {LancaTest} from "../helpers/LancaTest.sol";
 import {BridgeCodec} from "contracts/common/libraries/BridgeCodec.sol";
-import {Decimals} from "contracts/Base/libraries/Decimals.sol";
+import {Decimals} from "contracts/common/libraries/Decimals.sol";
 
 contract InvariantTestBase is LancaTest {
     using BridgeCodec for address;
@@ -23,8 +22,8 @@ contract InvariantTestBase is LancaTest {
     ChildPool public s_childPool_2;
     ConceroRouterMockWithCall public s_conceroRouterMockWithCall;
     LPToken public s_lpToken;
-    MockIOU public s_iouTokenChildPool_1;
-    MockIOU public s_iouTokenChildPool_2;
+    IOUToken public s_iouTokenChildPool_1;
+    IOUToken public s_iouTokenChildPool_2;
     IERC20 public s_usdcWithDec8ChildPool_1;
     IERC20 public s_usdcWithDec18ChildPool_2;
 
@@ -64,10 +63,10 @@ contract InvariantTestBase is LancaTest {
         s_usdcWithDec8ChildPool_1 = new MockERC20("USD Coin", "USDC", USDC_DEC_8);
         s_usdcWithDec18ChildPool_2 = new MockERC20("USD Coin", "USDC", USDC_DEC_18);
 
-        s_lpToken = new LPToken(s_deployer, s_deployer);
+        s_lpToken = new LPToken(s_deployer, s_deployer, USDC_DEC_6);
 
-        s_iouTokenChildPool_1 = new MockIOU(s_deployer, address(0), USDC_DEC_8);
-        s_iouTokenChildPool_2 = new MockIOU(s_deployer, address(0), USDC_DEC_18);
+        s_iouTokenChildPool_1 = new IOUToken(s_deployer, address(0), USDC_DEC_8);
+        s_iouTokenChildPool_2 = new IOUToken(s_deployer, address(0), USDC_DEC_18);
 
         vm.label(address(s_usdc), "USDC-6");
         vm.label(address(s_usdcWithDec8ChildPool_1), "USDC-8");

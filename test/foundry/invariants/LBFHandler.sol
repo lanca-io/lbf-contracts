@@ -9,7 +9,7 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {MessageCodec} from "@concero/v2-contracts/contracts/common/libraries/MessageCodec.sol";
 
 import {BridgeCodec} from "contracts/common/libraries/BridgeCodec.sol";
-import {Decimals} from "contracts/Base/libraries/Decimals.sol";
+import {Decimals} from "contracts/common/libraries/Decimals.sol";
 import {ILancaBridge} from "contracts/LancaBridge/interfaces/ILancaBridge.sol";
 import {Base} from "contracts/Base/Base.sol";
 import {ChildPool} from "contracts/ChildPool/ChildPool.sol";

@@ -5,7 +5,7 @@ pragma solidity 0.8.28;
 import {MessageCodec} from "@concero/v2-contracts/contracts/common/libraries/MessageCodec.sol";
 import {ConceroRouterMockWithCall} from "../mocks/ConceroRouterMockWithCall.sol";
 
-import {Decimals} from "contracts/Base/libraries/Decimals.sol";
+import {Decimals} from "contracts/common/libraries/Decimals.sol";
 
 import {InvariantTestBase} from "./InvariantTestBase.sol";
 import {LBFHandler} from "./LBFHandler.sol";
