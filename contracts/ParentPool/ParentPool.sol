@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.28;
 
+import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
+
 import {ICommonErrors} from "../common/interfaces/ICommonErrors.sol";
 import {IConceroRouter} from "@concero/v2-contracts/contracts/interfaces/IConceroRouter.sol";
 import {MessageCodec} from "@concero/v2-contracts/contracts/common/libraries/MessageCodec.sol";
@@ -30,6 +32,7 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
     uint32 internal constant UPDATE_TARGET_BALANCE_MESSAGE_GAS_LIMIT = 100_000;
     uint32 internal constant CHILD_POOL_SNAPSHOT_EXPIRATION_TIME = 5 minutes;
     uint8 internal constant MAX_QUEUE_LENGTH = 250;
+    uint24 internal constant DUST_THRESHOLD = 0.01e6;
 
     LPToken internal immutable i_lpToken;
     uint256 internal immutable i_liquidityTokenScaleFactor;
@@ -736,10 +739,19 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
         }
 
         // TODO: check overflow
-        uint256 iouOnTheWay = totalIouSent - totalIouReceived;
-        uint256 liqTokenOnTheWay = totalLiqTokenSent - totalLiqTokenReceived;
+        uint256 iouOnTheWay = Math.saturatingSub(totalIouSent, totalIouReceived); // totalIouSent - totalIouReceived;
+        uint256 liqTokenOnTheWay = Math.saturatingSub(totalLiqTokenSent, totalLiqTokenReceived); // totalLiqTokenSent - totalLiqTokenReceived;
 
-        return (true, totalPoolsBalance - (liqTokenOnTheWay + iouTotalSupply + iouOnTheWay));
+        uint256 toSubtract = liqTokenOnTheWay + iouOnTheWay + iouTotalSupply;
+        if (toSubtract > totalPoolsBalance) {
+            if ((toSubtract - totalPoolsBalance) > DUST_THRESHOLD) {
+                return (false, 0);
+            } else {
+                return (true, totalPoolsBalance);
+            }
+        }
+
+        return (true, totalPoolsBalance - toSubtract);
     }
 
     function _handleConceroReceiveSnapshot(
