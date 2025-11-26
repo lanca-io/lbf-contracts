@@ -18,11 +18,13 @@ abstract contract LancaBaseTest is Test {
     uint96 public constant AVERAGE_CONCERO_MESSAGE_FEE = 0.1e6;
     uint256 public constant INITIAL_POOL_LIQUIDITY = 1_000_000e6;
     uint256 internal constant MIN_TARGET_BALANCE = 10_000e6;
-    uint256 internal constant LIQ_TOKEN_SCALE_FACTOR = 1e6;
     uint32 public constant GAS_LIMIT = 100_000;
     bytes32 public constant DEFAULT_MESSAGE_ID = bytes32(uint256(1));
     uint256 public constant NONCE = 1;
     uint8 internal constant USDC_TOKEN_DECIMALS = 6;
+    uint8 internal constant STD_TOKEN_DECIMALS = 18;
+    uint256 internal constant USDC_TOKEN_DECIMALS_SCALE = 10 ** USDC_TOKEN_DECIMALS;
+    uint256 internal constant STD_TOKEN_DECIMALS_SCALE = 10 ** STD_TOKEN_DECIMALS;
 
     address public s_deployer = vm.envAddress("DEPLOYER_ADDRESS");
     address public s_proxyDeployer = vm.envAddress("PROXY_DEPLOYER_ADDRESS");
@@ -37,8 +39,11 @@ abstract contract LancaBaseTest is Test {
     address public s_liquidityProvider = makeAddr("liquidityProvider");
     bool[] public s_validationChecks = new bool[](1);
     address[] public s_validatorLibs = new address[](1);
+
     IERC20 public s_usdc = IERC20(new MockERC20("USD Coin", "USDC", USDC_TOKEN_DECIMALS));
-    IOUToken public s_iouToken = IOUToken(new IOUToken(s_deployer, address(0)));
+    IERC20 public s_18DecUsdc = IERC20(new MockERC20("USD Coin", "USDC", STD_TOKEN_DECIMALS));
+    IOUToken public s_iouToken = new IOUToken(s_deployer, address(0), USDC_TOKEN_DECIMALS);
+    IOUToken public s_18DecIouToken = new IOUToken(s_deployer, address(0), STD_TOKEN_DECIMALS);
 
     constructor() {
         s_validationChecks[0] = true;

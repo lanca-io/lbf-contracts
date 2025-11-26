@@ -123,8 +123,9 @@ contract SendToken is LancaBridgeBase {
         );
     }
 
-    function test_bridge_fromChildPoolToParentPool_Success() public {
-        uint256 bridgeAmount = 100e6;
+    function testFuzz_bridge_fromChildPoolToParentPool_Success(uint128 bridgeAmount) public {
+        deal(address(s_18DecUsdc), address(s_user), bridgeAmount);
+
         bytes memory dstChainData = MessageCodec.encodeEvmDstChainData(s_user, 0);
 
         uint256 messageFee = s_childPool.getBridgeNativeFee(
@@ -134,8 +135,8 @@ contract SendToken is LancaBridgeBase {
             ""
         );
 
-        uint256 userTokenBalanceBefore = s_usdc.balanceOf(s_user);
-        uint256 childPoolBalanceBefore = s_usdc.balanceOf(address(s_childPool));
+        uint256 userTokenBalanceBefore = s_18DecUsdc.balanceOf(s_user);
+        uint256 childPoolBalanceBefore = s_18DecUsdc.balanceOf(address(s_childPool));
 
         IBase.LiqTokenDailyFlow memory flowBefore = IBase.LiqTokenDailyFlow({
             inflow: s_childPool.getYesterdayFlow().inflow,
@@ -164,8 +165,8 @@ contract SendToken is LancaBridgeBase {
             ""
         );
 
-        uint256 userTokenBalanceAfter = s_usdc.balanceOf(s_user);
-        uint256 childPoolBalanceAfter = s_usdc.balanceOf(address(s_childPool));
+        uint256 userTokenBalanceAfter = s_18DecUsdc.balanceOf(s_user);
+        uint256 childPoolBalanceAfter = s_18DecUsdc.balanceOf(address(s_childPool));
 
         assertEq(userTokenBalanceAfter, userTokenBalanceBefore - bridgeAmount);
         assertEq(childPoolBalanceAfter, childPoolBalanceBefore + bridgeAmount);

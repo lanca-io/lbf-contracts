@@ -199,10 +199,10 @@ contract InvariantTestBase is LancaTest {
         s_parentPool.setMinDepositAmount(MIN_DEPOSIT_AMOUNT);
         s_parentPool.setMinWithdrawalAmount(MIN_WITHDRAWAL_AMOUNT);
         s_parentPool.setLancaKeeper(s_lancaKeeper);
-        s_parentPool.setLurScoreSensitivity(uint64(5 * LIQ_TOKEN_SCALE_FACTOR));
+        s_parentPool.setLurScoreSensitivity(uint64(5 * USDC_TOKEN_DECIMALS_SCALE));
         s_parentPool.setScoresWeights(
-            uint64((7 * LIQ_TOKEN_SCALE_FACTOR) / 10),
-            uint64((3 * LIQ_TOKEN_SCALE_FACTOR) / 10)
+            uint64((7 * USDC_TOKEN_DECIMALS_SCALE) / 10),
+            uint64((3 * USDC_TOKEN_DECIMALS_SCALE) / 10)
         );
         s_parentPool.setLiquidityCap(LIQUIDITY_CAP);
         s_parentPool.setAverageConceroMessageFee(AVERAGE_CONCERO_MESSAGE_FEE);

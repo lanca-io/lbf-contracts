@@ -13,7 +13,7 @@ import {CommonConstants} from "../common/CommonConstants.sol";
 import {Storage as rs} from "../Rebalancer/libraries/Storage.sol";
 import {Storage as s} from "./libraries/Storage.sol";
 import {BridgeCodec} from "../common/libraries/BridgeCodec.sol";
-import {Decimals} from "./libraries/Decimals.sol";
+import {Decimals} from "../common/libraries/Decimals.sol";
 
 abstract contract Base is IBase, ConceroClient, ConceroOwnable {
     using s for s.Base;
@@ -105,6 +105,10 @@ abstract contract Base is IBase, ConceroClient, ConceroOwnable {
 
     function getValidatorLib() public view returns (address) {
         return s.base().validatorLib;
+    }
+
+    function getLiquidityToken() public view returns (address) {
+        return i_liquidityToken;
     }
 
     function getTargetBalance() public view returns (uint256) {

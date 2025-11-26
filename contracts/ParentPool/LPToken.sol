@@ -14,20 +14,23 @@ import {ERC20Permit} from "@openzeppelin/contracts/token/ERC20/extensions/ERC20P
 
 contract LPToken is ERC20, ERC20Burnable, AccessControl, ERC20Permit {
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
+    uint8 internal immutable i_decimals;
 
     constructor(
         address defaultAdmin,
-        address minter
+        address minter,
+        uint8 _decimals
     ) ERC20("ConceroLP-USDC", "CLP-USDC") ERC20Permit("ConceroLP-USDC") {
         _grantRole(DEFAULT_ADMIN_ROLE, defaultAdmin);
         _grantRole(MINTER_ROLE, minter);
+        i_decimals = _decimals;
     }
 
     function mint(address to, uint256 amount) external onlyRole(MINTER_ROLE) {
         _mint(to, amount);
     }
 
-    function decimals() public pure override returns (uint8) {
-        return 6;
+    function decimals() public view override returns (uint8) {
+        return i_decimals;
     }
 }
