@@ -28,13 +28,14 @@ contract LBFInvariants is InvariantTestBase {
             address(s_iouTokenChildPool_2)
         );
 
-        bytes4[] memory selectors = new bytes4[](6);
+        bytes4[] memory selectors = new bytes4[](7);
         selectors[0] = LBFHandler.deposit.selector;
         selectors[1] = LBFHandler.withdraw.selector;
         selectors[2] = LBFHandler.bridgeIOU.selector;
         selectors[3] = LBFHandler.bridge.selector;
         selectors[4] = LBFHandler.bridge.selector;
         selectors[5] = LBFHandler.bridge.selector;
+        selectors[6] = LBFHandler.fillDeficits.selector;
 
         targetContract(address(s_lbfHandler));
         targetSelector(FuzzSelector({addr: address(s_lbfHandler), selectors: selectors}));

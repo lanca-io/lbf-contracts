@@ -109,9 +109,7 @@ contract LBFHandler is Test {
         _sendSnapshotsToParentPool();
         _triggerDepositWithdrawProcess();
 
-        if (!i_parentPool.isReadyToProcessPendingWithdrawals()) {
-            _fillDeficits();
-        } else {
+        if (i_parentPool.isReadyToProcessPendingWithdrawals()) {
             _processPendingWithdrawals();
         }
     }
@@ -134,8 +132,6 @@ contract LBFHandler is Test {
         s_lpFeeAcc += i_parentPool.getLpFee(amount);
 
         _bridge(srcPool, dstPool, amount);
-
-        _fillDeficits();
     }
 
     function bridgeIOU(uint256 srcActorIndexSeed, uint256 dstActorIndexSeed) external {
@@ -162,31 +158,7 @@ contract LBFHandler is Test {
         }
     }
 
-    function _bridge(address srcPool, address dstPool, uint256 amount) internal {
-        bytes memory dstChainData = MessageCodec.encodeEvmDstChainData(s_user, 0);
-        i_conceroRouter.setSrcChainSelector(s_dstPoolChainSelectors[srcPool]);
-
-        vm.prank(s_user);
-        ILancaBridge(srcPool).bridge{value: BRIDGE_FEE}(
-            amount,
-            s_dstPoolChainSelectors[dstPool],
-            dstChainData,
-            ""
-        );
-    }
-
-    function _bridgeIOU(address srcPool, address dstPool, uint256 amount) internal {
-        i_conceroRouter.setSrcChainSelector(s_dstPoolChainSelectors[srcPool]);
-
-        vm.prank(s_rebalancer);
-        Rebalancer(payable(srcPool)).bridgeIOU{value: BRIDGE_FEE}(
-            BridgeCodec.toBytes32(s_rebalancer),
-            s_dstPoolChainSelectors[dstPool],
-            amount
-        );
-    }
-
-    function _fillDeficits() internal {
+    function fillDeficits() external {
         vm.startPrank(s_rebalancer);
 
         uint256 deficit = i_parentPool.getDeficit();
@@ -212,6 +184,30 @@ contract LBFHandler is Test {
         }
 
         vm.stopPrank();
+    }
+
+    function _bridge(address srcPool, address dstPool, uint256 amount) internal {
+        bytes memory dstChainData = MessageCodec.encodeEvmDstChainData(s_user, 0);
+        i_conceroRouter.setSrcChainSelector(s_dstPoolChainSelectors[srcPool]);
+
+        vm.prank(s_user);
+        ILancaBridge(srcPool).bridge{value: BRIDGE_FEE}(
+            amount,
+            s_dstPoolChainSelectors[dstPool],
+            dstChainData,
+            ""
+        );
+    }
+
+    function _bridgeIOU(address srcPool, address dstPool, uint256 amount) internal {
+        i_conceroRouter.setSrcChainSelector(s_dstPoolChainSelectors[srcPool]);
+
+        vm.prank(s_rebalancer);
+        Rebalancer(payable(srcPool)).bridgeIOU{value: BRIDGE_FEE}(
+            BridgeCodec.toBytes32(s_rebalancer),
+            s_dstPoolChainSelectors[dstPool],
+            amount
+        );
     }
 
     function _takeLocalSurpluses() internal {
