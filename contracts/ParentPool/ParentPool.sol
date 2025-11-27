@@ -739,19 +739,10 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
         }
 
         // TODO: check overflow
-        uint256 iouOnTheWay = Math.saturatingSub(totalIouSent, totalIouReceived); // totalIouSent - totalIouReceived;
-        uint256 liqTokenOnTheWay = Math.saturatingSub(totalLiqTokenSent, totalLiqTokenReceived); // totalLiqTokenSent - totalLiqTokenReceived;
+        uint256 iouOnTheWay = totalIouSent - totalIouReceived;
+        uint256 liqTokenOnTheWay = totalLiqTokenSent - totalLiqTokenReceived;
 
-        uint256 toSubtract = liqTokenOnTheWay + iouOnTheWay + iouTotalSupply;
-        if (toSubtract > totalPoolsBalance) {
-            if ((toSubtract - totalPoolsBalance) > DUST_THRESHOLD) {
-                return (false, 0);
-            } else {
-                return (true, totalPoolsBalance);
-            }
-        }
-
-        return (true, totalPoolsBalance - toSubtract);
+        return (true, totalPoolsBalance - (liqTokenOnTheWay + iouTotalSupply + iouOnTheWay));
     }
 
     function _handleConceroReceiveSnapshot(
