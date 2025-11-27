@@ -121,18 +121,6 @@ abstract contract Rebalancer is IRebalancer, Base {
         s.rebalancer().totalRebalancingFeeAmount += amount;
     }
 
-    function syncRebalancingFeeWithLiquidity() external onlyOwner {
-        s.Rebalancer storage s_rebalancer = s.rebalancer();
-
-        uint256 maxNeededFee = getRebalancerFee(getSurplus());
-
-        if (s_rebalancer.totalRebalancingFeeAmount > maxNeededFee) {
-            // TODO: mb transfer excess to owner
-            uint256 excess = s_rebalancer.totalRebalancingFeeAmount - maxNeededFee;
-            s_rebalancer.totalRebalancingFeeAmount = maxNeededFee;
-        }
-    }
-
     /* VIEW FUNCTIONS */
 
     function getIOUToken() external view returns (address) {
