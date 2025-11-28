@@ -23,6 +23,7 @@ abstract contract LancaBaseTest is Test {
     uint256 public constant NONCE = 1;
     uint8 internal constant USDC_TOKEN_DECIMALS = 6;
     uint8 internal constant STD_TOKEN_DECIMALS = 18;
+    uint8 internal constant SCALE_TOKEN_DECIMALS = 24;
     uint256 internal constant USDC_TOKEN_DECIMALS_SCALE = 10 ** USDC_TOKEN_DECIMALS;
     uint256 internal constant STD_TOKEN_DECIMALS_SCALE = 10 ** STD_TOKEN_DECIMALS;
 

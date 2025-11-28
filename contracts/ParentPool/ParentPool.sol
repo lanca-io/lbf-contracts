@@ -19,6 +19,7 @@ import {Storage as rs} from "../Rebalancer/libraries/Storage.sol";
 import {Storage as s} from "./libraries/Storage.sol";
 import {LancaBridge} from "../LancaBridge/LancaBridge.sol";
 import {BridgeCodec} from "../common/libraries/BridgeCodec.sol";
+import {Decimals} from "../common/libraries/Decimals.sol";
 import {IBase} from "../Base/interfaces/IBase.sol";
 
 contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
@@ -28,11 +29,12 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
     using SafeERC20 for IERC20;
     using BridgeCodec for bytes32;
     using BridgeCodec for bytes;
+    using Decimals for uint256;
 
     uint32 internal constant UPDATE_TARGET_BALANCE_MESSAGE_GAS_LIMIT = 100_000;
     uint32 internal constant CHILD_POOL_SNAPSHOT_EXPIRATION_TIME = 5 minutes;
     uint8 internal constant MAX_QUEUE_LENGTH = 250;
-    uint24 internal constant DUST_THRESHOLD = 0.01e6;
+    uint8 internal constant SCALE_TOKEN_DECIMALS = 24;
 
     LPToken internal immutable i_lpToken;
     uint256 internal immutable i_liquidityTokenScaleFactor;
@@ -234,8 +236,34 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
 
     function getChildPoolSnapshot(
         uint24 chainSelector
-    ) public view returns (ChildPoolSnapshot memory) {
-        return s.parentPool().childPoolSnapshots[chainSelector];
+    ) external view returns (ChildPoolSnapshot memory) {
+        ChildPoolSnapshot memory snapshot = s.parentPool().childPoolSnapshots[chainSelector];
+
+        snapshot.balance = _toLocalDecimals(snapshot.balance, SCALE_TOKEN_DECIMALS);
+        snapshot.dailyFlow.inflow = _toLocalDecimals(
+            snapshot.dailyFlow.inflow,
+            SCALE_TOKEN_DECIMALS
+        );
+        snapshot.dailyFlow.outflow = _toLocalDecimals(
+            snapshot.dailyFlow.outflow,
+            SCALE_TOKEN_DECIMALS
+        );
+        snapshot.iouTotalSent = _toLocalDecimals(snapshot.iouTotalSent, SCALE_TOKEN_DECIMALS);
+        snapshot.iouTotalReceived = _toLocalDecimals(
+            snapshot.iouTotalReceived,
+            SCALE_TOKEN_DECIMALS
+        );
+        snapshot.iouTotalSupply = _toLocalDecimals(snapshot.iouTotalSupply, SCALE_TOKEN_DECIMALS);
+        snapshot.totalLiqTokenSent = _toLocalDecimals(
+            snapshot.totalLiqTokenSent,
+            SCALE_TOKEN_DECIMALS
+        );
+        snapshot.totalLiqTokenReceived = _toLocalDecimals(
+            snapshot.totalLiqTokenReceived,
+            SCALE_TOKEN_DECIMALS
+        );
+
+        return snapshot;
     }
 
     function isReadyToTriggerDepositWithdrawProcess() external view returns (bool) {
@@ -540,7 +568,14 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
 
         for (uint256 i; i < childPoolChainSelectors.length; ++i) {
             chainSelectors[i] = childPoolChainSelectors[i];
-            dailyFlow = s_parentPool.childPoolSnapshots[childPoolChainSelectors[i]].dailyFlow;
+            dailyFlow.inflow = _toLocalDecimals(
+                s_parentPool.childPoolSnapshots[childPoolChainSelectors[i]].dailyFlow.inflow,
+                SCALE_TOKEN_DECIMALS
+            );
+            dailyFlow.outflow = _toLocalDecimals(
+                s_parentPool.childPoolSnapshots[childPoolChainSelectors[i]].dailyFlow.outflow,
+                SCALE_TOKEN_DECIMALS
+            );
 
             targetBalance = s_parentPool.childPoolTargetBalances[childPoolChainSelectors[i]];
             targetBalancesSum += targetBalance;
@@ -711,6 +746,13 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
         uint256 totalLiqTokenSent = s_poolBase.totalLiqTokenSent;
         uint256 totalLiqTokenReceived = s_poolBase.totalLiqTokenReceived;
 
+        totalPoolsBalance = _toScaleDecimals(totalPoolsBalance, i_liquidityTokenDecimals);
+        totalIouSent = _toScaleDecimals(totalIouSent, i_liquidityTokenDecimals);
+        totalIouReceived = _toScaleDecimals(totalIouReceived, i_liquidityTokenDecimals);
+        iouTotalSupply = _toScaleDecimals(iouTotalSupply, i_liquidityTokenDecimals);
+        totalLiqTokenSent = _toScaleDecimals(totalLiqTokenSent, i_liquidityTokenDecimals);
+        totalLiqTokenReceived = _toScaleDecimals(totalLiqTokenReceived, i_liquidityTokenDecimals);
+
         for (uint256 i; i < supportedChainSelectors.length; ++i) {
             uint32 snapshotTimestamp = s_parentPool
                 .childPoolSnapshots[supportedChainSelectors[i]]
@@ -742,7 +784,10 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
         uint256 iouOnTheWay = totalIouSent - totalIouReceived;
         uint256 liqTokenOnTheWay = totalLiqTokenSent - totalLiqTokenReceived;
 
-        return (true, totalPoolsBalance - (liqTokenOnTheWay + iouTotalSupply + iouOnTheWay));
+        totalPoolsBalance = totalPoolsBalance - (liqTokenOnTheWay + iouTotalSupply + iouOnTheWay);
+        totalPoolsBalance = _toLocalDecimals(totalPoolsBalance, SCALE_TOKEN_DECIMALS);
+
+        return (true, totalPoolsBalance);
     }
 
     function _handleConceroReceiveSnapshot(
@@ -752,17 +797,17 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
         (ChildPoolSnapshot memory snapshot, uint8 srcDecimals) = messageData
             .decodeChildPoolSnapshot();
 
-        snapshot.balance = _toLocalDecimals(snapshot.balance, srcDecimals);
+        snapshot.balance = _toScaleDecimals(snapshot.balance, srcDecimals);
 
         snapshot.dailyFlow = IBase.LiqTokenDailyFlow({
-            inflow: _toLocalDecimals(snapshot.dailyFlow.inflow, srcDecimals),
-            outflow: _toLocalDecimals(snapshot.dailyFlow.outflow, srcDecimals)
+            inflow: _toScaleDecimals(snapshot.dailyFlow.inflow, srcDecimals),
+            outflow: _toScaleDecimals(snapshot.dailyFlow.outflow, srcDecimals)
         });
-        snapshot.iouTotalSent = _toLocalDecimals(snapshot.iouTotalSent, srcDecimals);
-        snapshot.iouTotalReceived = _toLocalDecimals(snapshot.iouTotalReceived, srcDecimals);
-        snapshot.iouTotalSupply = _toLocalDecimals(snapshot.iouTotalSupply, srcDecimals);
-        snapshot.totalLiqTokenSent = _toLocalDecimals(snapshot.totalLiqTokenSent, srcDecimals);
-        snapshot.totalLiqTokenReceived = _toLocalDecimals(
+        snapshot.iouTotalSent = _toScaleDecimals(snapshot.iouTotalSent, srcDecimals);
+        snapshot.iouTotalReceived = _toScaleDecimals(snapshot.iouTotalReceived, srcDecimals);
+        snapshot.iouTotalSupply = _toScaleDecimals(snapshot.iouTotalSupply, srcDecimals);
+        snapshot.totalLiqTokenSent = _toScaleDecimals(snapshot.totalLiqTokenSent, srcDecimals);
+        snapshot.totalLiqTokenReceived = _toScaleDecimals(
             snapshot.totalLiqTokenReceived,
             srcDecimals
         );
@@ -772,5 +817,12 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
 
     function _handleConceroReceiveUpdateTargetBalance(bytes calldata) internal pure override {
         revert ICommonErrors.FunctionNotImplemented();
+    }
+
+    function _toScaleDecimals(
+        uint256 amountInSrcDecimals,
+        uint8 srcDecimals
+    ) internal view returns (uint256) {
+        return amountInSrcDecimals.toDecimals(srcDecimals, SCALE_TOKEN_DECIMALS);
     }
 }

@@ -29,6 +29,15 @@ contract ReceiveSnapshot is ParentPoolBase {
         uint256 totalLiqTokenSent,
         uint256 totalLiqTokenReceived
     ) public {
+        vm.assume(activeBalance < type(uint128).max);
+        vm.assume(inflow < type(uint128).max);
+        vm.assume(outflow < type(uint128).max);
+        vm.assume(iouTotalSent < type(uint128).max);
+        vm.assume(iouTotalReceived < type(uint128).max);
+        vm.assume(iouTotalSupply < type(uint128).max);
+        vm.assume(totalLiqTokenSent < type(uint128).max);
+        vm.assume(totalLiqTokenReceived < type(uint128).max);
+
         IBase.LiqTokenDailyFlow memory dailyFlow = IBase.LiqTokenDailyFlow({
             inflow: inflow,
             outflow: outflow

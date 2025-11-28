@@ -145,20 +145,20 @@ contract DecimalsTest is ParentPoolBase {
         vm.prank(s_liquidityProvider);
         s_parentPool.enterDepositQueue(_addDecimals(111));
 
-        // _sendSnapshotToParentPool();
+        _sendSnapshotToParentPool();
 
-        IParentPool.ChildPoolSnapshot memory snapshot = IParentPool.ChildPoolSnapshot({
-            timestamp: uint32(block.timestamp),
-            balance: 23327666665, // 23327666666
-            iouTotalReceived: 0,
-            iouTotalSent: 16665000000,
-            iouTotalSupply: 0,
-            dailyFlow: IBase.LiqTokenDailyFlow({inflow: 0, outflow: 0}),
-            totalLiqTokenSent: 6661999999,
-            totalLiqTokenReceived: 0
-        });
+        // IParentPool.ChildPoolSnapshot memory snapshot = IParentPool.ChildPoolSnapshot({
+        //     timestamp: uint32(block.timestamp),
+        //     balance: 23327666665, // 23327666666
+        //     iouTotalReceived: 0,
+        //     iouTotalSent: 16665000000,
+        //     iouTotalSupply: 0,
+        //     dailyFlow: IBase.LiqTokenDailyFlow({inflow: 0, outflow: 0}),
+        //     totalLiqTokenSent: 6661999999,
+        //     totalLiqTokenReceived: 0
+        // });
 
-        s_parentPool.exposed_setChildPoolSnapshot(CHILD_POOL_CHAIN_SELECTOR_1, snapshot);
+        // s_parentPool.exposed_setChildPoolSnapshot(CHILD_POOL_CHAIN_SELECTOR_1, snapshot);
         _triggerDepositWithdrawal();
     }
 

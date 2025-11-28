@@ -13,6 +13,7 @@ import {IBase} from "../../../contracts/Base/interfaces/IBase.sol";
 import {MockERC20} from "../mocks/MockERC20.sol";
 import {Vm} from "forge-std/src/Vm.sol";
 import {BridgeCodec} from "contracts/common/libraries/BridgeCodec.sol";
+import {Decimals} from "contracts/common/libraries/Decimals.sol";
 
 abstract contract ParentPoolBase is LancaTest {
     using BridgeCodec for address;
@@ -231,9 +232,17 @@ abstract contract ParentPoolBase is LancaTest {
         uint256 dailyOutflow
     ) internal pure returns (IParentPool.ChildPoolSnapshot memory) {
         IParentPool.ChildPoolSnapshot memory snapshot = _getChildPoolSnapshot();
-        snapshot.balance = balance;
-        snapshot.dailyFlow.inflow = dailyInflow;
-        snapshot.dailyFlow.outflow = dailyOutflow;
+        snapshot.balance = Decimals.toDecimals(balance, USDC_TOKEN_DECIMALS, SCALE_TOKEN_DECIMALS);
+        snapshot.dailyFlow.inflow = Decimals.toDecimals(
+            dailyInflow,
+            USDC_TOKEN_DECIMALS,
+            SCALE_TOKEN_DECIMALS
+        );
+        snapshot.dailyFlow.outflow = Decimals.toDecimals(
+            dailyOutflow,
+            USDC_TOKEN_DECIMALS,
+            SCALE_TOKEN_DECIMALS
+        );
 
         return snapshot;
     }

@@ -19,6 +19,7 @@ import {ConceroRouterMockWithCall} from "../mocks/ConceroRouterMockWithCall.sol"
 import {Base} from "../../../contracts/Base/Base.sol";
 import {MockERC20} from "../mocks/MockERC20.sol";
 import {BridgeCodec} from "contracts/common/libraries/BridgeCodec.sol";
+import {Decimals} from "contracts/common/libraries/Decimals.sol";
 
 abstract contract RebalancerBase is LancaTest {
     using BridgeCodec for address;
@@ -385,9 +386,17 @@ abstract contract RebalancerBase is LancaTest {
         uint256 dailyOutflow
     ) internal pure returns (IParentPool.ChildPoolSnapshot memory) {
         IParentPool.ChildPoolSnapshot memory snapshot = _getChildPoolSnapshot();
-        snapshot.balance = balance;
-        snapshot.dailyFlow.inflow = dailyInflow;
-        snapshot.dailyFlow.outflow = dailyOutflow;
+        snapshot.balance = Decimals.toDecimals(balance, USDC_TOKEN_DECIMALS, SCALE_TOKEN_DECIMALS);
+        snapshot.dailyFlow.inflow = Decimals.toDecimals(
+            dailyInflow,
+            USDC_TOKEN_DECIMALS,
+            SCALE_TOKEN_DECIMALS
+        );
+        snapshot.dailyFlow.outflow = Decimals.toDecimals(
+            dailyOutflow,
+            USDC_TOKEN_DECIMALS,
+            SCALE_TOKEN_DECIMALS
+        );
 
         return snapshot;
     }
