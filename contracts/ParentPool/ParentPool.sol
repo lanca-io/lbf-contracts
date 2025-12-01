@@ -237,60 +237,15 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
             )
         );
 
-        bytes32[] memory pendingWithdrawalIds = s_parentPool.pendingWithdrawalIds;
-        uint256 totalLiquidityTokenAmountToWithdraw;
-        uint256 totalLancaFee;
-        uint256 totalRebalancingFeeAmount;
-
-        for (uint256 i; i < pendingWithdrawalIds.length; ++i) {
-            PendingWithdrawal memory pendingWithdrawal = s_parentPool.pendingWithdrawals[
-                pendingWithdrawalIds[i]
-            ];
-            delete s_parentPool.pendingWithdrawals[pendingWithdrawalIds[i]];
-
-            (uint256 conceroFee, uint256 rebalanceFee) = getWithdrawalFee(
-                pendingWithdrawal.liqTokenAmountToWithdraw
-            );
-            uint256 amountToWithdrawWithFee = pendingWithdrawal.liqTokenAmountToWithdraw -
-                (conceroFee + rebalanceFee);
-            totalRebalancingFeeAmount += rebalanceFee;
-
-            totalLiquidityTokenAmountToWithdraw += pendingWithdrawal.liqTokenAmountToWithdraw;
-
-            try
-                this.safeTransferWrapper(
-                    i_liquidityToken,
-                    pendingWithdrawal.lp,
-                    amountToWithdrawWithFee
-                )
-            {
-                i_lpToken.burn(pendingWithdrawal.lpTokenAmountToWithdraw);
-                totalLancaFee += conceroFee;
-
-                emit WithdrawalCompleted(pendingWithdrawalIds[i], amountToWithdrawWithFee);
-            } catch {
-                IERC20(i_lpToken).safeTransfer(
-                    pendingWithdrawal.lp,
-                    pendingWithdrawal.lpTokenAmountToWithdraw
-                );
-
-                emit WithdrawalFailed(
-                    pendingWithdrawal.lp,
-                    pendingWithdrawal.lpTokenAmountToWithdraw
-                );
-
-                continue;
-            }
-        }
-
-        /* @dev do not clear this array before a loop because
-                clearing it will affect getWithdrawalFee() */
-        delete s_parentPool.pendingWithdrawalIds;
-
-        rs.rebalancer().totalRebalancingFeeAmount += totalRebalancingFeeAmount;
-
-        s_parentPool.totalWithdrawalAmountLocked -= totalLiquidityTokenAmountToWithdraw;
-        pbs.base().totalLancaFeeInLiqToken += totalLancaFee;
+        ParentPoolLib.processPendingWithdrawals(
+            s_parentPool,
+            rs.rebalancer(),
+            pbs.base(),
+            i_liquidityToken,
+            address(i_lpToken),
+            this.safeTransferWrapper,
+            this.getWithdrawalFee
+        );
     }
 
     /// @notice Internal-only wrapper for safe ERC20 transfer from this contract.

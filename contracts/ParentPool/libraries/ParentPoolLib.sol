@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.28;
 
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 import {IConceroRouter} from "@concero/v2-contracts/contracts/interfaces/IConceroRouter.sol";
@@ -20,6 +21,7 @@ library ParentPoolLib {
     using Decimals for uint256;
     using BridgeCodec for bytes32;
     using BridgeCodec for bytes;
+    using SafeERC20 for IERC20;
 
     uint8 internal constant LIQUIDITY_TOKEN_DECIMALS = 6;
     uint8 internal constant SCALE_TOKEN_DECIMALS = 24;
@@ -44,6 +46,12 @@ library ParentPoolLib {
         uint256 iouTotalSupply;
         uint256 totalLiqTokenSent;
         uint256 totalLiqTokenReceived;
+    }
+
+    struct ProcessWithdrawalResult {
+        uint256 liqTokenAmount;
+        uint256 lancaFee;
+        uint256 rebalanceFee;
     }
 
     /// @notice Computes how much liquidity can be withdrawn for a given LP amount.
@@ -395,7 +403,71 @@ library ParentPoolLib {
         delete s_parentPool.withdrawalQueueIds;
     }
 
+    function processPendingWithdrawals(
+        s.ParentPool storage s_parentPool,
+        rs.Rebalancer storage s_rebalancer,
+        pbs.Base storage s_base,
+        address liquidityToken,
+        address lpToken,
+        function(address, address, uint256) external safeTransferWrapper,
+        function(uint256) external view returns (uint256, uint256) getWithdrawalFee
+    ) external {
+        bytes32[] memory pendingWithdrawalIds = s_parentPool.pendingWithdrawalIds;
+        uint256 totalLiquidityTokenAmountToWithdraw;
+        uint256 totalLancaFee;
+        uint256 totalRebalancingFeeAmount;
+
+        for (uint256 i; i < pendingWithdrawalIds.length; ++i) {
+            ProcessWithdrawalResult memory result = _processOneWithdrawal(
+                s_parentPool,
+                pendingWithdrawalIds[i],
+                liquidityToken,
+                lpToken,
+                safeTransferWrapper,
+                getWithdrawalFee
+            );
+            totalLiquidityTokenAmountToWithdraw += result.liqTokenAmount;
+            totalLancaFee += result.lancaFee;
+            totalRebalancingFeeAmount += result.rebalanceFee;
+        }
+
+        /* @dev do not clear this array before a loop because
+                clearing it will affect getWithdrawalFee() */
+        delete s_parentPool.pendingWithdrawalIds;
+
+        s_rebalancer.totalRebalancingFeeAmount += totalRebalancingFeeAmount;
+        s_parentPool.totalWithdrawalAmountLocked -= totalLiquidityTokenAmountToWithdraw;
+        s_base.totalLancaFeeInLiqToken += totalLancaFee;
+    }
+
     // ============ PRIVATE HELPERS ============
+
+    function _processOneWithdrawal(
+        s.ParentPool storage s_parentPool,
+        bytes32 withdrawalId,
+        address liquidityToken,
+        address lpToken,
+        function(address, address, uint256) external safeTransferWrapper,
+        function(uint256) external view returns (uint256, uint256) getWithdrawalFee
+    ) private returns (ProcessWithdrawalResult memory result) {
+        IParentPool.PendingWithdrawal memory pw = s_parentPool.pendingWithdrawals[withdrawalId];
+        delete s_parentPool.pendingWithdrawals[withdrawalId];
+
+        result.liqTokenAmount = pw.liqTokenAmountToWithdraw;
+
+        (uint256 conceroFee, uint256 rebalanceFee) = getWithdrawalFee(pw.liqTokenAmountToWithdraw);
+        uint256 amountToWithdrawWithFee = pw.liqTokenAmountToWithdraw - (conceroFee + rebalanceFee);
+        result.rebalanceFee = rebalanceFee;
+
+        try safeTransferWrapper(liquidityToken, pw.lp, amountToWithdrawWithFee) {
+            LPToken(lpToken).burn(pw.lpTokenAmountToWithdraw);
+            result.lancaFee = conceroFee;
+            emit IParentPool.WithdrawalCompleted(withdrawalId, amountToWithdrawWithFee);
+        } catch {
+            IERC20(lpToken).safeTransfer(pw.lp, pw.lpTokenAmountToWithdraw);
+            emit IParentPool.WithdrawalFailed(pw.lp, pw.lpTokenAmountToWithdraw);
+        }
+    }
 
     /// @notice Calculates the amount of LP tokens to mint for a given deposit.
     /// @dev
