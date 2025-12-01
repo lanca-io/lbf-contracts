@@ -25,6 +25,7 @@ library ParentPoolLib {
 
     uint8 internal constant LIQUIDITY_TOKEN_DECIMALS = 6;
     uint8 internal constant SCALE_TOKEN_DECIMALS = 24;
+    uint8 internal constant MAX_QUEUE_LENGTH = 250;
     uint32 internal constant CHILD_POOL_SNAPSHOT_EXPIRATION_TIME = 5 minutes;
     uint32 internal constant UPDATE_TARGET_BALANCE_MESSAGE_GAS_LIMIT = 100_000;
 
@@ -308,6 +309,77 @@ library ParentPoolLib {
             true,
             acc.totalPoolsBalance.toDecimals(SCALE_TOKEN_DECIMALS, liquidityTokenDecimals)
         );
+    }
+
+    function enterDepositQueue(
+        s.ParentPool storage s_parentPool,
+        uint256 liquidityTokenAmount,
+        address liquidityToken
+    ) external {
+        uint64 minDepositAmount = s_parentPool.minDepositAmount;
+        require(minDepositAmount > 0, ICommonErrors.MinDepositAmountNotSet());
+        require(
+            liquidityTokenAmount >= minDepositAmount,
+            ICommonErrors.DepositAmountIsTooLow(liquidityTokenAmount, minDepositAmount)
+        );
+
+        require(
+            s_parentPool.depositQueueIds.length < MAX_QUEUE_LENGTH,
+            IParentPool.DepositQueueIsFull()
+        );
+        require(
+            s_parentPool.prevTotalPoolsBalance <= s_parentPool.liquidityCap,
+            IParentPool.LiquidityCapReached(s_parentPool.liquidityCap)
+        );
+
+        IERC20(liquidityToken).safeTransferFrom(msg.sender, address(this), liquidityTokenAmount);
+
+        IParentPool.Deposit memory deposit = IParentPool.Deposit({
+            liquidityTokenAmountToDeposit: liquidityTokenAmount,
+            lp: msg.sender
+        });
+        bytes32 depositId = keccak256(
+            abi.encodePacked(msg.sender, block.number, ++s_parentPool.depositNonce)
+        );
+
+        s_parentPool.depositQueue[depositId] = deposit;
+        s_parentPool.depositQueueIds.push(depositId);
+        s_parentPool.totalDepositAmountInQueue += liquidityTokenAmount;
+
+        emit IParentPool.DepositQueued(depositId, deposit.lp, liquidityTokenAmount);
+    }
+
+    function enterWithdrawalQueue(
+        s.ParentPool storage s_parentPool,
+        uint256 lpTokenAmount,
+        address lpToken
+    ) external {
+        uint64 minWithdrawalAmount = s_parentPool.minWithdrawalAmount;
+        require(minWithdrawalAmount > 0, ICommonErrors.MinWithdrawalAmountNotSet());
+        require(
+            lpTokenAmount >= minWithdrawalAmount,
+            ICommonErrors.WithdrawalAmountIsTooLow(lpTokenAmount, minWithdrawalAmount)
+        );
+
+        require(
+            s_parentPool.withdrawalQueueIds.length < MAX_QUEUE_LENGTH,
+            IParentPool.WithdrawalQueueIsFull()
+        );
+
+        IERC20(lpToken).safeTransferFrom(msg.sender, address(this), lpTokenAmount);
+
+        IParentPool.Withdrawal memory withdraw = IParentPool.Withdrawal({
+            lpTokenAmountToWithdraw: lpTokenAmount,
+            lp: msg.sender
+        });
+        bytes32 withdrawalId = keccak256(
+            abi.encodePacked(msg.sender, block.number, ++s_parentPool.withdrawalNonce)
+        );
+
+        s_parentPool.withdrawalQueue[withdrawalId] = withdraw;
+        s_parentPool.withdrawalQueueIds.push(withdrawalId);
+
+        emit IParentPool.WithdrawalQueued(withdrawalId, withdraw.lp, lpTokenAmount);
     }
 
     /// @notice Processes all queued deposits and mints LP tokens.

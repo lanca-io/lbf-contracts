@@ -81,36 +81,7 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
     /// - Emits `DepositQueued`.
     /// @param liquidityTokenAmount Amount of liquidity tokens to deposit into the pool.
     function enterDepositQueue(uint256 liquidityTokenAmount) external {
-        s.ParentPool storage s_parentPool = s.parentPool();
-
-        uint64 minDepositAmount = s_parentPool.minDepositAmount;
-        require(minDepositAmount > 0, ICommonErrors.MinDepositAmountNotSet());
-        require(
-            liquidityTokenAmount >= minDepositAmount,
-            ICommonErrors.DepositAmountIsTooLow(liquidityTokenAmount, minDepositAmount)
-        );
-
-        require(s_parentPool.depositQueueIds.length < MAX_QUEUE_LENGTH, DepositQueueIsFull());
-        require(
-            s_parentPool.prevTotalPoolsBalance <= s_parentPool.liquidityCap,
-            LiquidityCapReached(s_parentPool.liquidityCap)
-        );
-
-        IERC20(i_liquidityToken).safeTransferFrom(msg.sender, address(this), liquidityTokenAmount);
-
-        Deposit memory deposit = Deposit({
-            liquidityTokenAmountToDeposit: liquidityTokenAmount,
-            lp: msg.sender
-        });
-        bytes32 depositId = keccak256(
-            abi.encodePacked(msg.sender, block.number, ++s_parentPool.depositNonce)
-        );
-
-        s_parentPool.depositQueue[depositId] = deposit;
-        s_parentPool.depositQueueIds.push(depositId);
-        s_parentPool.totalDepositAmountInQueue += liquidityTokenAmount;
-
-        emit DepositQueued(depositId, deposit.lp, liquidityTokenAmount);
+        ParentPoolLib.enterDepositQueue(s.parentPool(), liquidityTokenAmount, i_liquidityToken);
     }
 
     /// @notice Enqueues a user withdrawal into the withdrawal queue.
@@ -125,31 +96,7 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
     /// - Emits `WithdrawalQueued`.
     /// @param lpTokenAmount Amount of LP tokens the user wants to withdraw.
     function enterWithdrawalQueue(uint256 lpTokenAmount) external {
-        s.ParentPool storage s_parentPool = s.parentPool();
-
-        uint64 minWithdrawalAmount = s_parentPool.minWithdrawalAmount;
-        require(minWithdrawalAmount > 0, ICommonErrors.MinWithdrawalAmountNotSet());
-        require(
-            lpTokenAmount >= minWithdrawalAmount,
-            ICommonErrors.WithdrawalAmountIsTooLow(lpTokenAmount, minWithdrawalAmount)
-        );
-
-        require(s_parentPool.withdrawalQueueIds.length < MAX_QUEUE_LENGTH, WithdrawalQueueIsFull());
-
-        IERC20(i_lpToken).safeTransferFrom(msg.sender, address(this), lpTokenAmount);
-
-        Withdrawal memory withdraw = Withdrawal({
-            lpTokenAmountToWithdraw: lpTokenAmount,
-            lp: msg.sender
-        });
-        bytes32 withdrawalId = keccak256(
-            abi.encodePacked(msg.sender, block.number, ++s_parentPool.withdrawalNonce)
-        );
-
-        s_parentPool.withdrawalQueue[withdrawalId] = withdraw;
-        s_parentPool.withdrawalQueueIds.push(withdrawalId);
-
-        emit WithdrawalQueued(withdrawalId, withdraw.lp, lpTokenAmount);
+        ParentPoolLib.enterWithdrawalQueue(s.parentPool(), lpTokenAmount, address(i_lpToken));
     }
 
     /// @inheritdoc ILancaKeeper
