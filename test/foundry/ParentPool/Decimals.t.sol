@@ -109,6 +109,7 @@ contract DecimalsTest is ParentPoolBase {
         _setValidatorLibs(address(s_childPool));
         _setRelayerLib(address(s_parentPool));
         _setValidatorLibs(address(s_parentPool));
+        _setFeeBps();
     }
 
     function test_parentPool_overflow_POC() public {

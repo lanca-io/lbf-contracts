@@ -56,6 +56,7 @@ contract InvariantTestBase is LancaTest {
         _approveTokensForAll();
         _setLibs();
         _setVars();
+        _setFeeBps();
         _initialDepositToParentPool();
     }
 
@@ -267,6 +268,24 @@ contract InvariantTestBase is LancaTest {
         );
 
         s_parentPool.takeSurplus(s_iouToken.balanceOf(s_rebalancer));
+        vm.stopPrank();
+    }
+
+    function _setFeeBps() internal {
+        vm.startPrank(s_deployer);
+        s_parentPool.setRebalancerFeeBps(REBALANCER_FEE_BPS);
+        s_parentPool.setLancaBridgeFeeBps(LANCA_BRIDGE_FEE_BPS);
+        s_parentPool.setLpFeeBps(LP_FEE_BPS);
+
+        s_childPool_1.setRebalancerFeeBps(REBALANCER_FEE_BPS);
+        s_childPool_2.setRebalancerFeeBps(REBALANCER_FEE_BPS);
+
+        s_childPool_1.setLancaBridgeFeeBps(LANCA_BRIDGE_FEE_BPS);
+        s_childPool_2.setLancaBridgeFeeBps(LANCA_BRIDGE_FEE_BPS);
+
+        s_childPool_1.setLpFeeBps(LP_FEE_BPS);
+        s_childPool_2.setLpFeeBps(LP_FEE_BPS);
+
         vm.stopPrank();
     }
 }
