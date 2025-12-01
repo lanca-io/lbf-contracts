@@ -106,8 +106,8 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
     /// - Steps:
     ///   1. Ensures deposit and withdrawal queues meet minimum lengths (`areQueuesFull()`).
     ///   2. Aggregates total pools balance from parent + all child pools (`_getTotalPoolsBalance`).
-    ///   3. Processes deposits queue via `_processDepositsQueue`.
-    ///   4. Processes withdrawals queue via `_processWithdrawalsQueue`.
+    ///   3. Processes deposits queue via `ParentPoolLib::processDepositsQueue`.
+    ///   4. Processes withdrawals queue via `ParentPoolLib::processWithdrawalsQueue`.
     ///   5. Updates target balances across pools and locks withdrawals via `_processPoolsUpdate`.
     function triggerDepositWithdrawProcess() external onlyRole(LANCA_KEEPER) {
         require(areQueuesFull(), QueuesAreNotFull());
@@ -119,12 +119,23 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
 
         s_parentPool.prevTotalPoolsBalance = totalPoolsBalance;
 
-        uint256 deposited = _processDepositsQueue(totalPoolsBalance);
+        uint256 deposited = ParentPoolLib.processDepositsQueue(
+            s.parentPool(),
+            rs.rebalancer(),
+            ParentPoolLib.ProcessDepositsParams({
+                totalPoolsBalance: totalPoolsBalance,
+                rebalancerFeeBps: pbs.base().rebalancerFeeBps,
+                bpsDenominator: BPS_DENOMINATOR,
+                lpToken: address(i_lpToken)
+            })
+        );
         uint256 newTotalBalance = totalPoolsBalance + deposited;
-        uint256 withdrawals = _processWithdrawalsQueue(newTotalBalance);
+        uint256 withdrawals = ParentPoolLib.processWithdrawalsQueue(
+            s_parentPool,
+            newTotalBalance,
+            address(i_lpToken)
+        );
         uint256 totalRequestedWithdrawals = s_parentPool.remainingWithdrawalAmount + withdrawals;
-
-        // _processPoolsUpdate(newTotalBalance, totalRequestedWithdrawals);
 
         (uint24[] memory chainSelectors, uint256[] memory targetBalances) = ParentPoolLib
             .calculateNewTargetBalances(
@@ -469,57 +480,6 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
     }
 
     /*   INTERNAL FUNCTIONS   */
-
-    /// @notice Processes all queued deposits and mints LP tokens.
-    /// @dev
-    /// - For each deposit:
-    ///   * charges rebalancer fee,
-    ///   * calculates LP to mint based on pre/post-deposit total balance,
-    ///   * mints LP to depositor,
-    ///   * updates `totalDepositAmountInQueue`.
-    /// - Updates total rebalancing fee and clears deposit queue.
-    /// @param totalPoolsBalance Aggregated total pools balance (before deposits).
-    /// @return Total deposited liquidity amount after rebalancer fees.
-    function _processDepositsQueue(uint256 totalPoolsBalance) internal returns (uint256) {
-        s.ParentPool storage s_parentPool = s.parentPool();
-        uint256 totalPoolBalanceWithLockedWithdrawals = totalPoolsBalance +
-            s_parentPool.totalWithdrawalAmountLocked;
-
-        (uint256 totalDepositedLiqTokenAmount, uint256 totalDepositFee) = ParentPoolLib
-            .processDepositsQueue(
-                s_parentPool,
-                totalPoolBalanceWithLockedWithdrawals,
-                pbs.base().rebalancerFeeBps,
-                BPS_DENOMINATOR,
-                address(i_lpToken)
-            );
-
-        rs.rebalancer().totalRebalancingFeeAmount += totalDepositFee;
-        return totalDepositedLiqTokenAmount;
-    }
-
-    /// @notice Processes all queued withdrawals and creates pending withdrawals.
-    /// @dev
-    /// - For each withdrawal:
-    ///   * calculates withdrawable liquidity via `ParentPoolLib::calculateWithdrawableAmount`,
-    ///   * accumulates total liquidity to withdraw,
-    ///   * stores `PendingWithdrawal`,
-    ///   * pushes ID into `pendingWithdrawalIds`.
-    /// - Clears `withdrawalQueueIds`.
-    /// @param totalPoolsBalance Total pools balance *after* processing deposits.
-    /// @return Total liquidity token amount to be withdrawn (before fees).
-    function _processWithdrawalsQueue(uint256 totalPoolsBalance) internal returns (uint256) {
-        s.ParentPool storage s_parentPool = s.parentPool();
-        uint256 totalPoolBalanceWithLockedWithdrawals = totalPoolsBalance +
-            s_parentPool.totalWithdrawalAmountLocked;
-
-        return
-            ParentPoolLib.processWithdrawalsQueue(
-                s_parentPool,
-                totalPoolBalanceWithLockedWithdrawals,
-                address(i_lpToken)
-            );
-    }
 
     /// @inheritdoc Rebalancer
     /// @notice Rebalancing hook called after positive inflows (e.g. child → parent).

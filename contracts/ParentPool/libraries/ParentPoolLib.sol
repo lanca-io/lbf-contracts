@@ -55,6 +55,13 @@ library ParentPoolLib {
         uint256 rebalanceFee;
     }
 
+    struct ProcessDepositsParams {
+        uint256 totalPoolsBalance;
+        uint8 rebalancerFeeBps;
+        uint24 bpsDenominator;
+        address lpToken;
+    }
+
     /// @notice Computes how much liquidity can be withdrawn for a given LP amount.
     /// @dev
     /// - Formula: `withdrawable = totalPoolsBalance * lpTokenAmount / totalLpSupply`.
@@ -384,44 +391,42 @@ library ParentPoolLib {
 
     /// @notice Processes all queued deposits and mints LP tokens.
     /// @param s_parentPool Storage reference to ParentPool.
-    /// @param totalPoolBalanceWithLockedWithdrawals Total balance including locked withdrawals.
-    /// @param rebalancerFeeBps Rebalancer fee in bps.
-    /// @param bpsDenominator BPS denominator for fee calculation.
-    /// @param lpToken LP token address.
+    /// @param s_rebalancer Storage reference to Rebalancer.
+    /// @param params Parameters for processing deposits.
     /// @return totalDepositedLiqTokenAmount Total deposited liquidity amount after rebalancer fees.
-    /// @return totalDepositFee Total deposit fee.
     function processDepositsQueue(
         s.ParentPool storage s_parentPool,
-        uint256 totalPoolBalanceWithLockedWithdrawals,
-        uint8 rebalancerFeeBps,
-        uint24 bpsDenominator,
-        address lpToken
-    ) external returns (uint256 totalDepositedLiqTokenAmount, uint256 totalDepositFee) {
+        rs.Rebalancer storage s_rebalancer,
+        ProcessDepositsParams calldata params
+    ) external returns (uint256 totalDepositedLiqTokenAmount) {
+        uint256 totalPoolBalanceWithLockedWithdrawals = params.totalPoolsBalance +
+            s_parentPool.totalWithdrawalAmountLocked;
+
         bytes32[] memory depositQueueIds = s_parentPool.depositQueueIds;
-        uint256 lpTokenTotalSupply = IERC20(lpToken).totalSupply();
+        uint256 totalDepositFee;
 
         for (uint256 i; i < depositQueueIds.length; ++i) {
-            IParentPool.Deposit memory deposit = s_parentPool.depositQueue[depositQueueIds[i]];
-            delete s_parentPool.depositQueue[depositQueueIds[i]];
+            bytes32 depositId = depositQueueIds[i];
+            IParentPool.Deposit memory deposit = s_parentPool.depositQueue[depositId];
+            delete s_parentPool.depositQueue[depositId];
 
-            uint256 depositFee = (deposit.liquidityTokenAmountToDeposit * rebalancerFeeBps) /
-                bpsDenominator;
+            uint256 depositFee = (deposit.liquidityTokenAmountToDeposit * params.rebalancerFeeBps) /
+                params.bpsDenominator;
             uint256 amountToDepositWithFee = deposit.liquidityTokenAmountToDeposit - depositFee;
             totalDepositFee += depositFee;
 
             uint256 lpTokenAmountToMint = _calculateLpTokenAmountToMint(
                 totalPoolBalanceWithLockedWithdrawals + totalDepositedLiqTokenAmount,
                 amountToDepositWithFee,
-                lpToken
+                params.lpToken
             );
 
             s_parentPool.totalDepositAmountInQueue -= deposit.liquidityTokenAmountToDeposit;
-            LPToken(lpToken).mint(deposit.lp, lpTokenAmountToMint);
-            lpTokenTotalSupply += lpTokenAmountToMint;
+            LPToken(params.lpToken).mint(deposit.lp, lpTokenAmountToMint);
             totalDepositedLiqTokenAmount += amountToDepositWithFee;
 
             emit IParentPool.DepositProcessed(
-                depositQueueIds[i],
+                depositId,
                 deposit.lp,
                 amountToDepositWithFee,
                 lpTokenAmountToMint
@@ -429,18 +434,21 @@ library ParentPoolLib {
         }
 
         delete s_parentPool.depositQueueIds;
+        s_rebalancer.totalRebalancingFeeAmount += totalDepositFee;
     }
 
     /// @notice Processes all queued withdrawals and creates pending withdrawals.
     /// @param s_parentPool Storage reference to ParentPool.
-    /// @param totalPoolBalanceWithLockedWithdrawals Total balance including locked withdrawals.
+    /// @param totalPoolsBalance Total balance.
     /// @param lpToken LP token address.
     /// @return totalLiqTokenAmountToWithdraw Total liquidity to withdraw.
     function processWithdrawalsQueue(
         s.ParentPool storage s_parentPool,
-        uint256 totalPoolBalanceWithLockedWithdrawals,
+        uint256 totalPoolsBalance,
         address lpToken
     ) external returns (uint256 totalLiqTokenAmountToWithdraw) {
+        uint256 totalPoolBalanceWithLockedWithdrawals = totalPoolsBalance +
+            s_parentPool.totalWithdrawalAmountLocked;
         bytes32[] memory withdrawalQueueIds = s_parentPool.withdrawalQueueIds;
 
         for (uint256 i; i < withdrawalQueueIds.length; ++i) {
