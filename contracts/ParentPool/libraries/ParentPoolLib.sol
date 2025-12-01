@@ -17,6 +17,12 @@ import {IParentPool} from "../interfaces/IParentPool.sol";
 import {LPToken} from "../LPToken.sol";
 import {Storage as s} from "./Storage.sol";
 
+/// @title Parent Pool Library
+/// @notice Library with core liquidity, queue and rebalancing logic for the parent pool.
+/// @dev
+/// - Intended to be used via `delegatecall` from the `ParentPool` implementation.
+/// - All storage access is done through `Storage.sol` (s.ParentPool, rs.Rebalancer, pbs.Base).
+/// - Contains queue management, total balance aggregation and target balance calculations.
 library ParentPoolLib {
     using Decimals for uint256;
     using BridgeCodec for bytes32;
@@ -28,31 +34,74 @@ library ParentPoolLib {
     uint32 internal constant CHILD_POOL_SNAPSHOT_EXPIRATION_TIME = 5 minutes;
     uint32 internal constant UPDATE_TARGET_BALANCE_MESSAGE_GAS_LIMIT = 100_000;
 
+    /// @notice Parameter bundle used for `triggerDepositWithdrawalProcess`.
+    /// @dev
+    /// - Packs static configuration + dynamic inputs needed for target balance calculation.
     struct TriggerProcessParams {
+        /// @notice Current active balance of the parent pool (in local liquidity token decimals).
         uint256 activeBalance;
+        /// @notice IOU token address.
         address iouToken;
+        /// @notice LP token address.
         address lpToken;
+        /// @notice Concero router address used for cross-chain messages.
         address conceroRouter;
+        /// @notice Decimals of the liquidity token.
         uint8 liquidityTokenDecimals;
+        /// @notice Chain selector of the parent pool.
         uint24 parentChainSelector;
+        /// @notice Sensitivity parameter for LUR score.
         uint64 lurScoreSensitivity;
+        /// @notice Weight for LUR score in health calculation.
         uint64 lurScoreWeight;
+        /// @notice Weight for NDR score in health calculation.
         uint64 ndrScoreWeight;
+        /// @notice Scale factor for liquidity token (10 ** decimals).
         uint256 liquidityTokenScaleFactor;
+        /// @notice Minimum allowed target balance for any pool.
         uint256 minTargetBalance;
+        /// @notice Previous target balance of the parent pool.
         uint256 parentTargetBalance;
+        /// @notice Previous day inflow/outflow for the parent pool.
         IBase.LiqTokenDailyFlow parentYesterdayFlow;
     }
 
+    /// @notice Helper accumulator used in total pools balance calculation.
     struct TotalBalanceAccumulator {
+        /// @notice Aggregate pools balance in scale decimals.
         uint256 totalPoolsBalance;
+        /// @notice Total IOU sent (parent + children) in scale decimals.
         uint256 totalIouSent;
+        /// @notice Total IOU received (parent + children) in scale decimals.
         uint256 totalIouReceived;
+        /// @notice Aggregate IOU total supply (parent + children) in scale decimals.
         uint256 iouTotalSupply;
+        /// @notice Total liquidity tokens sent (parent + children) in scale decimals.
         uint256 totalLiqTokenSent;
+        /// @notice Total liquidity tokens received (parent + children) in scale decimals.
         uint256 totalLiqTokenReceived;
     }
 
+    /// @notice Enqueues a user deposit into the parent pool deposit queue.
+    /// @dev
+    /// Requirements:
+    /// - `minDepositAmount` must be set (`> 0`), otherwise reverts with `MinDepositAmountNotSet`.
+    /// - `liquidityTokenAmount >= minDepositAmount`, otherwise reverts with `DepositAmountIsTooLow`.
+    /// - `depositQueueIds.length < MAX_QUEUE_LENGTH`, otherwise reverts with `DepositQueueIsFull`.
+    /// - `prevTotalPoolsBalance <= liquidityCap`, otherwise reverts with `LiquidityCapReached`.
+    ///
+    /// Effects:
+    /// - Transfers `liquidityTokenAmount` of `liquidityToken` from `msg.sender` to the parent pool.
+    /// - Creates a `Deposit` struct and stores it in `depositQueue` keyed by `depositId`.
+    /// - Pushes `depositId` into `depositQueueIds`.
+    /// - Increments `totalDepositAmountInQueue`.
+    ///
+    /// Emits:
+    /// - `DepositQueued(depositId, lp, liquidityTokenAmount)`.
+    ///
+    /// @param s_parentPool Storage reference to parent pool state.
+    /// @param liquidityTokenAmount Amount of liquidity token to deposit.
+    /// @param liquidityToken Address of the liquidity token.
     function enterDepositQueue(
         s.ParentPool storage s_parentPool,
         uint256 liquidityTokenAmount,
@@ -91,6 +140,24 @@ library ParentPoolLib {
         emit IParentPool.DepositQueued(depositId, deposit.lp, liquidityTokenAmount);
     }
 
+    /// @notice Enqueues a user withdrawal into the parent pool withdrawal queue.
+    /// @dev
+    /// Requirements:
+    /// - `minWithdrawalAmount` must be set (`> 0`), otherwise reverts with `MinWithdrawalAmountNotSet`.
+    /// - `lpTokenAmount >= minWithdrawalAmount`, otherwise reverts with `WithdrawalAmountIsTooLow`.
+    /// - `withdrawalQueueIds.length < MAX_QUEUE_LENGTH`, otherwise reverts with `WithdrawalQueueIsFull`.
+    ///
+    /// Effects:
+    /// - Transfers `lpTokenAmount` of LP tokens from `msg.sender` to the parent pool.
+    /// - Creates a `Withdrawal` struct and stores it in `withdrawalQueue` keyed by `withdrawalId`.
+    /// - Pushes `withdrawalId` into `withdrawalQueueIds`.
+    ///
+    /// Emits:
+    /// - `WithdrawalQueued(withdrawalId, lp, lpTokenAmount)`.
+    ///
+    /// @param s_parentPool Storage reference to parent pool state.
+    /// @param lpTokenAmount Amount of LP tokens to enqueue for withdrawal.
+    /// @param lpToken Address of the LP token.
     function enterWithdrawalQueue(
         s.ParentPool storage s_parentPool,
         uint256 lpTokenAmount,
@@ -124,6 +191,30 @@ library ParentPoolLib {
         emit IParentPool.WithdrawalQueued(withdrawalId, withdraw.lp, lpTokenAmount);
     }
 
+    /// @notice Processes deposit and withdrawal queues and computes/propagates new target balances.
+    /// @dev
+    /// High-level steps:
+    /// 1. Aggregates total pools balance across parent and children via `getTotalPoolsBalance`.
+    ///    - Reverts with `ChildPoolSnapshotsAreNotReady` if any snapshot is stale or missing.
+    /// 2. Updates `prevTotalPoolsBalance` with the new aggregate.
+    /// 3. Processes full deposit queue via `_processDepositsQueue`:
+    ///    - Mints LP tokens for each deposit.
+    ///    - Applies rebalancer fee.
+    /// 4. Processes full withdrawal queue via `_processWithdrawalsQueue`:
+    ///    - Converts LP amounts to liquidity token amounts.
+    ///    - Creates pending withdrawals.
+    /// 5. Computes new target balances for all pools via `_calculateNewTargetBalances`.
+    /// 6. Updates child targets and parent withdrawal locks via `_updateChildPoolTargetBalances`.
+    ///
+    /// Requirements:
+    /// - All child snapshots must be within the valid timestamp range.
+    ///
+    /// @param s_parentPool Storage reference to parent pool state.
+    /// @param s_rebalancer Storage reference to rebalancer state.
+    /// @param s_base Storage reference to base state.
+    /// @param params Struct with configuration and runtime parameters for the process.
+    /// @param getActiveBalance Callback to fetch current active balance from ParentPool.
+    /// @param getRebalancerFee Callback to compute rebalancer fee for a given amount.
     function triggerDepositWithdrawalProcess(
         s.ParentPool storage s_parentPool,
         rs.Rebalancer storage s_rebalancer,
@@ -192,6 +283,33 @@ library ParentPoolLib {
         );
     }
 
+    /// @notice Processes all pending withdrawals and attempts to pay out users.
+    /// @dev
+    /// For each pending withdrawal:
+    /// - Computes `(conceroFee, rebalanceFee)` via `getWithdrawalFee`.
+    /// - Calculates `amountToWithdrawWithFee = liqTokenAmountToWithdraw - (conceroFee + rebalanceFee)`.
+    /// - Tries to transfer `amountToWithdrawWithFee` to user via `safeTransferWrapper`:
+    ///   * On success:
+    ///       - Burns user's LP tokens via `LPToken(lpToken).burn`.
+    ///       - Adds `conceroFee` to `totalLancaFee`.
+    ///       - Emits `WithdrawalCompleted`.
+    ///   * On failure:
+    ///       - Returns LP tokens back to the user.
+    ///       - Emits `WithdrawalFailed`.
+    ///
+    /// After the loop:
+    /// - Clears `pendingWithdrawalIds`.
+    /// - Increases `s_rebalancer.totalRebalancingFeeAmount` by aggregated `totalRebalancingFeeAmount`.
+    /// - Decreases `s_parentPool.totalWithdrawalAmountLocked` by `totalLiquidityTokenAmountToWithdraw`.
+    /// - Increases `s_base.totalLancaFeeInLiqToken` by `totalLancaFee`.
+    ///
+    /// @param s_parentPool Storage reference to parent pool state.
+    /// @param s_rebalancer Storage reference to rebalancer state.
+    /// @param s_base Storage reference to base state.
+    /// @param liquidityToken Address of the liquidity token being withdrawn.
+    /// @param lpToken Address of the LP token.
+    /// @param safeTransferWrapper Callback that safely transfers tokens from parent pool to user.
+    /// @param getWithdrawalFee Callback to compute `(conceroFee, rebalancerFee)` for a given amount.
     function processPendingWithdrawals(
         s.ParentPool storage s_parentPool,
         rs.Rebalancer storage s_rebalancer,
@@ -252,15 +370,40 @@ library ParentPoolLib {
         s_base.totalLancaFeeInLiqToken += totalLancaFee;
     }
 
-    /// @notice Aggregates total pools balance from parent + child snapshots.
-    /// @param s_parentPool Storage reference to ParentPool.
-    /// @param s_rebalancer Storage reference to Rebalancer.
-    /// @param s_poolBase Storage reference to Base.
-    /// @param activeBalance Current active balance.
-    /// @param iouTotalSupply Total IOU token supply.
+    /// @notice Aggregates total effective pools balance from parent + child snapshots.
+    /// @dev
+    /// Steps:
+    /// 1. Converts local (parent) stats to `SCALE_TOKEN_DECIMALS`:
+    ///    - `activeBalance`,
+    ///    - `totalIouSent`, `totalIouReceived`,
+    ///    - `iouTotalSupply`,
+    ///    - `totalLiqTokenSent`, `totalLiqTokenReceived`.
+    /// 2. Iterates over all `supportedChainSelectors`:
+    ///    - Verifies snapshot timestamp with `_isChildPoolSnapshotTimestampInRange`.
+    ///    - Aggregates child balances and IOU/liquidity flows into the accumulator.
+    /// 3. Computes:
+    ///    - `iouOnTheWay = totalIouSent - totalIouReceived`,
+    ///    - `liqTokenOnTheWay = totalLiqTokenSent - totalLiqTokenReceived`,
+    ///    - `totalPoolsBalance = totalPoolsBalance - (liqTokenOnTheWay + iouTotalSupply + iouOnTheWay)`.
+    /// 4. Converts `totalPoolsBalance` back to local `liquidityTokenDecimals`.
+    ///
+    /// Returns:
+    /// - `(false, 0)` if some child snapshot is stale or invalid.
+    /// - `(true, totalPoolsBalance)` otherwise.
+    ///
+    /// NOTE: The following invariants are assumed:
+    /// - `totalIouSent >= totalIouReceived`,
+    /// - `totalLiqTokenSent >= totalLiqTokenReceived`,
+    /// - `totalPoolsBalance >= liqTokenOnTheWay + iouTotalSupply + iouOnTheWay`.
+    ///
+    /// @param s_parentPool Storage reference to parent pool state.
+    /// @param s_rebalancer Storage reference to rebalancer state.
+    /// @param s_poolBase Storage reference to base state.
+    /// @param activeBalance Current active balance in local decimals.
+    /// @param iouTotalSupply Total IOU token supply in local decimals.
     /// @param liquidityTokenDecimals Decimals of liquidity token.
     /// @return success True if all snapshots are valid and fresh.
-    /// @return totalPoolsBalance Aggregated balance in local decimals.
+    /// @return totalPoolsBalance Aggregated effective balance in local decimals.
     function getTotalPoolsBalance(
         s.ParentPool storage s_parentPool,
         rs.Rebalancer storage s_rebalancer,
