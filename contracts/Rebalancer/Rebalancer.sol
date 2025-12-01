@@ -14,7 +14,16 @@ import {BridgeCodec} from "../common/libraries/BridgeCodec.sol";
 
 /**
  * @title Rebalancer
- * @notice Abstract contract for rebalancing pool liquidity
+ * @notice Abstract contract providing cross-chain rebalancing logic on top of a Lanca pool.
+ * @dev
+ * - Extends {Base} to get core pool state and Concero client behaviour.
+ * - Implements {IRebalancer} to:
+ *   * allow external actors to fill liquidity deficit and receive IOU tokens,
+ *   * allow IOU holders to redeem surplus liquidity,
+ *   * bridge IOU tokens between pools on different chains.
+ * - Tracks:
+ *   * total rebalancing fee liquidity (`totalRebalancingFeeAmount`),
+ *   * IOU amounts sent and received across chains.
  */
 abstract contract Rebalancer is IRebalancer, Base {
     using s for s.Rebalancer;
@@ -26,6 +35,20 @@ abstract contract Rebalancer is IRebalancer, Base {
 
     uint32 private constant DEFAULT_GAS_LIMIT = 150_000;
 
+    /**
+     * @notice Fills the pool deficit by depositing liquidity and minting IOU tokens.
+     * @dev
+     * - Validations:
+     *   * `liquidityAmountToFill > 0`,
+     *   * `liquidityAmountToFill <= getDeficit()`.
+     * - Effects:
+     *   * Transfers liquidity tokens from `msg.sender` to this contract.
+     *   * Mints IOU tokens 1:1 to `msg.sender`.
+     *   * Calls `_postInflowRebalance` hook for pool-specific post-inflow logic.
+     * - Emits:
+     *   * {DeficitFilled}
+     * @param liquidityAmountToFill Amount of liquidity tokens to contribute toward the deficit.
+     */
     function fillDeficit(uint256 liquidityAmountToFill) external {
         require(liquidityAmountToFill > 0, ICommonErrors.AmountIsZero());
         require(
@@ -42,6 +65,25 @@ abstract contract Rebalancer is IRebalancer, Base {
         emit DeficitFilled(msg.sender, liquidityAmountToFill);
     }
 
+    /**
+     * @notice Redeems IOU tokens for underlying liquidity when the pool has surplus.
+     * @dev
+     * - Validations:
+     *   * `iouTokensToBurn > 0`,
+     *   * `iouTokensToBurn <= getSurplus()`.
+     * - Fee handling:
+     *   * Calculates `rebalancerFee = getRebalancerFee(iouTokensToBurn)`.
+     *   * Caps fee by `totalRebalancingFeeAmount` if there is not enough fee liquidity accumulated.
+     *   * Reducess `totalRebalancingFeeAmount` by the actual fee deducted.
+     * - Effects:
+     *   * Burns `iouTokensToBurn` IOU tokens from `msg.sender`.
+     *   * Sends `iouTokensToBurn + rebalancerFee` liquidity tokens to `msg.sender`.
+     * - Emits:
+     *   * {SurplusTaken}
+     * @param iouTokensToBurn Amount of IOU tokens to redeem.
+     * @return liquidityTokensToReceive Total liquidity amount sent to the caller
+     *         (principal IOU + portion of rebalancing fees).
+     */
     function takeSurplus(uint256 iouTokensToBurn) external returns (uint256) {
         require(iouTokensToBurn > 0, ICommonErrors.AmountIsZero());
         require(
@@ -67,6 +109,29 @@ abstract contract Rebalancer is IRebalancer, Base {
         return liquidityTokensToReceive;
     }
 
+    /**
+     * @notice Bridges IOU tokens from this chain to a destination pool on another chain.
+     * @dev
+     * - Validations:
+     *   * `iouTokenAmount > 0`,
+     *   * `receiver != bytes32(0)`,
+     *   * destination pool is configured for `dstChainSelector`.
+     * - Effects:
+     *   * Burns IOU tokens from `msg.sender` on this chain.
+     *   * Constructs a Concero message with `BRIDGE_IOU` payload that will:
+     *     - mint IOU to `receiver` on the destination chain,
+     *     - use pool-local decimals (`i_liquidityTokenDecimals`) for amount encoding.
+     *   * Sends message via Concero Router and increments `totalIouSent`.
+     * - Fees:
+     *   * Caller must provide sufficient `msg.value` to cover the native message fee.
+     *   * The exact required fee can be estimated via `getBridgeIouNativeFee`.
+     * - Emits:
+     *   * {IOUBridged}
+     * @param receiver Bytes32-encoded receiver address on the destination chain.
+     * @param dstChainSelector Chain selector of the destination chain.
+     * @param iouTokenAmount Amount of IOU tokens to bridge.
+     * @return messageId Concero message identifier for the bridge operation.
+     */
     function bridgeIOU(
         bytes32 receiver,
         uint24 dstChainSelector,
@@ -116,6 +181,15 @@ abstract contract Rebalancer is IRebalancer, Base {
 
     /* ADMIN FUNCTIONS */
 
+    /**
+     * @notice Tops up the rebalancing fee pool with additional liquidity tokens.
+     * @dev
+     * - Only callable by the `ADMIN` role.
+     * - Effects:
+     *   * Transfers liquidity tokens from `msg.sender` to this contract.
+     *   * Increases `totalRebalancingFeeAmount` by `amount`.
+     * @param amount Amount of liquidity tokens to add to the rebalancing fee reserve.
+     */
     function topUpRebalancingFee(uint256 amount) external onlyRole(ADMIN) {
         IERC20(i_liquidityToken).safeTransferFrom(msg.sender, address(this), amount);
         s.rebalancer().totalRebalancingFeeAmount += amount;
@@ -127,6 +201,20 @@ abstract contract Rebalancer is IRebalancer, Base {
         return address(i_iouToken);
     }
 
+    /**
+     * @notice Returns the native fee required to bridge IOU tokens to a given destination chain.
+     * @dev
+     * - This is an estimation helper for frontends and integrators.
+     * - It uses a dummy payload with:
+     *   * receiver = `msg.sender.toBytes32()`,
+     *   * IOU amount = 1 (unit),
+     *   * local decimals = `i_liquidityTokenDecimals`.
+     * - The actual fee passed to `bridgeIOU` should be `>=` the value returned here.
+     * - Validations:
+     *   * Destination pool must be configured for `dstChainSelector`.
+     * @param dstChainSelector Destination chain selector for IOU bridging.
+     * @return Native token amount required to pay the Concero relayer + validators.
+     */
     function getBridgeIouNativeFee(uint24 dstChainSelector) external view returns (uint256) {
         bs.Base storage s_base = bs.base();
 
@@ -164,6 +252,21 @@ abstract contract Rebalancer is IRebalancer, Base {
 
     /* INTERNAL FUNCTIONS */
 
+    /**
+     * @notice Internal Concero handler for incoming IOU bridge messages.
+     * @dev
+     * - Called from the pool’s Concero client implementation when `BRIDGE_IOU` is received.
+     * - Steps:
+     *   1. Decodes `(receiver, iouTokenAmount, srcDecimals)` from `messageData`.
+     *   2. Converts `iouTokenAmount` from source decimals to local decimals.
+     *   3. Mints IOU tokens to `receiver` on this chain.
+     *   4. Increments `totalIouReceived`.
+     * - Emits:
+     *   * {IOUReceived}
+     * @param messageId Concero message identifier associated with this IOU bridge.
+     * @param sourceChainSelector Chain selector of the source chain.
+     * @param messageData Encoded `BRIDGE_IOU` payload.
+     */
     function _handleConceroReceiveBridgeIou(
         bytes32 messageId,
         uint24 sourceChainSelector,
@@ -181,5 +284,14 @@ abstract contract Rebalancer is IRebalancer, Base {
         emit IOUReceived(messageId, receiver.toAddress(), sourceChainSelector, iouTokenAmount);
     }
 
+    /**
+     * @notice Hook called after a positive liquidity inflow via `fillDeficit`.
+     * @dev
+     * - Default implementation is empty and can be overridden by concrete pools.
+     * - Typical uses:
+     *   * Parent pool may override to automatically allocate inflow
+     *     towards pending withdrawals if certain conditions are met.
+     * @param liquidityAmountToFill Amount of liquidity added in the inflow.
+     */
     function _postInflowRebalance(uint256 liquidityAmountToFill) internal virtual {}
 }

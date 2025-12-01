@@ -15,6 +15,17 @@ import {Storage as bs} from "./libraries/Storage.sol";
 import {Storage as rs} from "../Rebalancer/libraries/Storage.sol";
 import {Storage as s} from "../Base/libraries/Storage.sol";
 
+/// @title LancaBridge
+/// @notice Abstract bridge implementation for Lanca liquidity pools.
+/// @dev
+/// - Extends the `Base` pool and implements cross-chain liquidity bridging using Concero.
+/// - Responsibilities:
+///   * Collect liquidity from users and send cross-chain bridge messages.
+///   * Charge and account for Lanca / rebalancer / LP fees.
+///   * Receive bridge liquidity from other chains and deliver tokens to end users.
+///   * Optionally call receiver hooks (`ILancaClient`) on the destination.
+/// - This contract is intended to be inherited by concrete pool implementations
+///   (e.g. `ChildPool`, `ParentPool`) that share the same bridge logic.
 abstract contract LancaBridge is ILancaBridge, Base {
     using SafeERC20 for IERC20;
     using BridgeCodec for address;
@@ -27,6 +38,7 @@ abstract contract LancaBridge is ILancaBridge, Base {
 
     uint32 internal constant BRIDGE_GAS_OVERHEAD = 100_000;
 
+    /// @inheritdoc ILancaBridge
     function bridge(
         uint256 tokenAmount,
         uint24 dstChainSelector,
@@ -61,6 +73,25 @@ abstract contract LancaBridge is ILancaBridge, Base {
 
     /*   INTERNAL FUNCTIONS   */
 
+    /// @notice Internal helper to build and send a Concero bridge message.
+    /// @dev
+    /// - Uses:
+    ///   * `dstPool` as destination receiver address,
+    ///   * `validatorLib` / `relayerLib` from `s_base`,
+    ///   * `BridgeCodec.encodeBridgeData` to encode bridge payload with:
+    ///     - sender,
+    ///     - tokenAmount,
+    ///     - local token decimals,
+    ///     - user destination chain data,
+    ///     - user payload.
+    /// - Forwards `msg.value` to the Concero router as native fee.
+    /// @param tokenAmount Amount to be bridged after fees, expressed in local decimals.
+    /// @param dstChainSelector Destination chain selector.
+    /// @param payload Optional user payload to be forwarded to the receiver hook.
+    /// @param userDstChainData User-provided destination chain data.
+    /// @param dstPool Bytes32-encoded destination pool address.
+    /// @param s_base Storage reference to the base pool state.
+    /// @return messageId Concero message identifier returned by `conceroSend`.
     function _sendMessage(
         uint256 tokenAmount,
         uint24 dstChainSelector,
@@ -93,6 +124,20 @@ abstract contract LancaBridge is ILancaBridge, Base {
         return IConceroRouter(i_conceroRouter).conceroSend{value: msg.value}(messageRequest);
     }
 
+    /// @notice Builds the destination chain data for a bridge message.
+    /// @dev
+    /// - Reads the user-provided gas limit from `userDstChainData`.
+    /// - Enforces consistency:
+    ///   * either both `userDstChainGasLimit` and `payloadLength` are zero (no hook),
+    ///   * or both are non-zero (hook call is expected).
+    /// - Returns encoded EVM destination data with:
+    ///   * `receiver = dstPool.toAddress()`,
+    ///   * `gasLimit = BRIDGE_GAS_OVERHEAD + userDstChainGasLimit`.
+    /// - Reverts with `InvalidDstGasLimitOrCallData` on inconsistent input.
+    /// @param userDstChainData User-provided destination chain data (receiver + gas limit).
+    /// @param dstPool Bytes32-encoded destination pool address.
+    /// @param payloadLength Length of the payload that may be sent to the receiver hook.
+    /// @return Encoded `dstChainData` for the Concero message.
     function _buildDstChainData(
         bytes calldata userDstChainData,
         bytes32 dstPool,
@@ -113,6 +158,18 @@ abstract contract LancaBridge is ILancaBridge, Base {
             );
     }
 
+    /// @dev
+    /// - Handles Concero bridge liquidity messages (`ConceroMessageType.BRIDGE`).
+    /// - Steps:
+    ///   1. Decodes bridge data:
+    ///      * `tokenAmount`, `decimals`, `tokenSender`, `dstChainData`, `payload`.
+    ///   2. Converts `tokenAmount` from source decimals to local decimals.
+    ///   3. Updates inflow accounting via `_handleInflow`.
+    ///   4. Calls `_deliverBridge` to transfer tokens to the final receiver and optional hook.
+    /// @param messageId Concero message ID.
+    /// @param srcChainSelector Source chain selector.
+    /// @param nonce Concero message nonce for this bridge.
+    /// @param messageData Encoded bridge data payload.
     function _handleConceroReceiveBridgeLiquidity(
         bytes32 messageId,
         uint24 srcChainSelector,
@@ -141,6 +198,23 @@ abstract contract LancaBridge is ILancaBridge, Base {
         );
     }
 
+    /// @notice Delivers bridged tokens to the final receiver and optionally calls the Lanca hook.
+    /// @dev
+    /// - Decodes `(receiver, dstGasLimit)` from `dstChainData`.
+    /// - Validates receiver and payload via `_validateBridgeParams`:
+    ///   * if no hook should be called: only transfers tokens,
+    ///   * if hook should be called:
+    ///     - requires `receiver` to be a contract implementing `ILancaClient`.
+    /// - Transfers `tokenAmount` to `receiver`.
+    /// - If `shouldCallHook`, calls:
+    ///   `ILancaClient(receiver).lancaReceive{gas: dstGasLimit}(...)`.
+    /// - Emits `BridgeDelivered` after successful delivery.
+    /// @param messageId Concero message ID.
+    /// @param tokenAmount Amount to deliver (in local decimals).
+    /// @param srcChainSelector Source chain selector.
+    /// @param tokenSender Bytes32-encoded address of the original sender on the source chain.
+    /// @param dstChainData Encoded destination address and gas limit.
+    /// @param payload Optional payload forwarded to the receiver hook.
     function _deliverBridge(
         bytes32 messageId,
         uint256 tokenAmount,
@@ -168,6 +242,22 @@ abstract contract LancaBridge is ILancaBridge, Base {
         emit BridgeDelivered(messageId, tokenAmount);
     }
 
+    /// @notice Handles incoming bridged liquidity inflow accounting.
+    /// @dev
+    /// - Ensures the pool has enough active balance to cover the `tokenAmount`.
+    /// - Uses `receivedBridges[srcChainSelector][nonce]` to support potential reorgs:
+    ///   * if first time seen (existingAmount == 0):
+    ///     - increases `totalLiqTokenReceived` by `tokenAmount`,
+    ///   * if already present:
+    ///     - adjusts `totalLiqTokenReceived` by the delta
+    ///     - emits `SrcBridgeReorged` for the previous amount.
+    /// - Updates:
+    ///   * `receivedBridges[srcChainSelector][nonce]`,
+    ///   * daily outflow for `getTodayStartTimestamp()`.
+    /// - Reverts with `InvalidAmount` if `getActiveBalance() < tokenAmount`.
+    /// @param tokenAmount Amount of tokens received (in local decimals).
+    /// @param srcChainSelector Source chain selector.
+    /// @param nonce Concero message nonce for this bridge.
     function _handleInflow(uint256 tokenAmount, uint24 srcChainSelector, uint256 nonce) internal {
         bs.Bridge storage s_bridge = bs.bridge();
         s.Base storage s_base = s.base();
@@ -190,6 +280,18 @@ abstract contract LancaBridge is ILancaBridge, Base {
         s.base().flowByDay[getTodayStartTimestamp()].outflow += tokenAmount;
     }
 
+    /// @notice Validates whether a hook should be called on the receiver and whether it is valid.
+    /// @dev
+    /// - If `dstGasLimit == 0` and `payload.length == 0`:
+    ///   * no hook is called, returns `false`.
+    /// - Otherwise:
+    ///   * requires `_isValidContractReceiver(receiver) == true`,
+    ///   * returns `true`.
+    /// - Reverts with `InvalidConceroMessage` if receiver is invalid while a hook is expected.
+    /// @param dstGasLimit Gas limit reserved for the receiver hook.
+    /// @param receiver Receiver address on this chain.
+    /// @param payload Hook payload (if any).
+    /// @return shouldCallHook `true` if a hook call should be made after transfer.
     function _validateBridgeParams(
         uint32 dstGasLimit,
         address receiver,
@@ -204,6 +306,13 @@ abstract contract LancaBridge is ILancaBridge, Base {
         return shouldCallHook;
     }
 
+    /// @notice Checks if a given receiver is a valid Lanca client contract.
+    /// @dev
+    /// - Requirements:
+    ///   * `receiver.code.length > 0` (must be a contract),
+    ///   * `receiver` supports `ILancaClient` interface via ERC-165.
+    /// @param tokenReceiver Address of the potential receiver.
+    /// @return True if `tokenReceiver` is a valid Lanca client, false otherwise.
     function _isValidContractReceiver(address tokenReceiver) internal view returns (bool) {
         if (
             tokenReceiver.code.length == 0 ||
@@ -215,6 +324,18 @@ abstract contract LancaBridge is ILancaBridge, Base {
         return true;
     }
 
+    /// @notice Charges all Lanca-related fees and returns the net bridged amount.
+    /// @dev
+    /// - Computes:
+    ///   * `bridgeFee = getLancaFee(tokenAmount)`,
+    ///   * `rebalancerFee = getRebalancerFee(tokenAmount)`,
+    ///   * `lpFee = getLpFee(tokenAmount)`.
+    /// - Updates:
+    ///   * `totalLancaFeeInLiqToken += bridgeFee`,
+    ///   * `totalRebalancingFeeAmount += rebalancerFee`.
+    /// - Returns `tokenAmount - (lpFee + bridgeFee + rebalancerFee)`.
+    /// @param tokenAmount Gross amount before fees.
+    /// @return Net amount after all Lanca-related fees.
     function _chargeTotalLancaFee(uint256 tokenAmount) internal returns (uint256) {
         uint256 bridgeFee = getLancaFee(tokenAmount);
         uint256 rebalancerFee = getRebalancerFee(tokenAmount);
@@ -229,6 +350,7 @@ abstract contract LancaBridge is ILancaBridge, Base {
 
     /*   GETTERS   */
 
+    /// @inheritdoc ILancaBridge
     function getBridgeNativeFee(
         uint256 /* tokenAmount */,
         uint24 dstChainSelector,

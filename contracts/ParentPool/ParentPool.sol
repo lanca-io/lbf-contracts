@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.28;
 
-import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
-
 import {ICommonErrors} from "../common/interfaces/ICommonErrors.sol";
 import {IConceroRouter} from "@concero/v2-contracts/contracts/interfaces/IConceroRouter.sol";
 import {MessageCodec} from "@concero/v2-contracts/contracts/common/libraries/MessageCodec.sol";
@@ -22,6 +20,21 @@ import {BridgeCodec} from "../common/libraries/BridgeCodec.sol";
 import {Decimals} from "../common/libraries/Decimals.sol";
 import {IBase} from "../Base/interfaces/IBase.sol";
 
+/// @title Lanca Parent Pool
+/// @notice Main Lanca pool on the "parent" chain aggregating liquidity and coordinating child pools.
+/// @dev
+/// - Responsibilities:
+///   * Manages LP deposit and withdrawal queues.
+///   * Tracks and processes pending withdrawals with fee accounting.
+///   * Aggregates liquidity & flow data from child pools via snapshots.
+///   * Computes and pushes new target balances to child pools.
+///   * Integrates with:
+///     - `Rebalancer` for rebalancing and IOU accounting,
+///     - `LancaBridge` / `Base` for cross-chain bridge and pool logic,
+///     - `LPToken` as LP share token.
+/// - Access control:
+///   * `ADMIN` – configuration changes (queue lengths, caps, fee hints, weights).
+///   * `LANCA_KEEPER` – operational actions (processing queues, pending withdrawals).
 contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
     using s for s.ParentPool;
     using rs for rs.Rebalancer;
@@ -37,6 +50,7 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
     uint8 internal constant SCALE_TOKEN_DECIMALS = 24;
 
     LPToken internal immutable i_lpToken;
+    /// @notice Scaling factor for the liquidity token (10 ** decimals).
     uint256 internal immutable i_liquidityTokenScaleFactor;
     uint256 internal immutable i_minTargetBalance;
 
@@ -57,6 +71,19 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
         i_liquidityTokenScaleFactor = 10 ** liquidityTokenDecimals;
     }
 
+    /// @notice Enqueues a user deposit into the deposit queue.
+    /// @dev
+    /// - Validations:
+    ///   * `minDepositAmount` must be set and `liquidityTokenAmount >= minDepositAmount`.
+    ///   * `depositQueueIds.length < MAX_QUEUE_LENGTH`.
+    ///   * `prevTotalPoolsBalance <= liquidityCap`.
+    /// - Effects:
+    ///   * Transfers liquidity tokens from sender to this contract.
+    ///   * Stores a `Deposit` entry keyed by a unique `depositId`.
+    ///   * Pushes `depositId` into `depositQueueIds`.
+    ///   * Increases `totalDepositAmountInQueue`.
+    /// - Emits `DepositQueued`.
+    /// @param liquidityTokenAmount Amount of liquidity tokens to deposit into the pool.
     function enterDepositQueue(uint256 liquidityTokenAmount) external {
         s.ParentPool storage s_parentPool = s.parentPool();
 
@@ -90,6 +117,17 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
         emit DepositQueued(depositId, deposit.lp, liquidityTokenAmount);
     }
 
+    /// @notice Enqueues a user withdrawal into the withdrawal queue.
+    /// @dev
+    /// - Validations:
+    ///   * `minWithdrawalAmount` must be set and `lpTokenAmount >= minWithdrawalAmount`.
+    ///   * `withdrawalQueueIds.length < MAX_QUEUE_LENGTH`.
+    /// - Effects:
+    ///   * Transfers LP tokens from sender to this contract.
+    ///   * Stores a `Withdrawal` entry keyed by a unique `withdrawalId`.
+    ///   * Pushes `withdrawalId` into `withdrawalQueueIds`.
+    /// - Emits `WithdrawalQueued`.
+    /// @param lpTokenAmount Amount of LP tokens the user wants to withdraw.
     function enterWithdrawalQueue(uint256 lpTokenAmount) external {
         s.ParentPool storage s_parentPool = s.parentPool();
 
@@ -118,6 +156,16 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
         emit WithdrawalQueued(withdrawalId, withdraw.lp, lpTokenAmount);
     }
 
+    /// @inheritdoc ILancaKeeper
+    /// @notice Processes deposit and withdrawal queues and rebalances pool targets.
+    /// @dev
+    /// - Only callable by `LANCA_KEEPER`.
+    /// - Steps:
+    ///   1. Ensures deposit and withdrawal queues meet minimum lengths (`areQueuesFull()`).
+    ///   2. Aggregates total pools balance from parent + all child pools (`_getTotalPoolsBalance`).
+    ///   3. Processes deposits queue via `_processDepositsQueue`.
+    ///   4. Processes withdrawals queue via `_processWithdrawalsQueue`.
+    ///   5. Updates target balances across pools and locks withdrawals via `_processPoolsUpdate`.
     function triggerDepositWithdrawProcess() external onlyRole(LANCA_KEEPER) {
         require(areQueuesFull(), QueuesAreNotFull());
 
@@ -136,6 +184,26 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
         _processPoolsUpdate(newTotalBalance, totalRequestedWithdrawals);
     }
 
+    /// @notice Processes pending withdrawals after pools have been updated/rebalanced.
+    /// @dev
+    /// - Only callable by `LANCA_KEEPER`.
+    /// - Requires `isReadyToProcessPendingWithdrawals()`:
+    ///   * `remainingWithdrawalAmount == 0`,
+    ///   * `totalWithdrawalAmountLocked > 0`.
+    /// - For each pending withdrawal:
+    ///   * Computes Concero + rebalancer fees via `getWithdrawalFee`.
+    ///   * Attempts to transfer liquidity tokens to LP:
+    ///     - On success:
+    ///       - Burns LP tokens,
+    ///       - Accumulates Lanca + rebalancing fees,
+    ///       - Emits `WithdrawalCompleted`.
+    ///     - On failure:
+    ///       - Returns LP tokens back to user,
+    ///       - Emits `WithdrawalFailed`.
+    /// - Updates:
+    ///   * `totalWithdrawalAmountLocked`,
+    ///   * `totalRebalancingFeeAmount`,
+    ///   * `totalLancaFeeInLiqToken`.
     function processPendingWithdrawals() external onlyRole(LANCA_KEEPER) {
         s.ParentPool storage s_parentPool = s.parentPool();
         require(
@@ -202,6 +270,13 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
         pbs.base().totalLancaFeeInLiqToken += totalLancaFee;
     }
 
+    /// @notice Internal-only wrapper for safe ERC20 transfer from this contract.
+    /// @dev
+    /// - Used to allow `try/catch` on transfers to users in `processPendingWithdrawals`.
+    /// - Only callable by this contract itself.
+    /// @param token ERC20 token address.
+    /// @param to Recipient address.
+    /// @param amount Amount to transfer.
     function safeTransferWrapper(address token, address to, uint256 amount) external {
         require(msg.sender == address(this), OnlySelf());
         IERC20(token).safeTransfer(to, amount);
@@ -209,6 +284,19 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
 
     /*   VIEW FUNCTIONS   */
 
+    /// @notice Returns the withdrawal fee for a given liquidity token amount.
+    /// @dev
+    /// - Returns `(conceroFee, rebalancerFee)`:
+    ///   * `rebalancerFee = getRebalancerFee(liqTokenAmount)`,
+    ///   * `conceroFee`:
+    ///     - if no pending withdrawals: 0,
+    ///     - else: `averageConceroMessageFee * childPoolsCount * 4 / pendingWithdrawalCount`.
+    /// - `* 4` factor accounts for:
+    ///   * fee on deposit + fee on withdrawal,
+    ///   * each operation involves two messages (child → parent, parent → child).
+    /// @param liqTokenAmount Liquidity token amount for which to estimate fees.
+    /// @return conceroFee Estimated Concero-related fee portion.
+    /// @return rebalancerFee Rebalancer fee portion.
     function getWithdrawalFee(uint256 liqTokenAmount) public view returns (uint256, uint256) {
         s.ParentPool storage s_parentPool = s.parentPool();
         uint256 pendingWithdrawalCount = s_parentPool.pendingWithdrawalIds.length;
@@ -233,6 +321,12 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
         return s.parentPool().supportedChainSelectors;
     }
 
+    /// @notice Returns a scaled view of a stored child pool snapshot in local token decimals.
+    /// @dev
+    /// - Internally snapshots are stored using `SCALE_TOKEN_DECIMALS`.
+    /// - This function converts all fields back to local liquidity token decimals.
+    /// @param chainSelector Chain selector of the child pool.
+    /// @return snapshot `ChildPoolSnapshot` structure rescaled to local decimals.
     function getChildPoolSnapshot(
         uint24 chainSelector
     ) external view returns (ChildPoolSnapshot memory) {
@@ -265,11 +359,19 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
         return snapshot;
     }
 
+    /// @notice Indicates whether the parent pool is ready to process deposit/withdraw queues.
+    /// @dev
+    /// - Requires:
+    ///   * valid and fresh child pool snapshots (`_getTotalPoolsBalance`),
+    ///   * queues meeting minimum lengths (`areQueuesFull()`).
+    /// @return True if queues are full and snapshots are ready; otherwise false.
     function isReadyToTriggerDepositWithdrawProcess() external view returns (bool) {
         (bool success, ) = _getTotalPoolsBalance();
         return success && areQueuesFull();
     }
 
+    /// @notice Checks whether both deposit and withdrawal queues meet minimum length thresholds.
+    /// @return True if both queues are above their configured minimums; otherwise false.
     function areQueuesFull() public view returns (bool) {
         s.ParentPool storage s_parentPool = s.parentPool();
 
@@ -283,6 +385,12 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
             depositLength >= s_parentPool.minDepositQueueLength;
     }
 
+    /// @notice Returns whether pending withdrawals are ready to be processed.
+    /// @dev
+    /// - Conditions:
+    ///   * `remainingWithdrawalAmount == 0`,
+    ///   * `totalWithdrawalAmountLocked > 0`.
+    /// @return True if all conditions are satisfied; otherwise false.
     function isReadyToProcessPendingWithdrawals() public view returns (bool) {
         s.ParentPool storage s_parentPool = s.parentPool();
         return
@@ -290,6 +398,13 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
             (s_parentPool.totalWithdrawalAmountLocked > 0);
     }
 
+    /// @inheritdoc Base
+    /// @notice Returns the active liquidity balance of the parent pool.
+    /// @dev
+    /// - Extends `Base.getActiveBalance()` by subtracting:
+    ///   * `totalDepositAmountInQueue`,
+    ///   * `totalWithdrawalAmountLocked`.
+    /// @return Active balance available for new operations.
     function getActiveBalance() public view override returns (uint256) {
         s.ParentPool storage s_parentPool = s.parentPool();
         return
@@ -368,6 +483,12 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
         s_parentPool.supportedChainSelectors.push(chainSelector);
     }
 
+    /// @notice Sets the LUR score sensitivity parameter.
+    /// @dev
+    /// - Must satisfy:
+    ///   * `lurScoreSensitivity > i_liquidityTokenScaleFactor`,
+    ///   * `lurScoreSensitivity < 10 * i_liquidityTokenScaleFactor`.
+    /// @param lurScoreSensitivity New LUR sensitivity parameter.
     function setLurScoreSensitivity(uint64 lurScoreSensitivity) external onlyRole(ADMIN) {
         require(
             (lurScoreSensitivity > i_liquidityTokenScaleFactor) &&
@@ -377,6 +498,11 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
         s.parentPool().lurScoreSensitivity = lurScoreSensitivity;
     }
 
+    /// @notice Sets the weights used for liquidity health scoring.
+    /// @dev
+    /// - Requires: `lurScoreWeight + ndrScoreWeight == i_liquidityTokenScaleFactor`.
+    /// @param lurScoreWeight New weight for LUR score.
+    /// @param ndrScoreWeight New weight for NDR score.
     function setScoresWeights(
         uint64 lurScoreWeight,
         uint64 ndrScoreWeight
@@ -392,6 +518,8 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
         s_parentPool.ndrScoreWeight = ndrScoreWeight;
     }
 
+    /// @notice Sets the global liquidity cap for the parent pool.
+    /// @param newLiqCap New liquidity cap value.
     function setLiquidityCap(uint256 newLiqCap) external onlyRole(ADMIN) {
         s.parentPool().liquidityCap = newLiqCap;
     }
@@ -404,12 +532,24 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
         s.parentPool().minWithdrawalAmount = newMinWithdrawalAmount;
     }
 
+    /// @notice Sets the average Concero message fee used for withdrawal fee estimation.
+    /// @param averageConceroMessageFee New average Concero message fee.
     function setAverageConceroMessageFee(uint96 averageConceroMessageFee) external onlyRole(ADMIN) {
         s.parentPool().averageConceroMessageFee = averageConceroMessageFee;
     }
 
     /*   INTERNAL FUNCTIONS   */
 
+    /// @notice Processes all queued deposits and mints LP tokens.
+    /// @dev
+    /// - For each deposit:
+    ///   * charges rebalancer fee,
+    ///   * calculates LP to mint based on pre/post-deposit total balance,
+    ///   * mints LP to depositor,
+    ///   * updates `totalDepositAmountInQueue`.
+    /// - Updates total rebalancing fee and clears deposit queue.
+    /// @param totalPoolsBalance Aggregated total pools balance (before deposits).
+    /// @return Total deposited liquidity amount after rebalancer fees.
     function _processDepositsQueue(uint256 totalPoolsBalance) internal returns (uint256) {
         s.ParentPool storage s_parentPool = s.parentPool();
         uint256 totalPoolBalanceWithLockedWithdrawals = totalPoolsBalance +
@@ -451,6 +591,16 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
         return totalDepositedLiqTokenAmount;
     }
 
+    /// @notice Processes all queued withdrawals and creates pending withdrawals.
+    /// @dev
+    /// - For each withdrawal:
+    ///   * calculates withdrawable liquidity via `_calculateWithdrawableAmount`,
+    ///   * accumulates total liquidity to withdraw,
+    ///   * stores `PendingWithdrawal`,
+    ///   * pushes ID into `pendingWithdrawalIds`.
+    /// - Clears `withdrawalQueueIds`.
+    /// @param totalPoolsBalance Total pools balance *after* processing deposits.
+    /// @return Total liquidity token amount to be withdrawn (before fees).
     function _processWithdrawalsQueue(uint256 totalPoolsBalance) internal returns (uint256) {
         s.ParentPool storage s_parentPool = s.parentPool();
         uint256 totalPoolBalanceWithLockedWithdrawals = totalPoolsBalance +
@@ -493,6 +643,21 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
         return totalLiqTokenAmountToWithdraw;
     }
 
+    /// @notice Updates target balances for all pools and locks/allocates withdrawals.
+    /// @dev
+    /// - Computes new target balances using `_calculateNewTargetBalances`.
+    /// - For each pool:
+    ///   * If child pool:
+    ///     - sends `UPDATE_TARGET_BALANCE` message via `_updateChildPoolTargetBalance`,
+    ///     - clears snapshot timestamp to prevent reuse.
+    ///   * If parent pool:
+    ///     - updates:
+    ///       - `totalWithdrawalAmountLocked`,
+    ///       - `remainingWithdrawalAmount`,
+    ///       - `targetBalanceFloor`,
+    ///       - base `targetBalance`.
+    /// @param totalLbfBalance Total Lanca balance after accounting for requested withdrawals.
+    /// @param totalRequested Total requested withdrawal amount (pre-locking).
     function _processPoolsUpdate(uint256 totalLbfBalance, uint256 totalRequested) internal {
         s.ParentPool storage s_parentPool = s.parentPool();
 
@@ -532,6 +697,14 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
         }
     }
 
+    /// @notice Calculates the amount of LP tokens to mint for a given deposit.
+    /// @dev
+    /// - If total LP supply is zero, mints 1:1 relative to deposit.
+    /// - Otherwise:
+    ///   * `lpTokens = totalSupply * deposit / totalLbfActiveBalance`.
+    /// @param totalLbfActiveBalance Total aggregate balance considered for LP pricing.
+    /// @param liquidityTokenAmountToDeposit Deposit amount after any fees.
+    /// @return Amount of LP tokens to mint.
     function _calculateLpTokenAmountToMint(
         uint256 totalLbfActiveBalance,
         uint256 liquidityTokenAmountToDeposit
@@ -543,6 +716,12 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
         return (lpTokenTotalSupply * liquidityTokenAmountToDeposit) / totalLbfActiveBalance;
     }
 
+    /// @notice Computes how much liquidity can be withdrawn for a given LP amount.
+    /// @dev
+    /// - Formula: `withdrawable = totalPoolsBalance * lpTokenAmount / totalLpSupply`.
+    /// @param totalPoolsBalance Aggregated pools balance used for calculation.
+    /// @param lpTokenAmount LP amount being redeemed.
+    /// @return Withdrawable liquidity amount in token units.
     function _calculateWithdrawableAmount(
         uint256 totalPoolsBalance,
         uint256 lpTokenAmount
@@ -551,6 +730,19 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
         return (totalPoolsBalance * lpTokenAmount) / i_lpToken.totalSupply();
     }
 
+    /// @notice Calculates new target balances for each pool based on liquidity health scoring.
+    /// @dev
+    /// - For each child pool:
+    ///   * converts stored snapshot flows to local decimals,
+    ///   * uses stored `childPoolTargetBalances` as previous target balance,
+    ///   * computes weight via `_calculatePoolWeight`.
+    /// - For parent pool:
+    ///   * uses `getTargetBalance()` and `getYesterdayFlow()` to compute weight.
+    /// - Finally:
+    ///   * `newTargetBalance[i] = weight[i] * totalLbfBalance / totalWeight`.
+    /// @param totalLbfBalance Total available balance (after applying requested withdrawals).
+    /// @return chainSelectors Array of pool chain selectors (children + parent).
+    /// @return newTargetBalances Target balances for each chain selector.
     function _calculateNewTargetBalances(
         uint256 totalLbfBalance
     ) internal view returns (uint24[] memory, uint256[] memory) {
@@ -600,6 +792,16 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
         return (chainSelectors, newTargetBalances);
     }
 
+    /// @notice Computes the Liquidity Utilisation Ratio (LUR) score.
+    /// @dev
+    /// - If `targetBalance == 0`, returns maximum score (`scaleFactor`).
+    /// - Otherwise:
+    ///   * `lur = (inflow + outflow) * scale / targetBalance`,
+    ///   * score = `scale - (lur * scale / (lurScoreSensitivity + lur))`.
+    /// @param inflow Daily inflow amount.
+    /// @param outflow Daily outflow amount.
+    /// @param targetBalance Pool target balance.
+    /// @return LUR score in [0, scale].
     function _calculateLiquidityUtilisationRatioScore(
         uint256 inflow,
         uint256 outflow,
@@ -614,6 +816,16 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
             ((lur * i_liquidityTokenScaleFactor) / (s.parentPool().lurScoreSensitivity + lur));
     }
 
+    /// @notice Computes the Net Drain Rate (NDR) score.
+    /// @dev
+    /// - If `inflow >= outflow` or `targetBalance == 0`, returns maximum score.
+    /// - Otherwise:
+    ///   * `ndr = (outflow - inflow) * scale / targetBalance`,
+    ///   * score = `scale - ndr`.
+    /// @param inflow Daily inflow amount.
+    /// @param outflow Daily outflow amount.
+    /// @param targetBalance Pool target balance.
+    /// @return NDR score in [0, scale].
     function _calculateNetDrainRateScore(
         uint256 inflow,
         uint256 outflow,
@@ -625,6 +837,14 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
         return i_liquidityTokenScaleFactor - ndr;
     }
 
+    /// @notice Computes the overall liquidity health score of a pool.
+    /// @dev
+    /// - Combines LUR and NDR scores using configured weights:
+    ///   * `lhs = (lurWeight * lurScore + ndrWeight * ndrScore) / scale`,
+    ///   * healthScore = `scale + (scale - lhs)` (higher is healthier).
+    /// @param dailyFlow Daily inflow/outflow struct.
+    /// @param targetBalance Pool target balance.
+    /// @return Liquidity health score.
     function _calculateLiquidityHealthScore(
         LiqTokenDailyFlow memory dailyFlow,
         uint256 targetBalance
@@ -649,6 +869,11 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
         return i_liquidityTokenScaleFactor + (i_liquidityTokenScaleFactor - lhs);
     }
 
+    /// @notice Calculates a target balance given weight, total weight and total balance.
+    /// @param weight Pool-specific weight.
+    /// @param totalWeight Sum of all pool weights.
+    /// @param totalLbfBalance Total available Lanca balance.
+    /// @return Target balance for the pool.
     function _calculateTargetBalance(
         uint256 weight,
         uint256 totalWeight,
@@ -657,6 +882,15 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
         return (weight * totalLbfBalance) / totalWeight;
     }
 
+    /// @notice Computes a pool weight based on previous target and daily flow.
+    /// @dev
+    /// - If `prevTargetBalance < i_minTargetBalance`:
+    ///   * returns `i_minTargetBalance`.
+    /// - Otherwise:
+    ///   * `weight = prevTargetBalance * healthScore / scale`.
+    /// @param prevTargetBalance Previous target balance for the pool.
+    /// @param dailyFlow Daily inflow/outflow struct.
+    /// @return Weight used in target balance calculation.
     function _calculatePoolWeight(
         uint256 prevTargetBalance,
         LiqTokenDailyFlow memory dailyFlow
@@ -669,6 +903,16 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
                     i_liquidityTokenScaleFactor;
     }
 
+    /// @notice Sends an `UPDATE_TARGET_BALANCE` message to a child pool if its target changes.
+    /// @dev
+    /// - Skips if `childPoolTargetBalances[dstChainSelector] == newTargetBalance`.
+    /// - Validates that a child pool is configured for `dstChainSelector`.
+    /// - Builds a Concero message with:
+    ///   * destination = child pool,
+    ///   * payload = encoded update target balance data.
+    /// - Obtains message fee via `getMessageFee` and immediately sends via `conceroSend`.
+    /// @param dstChainSelector Child pool chain selector.
+    /// @param newTargetBalance New target balance in local liquidity token decimals.
     function _updateChildPoolTargetBalance(
         uint24 dstChainSelector,
         uint256 newTargetBalance
@@ -708,6 +952,17 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
         IConceroRouter(i_conceroRouter).conceroSend{value: messageFee}(messageRequest);
     }
 
+    /// @inheritdoc Rebalancer
+    /// @notice Rebalancing hook called after positive inflows (e.g. child → parent).
+    /// @dev
+    /// - Uses inflow to cover pending withdrawals if:
+    ///   * `remainingWithdrawalAmount > 0`, and
+    ///   * `getActiveBalance() >= targetBalanceFloor`.
+    /// - Adjusts:
+    ///   * `remainingWithdrawalAmount`,
+    ///   * `totalWithdrawalAmountLocked`,
+    ///   * base `targetBalance`.
+    /// @param inflowLiqTokenAmount Amount of liquidity received.
     function _postInflowRebalance(uint256 inflowLiqTokenAmount) internal override {
         s.ParentPool storage s_parentPool = s.parentPool();
 
@@ -728,11 +983,38 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
         }
     }
 
+    /// @notice Checks whether a child pool snapshot timestamp is fresh and valid.
+    /// @dev
+    /// - Rejects:
+    ///   * zero timestamps,
+    ///   * timestamps in the future,
+    ///   * timestamps older than `CHILD_POOL_SNAPSHOT_EXPIRATION_TIME`.
+    /// @param timestamp Snapshot timestamp.
+    /// @return True if timestamp is within valid range; otherwise false.
     function _isChildPoolSnapshotTimestampInRange(uint32 timestamp) internal view returns (bool) {
         if ((timestamp == 0) || (timestamp > block.timestamp)) return false;
         return (block.timestamp - timestamp) <= (CHILD_POOL_SNAPSHOT_EXPIRATION_TIME);
     }
 
+    /// @notice Aggregates total pools balance across parent and child pools.
+    /// @dev
+    /// - Steps:
+    ///   1. Collects local stats (parent pool):
+    ///      * active balance,
+    ///      * IOU totals,
+    ///      * total liquidity sent/received.
+    ///   2. Converts all local amounts to `SCALE_TOKEN_DECIMALS`.
+    ///   3. For each child pool:
+    ///      * validates snapshot timestamp range,
+    ///      * adds child metrics to totals.
+    ///   4. Computes:
+    ///      * `iouOnTheWay = totalIouSent - totalIouReceived`,
+    ///      * `liqTokenOnTheWay = totalLiqTokenSent - totalLiqTokenReceived`,
+    ///      * `totalPoolsBalance = totalPoolsBalance - (liqOnTheWay + iouTotalSupply + iouOnTheWay)`.
+    ///   5. Converts `totalPoolsBalance` back to local decimals.
+    /// - Returns `(false, 0)` if any snapshot is stale or invalid.
+    /// @return success True if all snapshots are valid.
+    /// @return totalPoolsBalance Aggregated effective pools balance in local decimals.
     function _getTotalPoolsBalance() internal view returns (bool, uint256) {
         s.ParentPool storage s_parentPool = s.parentPool();
         rs.Rebalancer storage s_rebalancer = rs.rebalancer();
@@ -789,6 +1071,13 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
         return (true, totalPoolsBalance);
     }
 
+    /// @notice Handles incoming child pool snapshots sent via Concero.
+    /// @dev
+    /// - Decodes snapshot + source decimals via `decodeChildPoolSnapshot`.
+    /// - Converts all amounts to `SCALE_TOKEN_DECIMALS` using `_toScaleDecimals`.
+    /// - Stores the converted snapshot in `childPoolSnapshots[sourceChainSelector]`.
+    /// @param sourceChainSelector Chain selector of the child pool.
+    /// @param messageData Encoded snapshot payload.
     function _handleConceroReceiveSnapshot(
         uint24 sourceChainSelector,
         bytes calldata messageData
@@ -814,14 +1103,22 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
         s.parentPool().childPoolSnapshots[sourceChainSelector] = snapshot;
     }
 
+    /// @dev
+    /// - Parent pool does not accept `UPDATE_TARGET_BALANCE` messages (it is the source of truth).
+    /// - Always reverts with `FunctionNotImplemented`.
     function _handleConceroReceiveUpdateTargetBalance(bytes calldata) internal pure override {
         revert ICommonErrors.FunctionNotImplemented();
     }
 
+    /// @notice Converts an amount from arbitrary decimals to the internal scale decimals.
+    /// @dev Uses `Decimals.toDecimals` helper under the hood.
+    /// @param amountInSrcDecimals Amount in source decimals.
+    /// @param srcDecimals Source token decimals.
+    /// @return Amount scaled to `SCALE_TOKEN_DECIMALS`.
     function _toScaleDecimals(
         uint256 amountInSrcDecimals,
         uint8 srcDecimals
-    ) internal view returns (uint256) {
+    ) internal pure returns (uint256) {
         return amountInSrcDecimals.toDecimals(srcDecimals, SCALE_TOKEN_DECIMALS);
     }
 }
