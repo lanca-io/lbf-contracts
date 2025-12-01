@@ -81,6 +81,7 @@ abstract contract RebalancerBase is LancaTest {
         _setMinDepositAmount(_addDecimals(100));
         _setMinWithdrawalAmount(_addDecimals(100));
         _setLibs();
+        _setFeeBps();
     }
 
     /* HELPER FUNCTIONS */
@@ -622,6 +623,46 @@ abstract contract RebalancerBase is LancaTest {
         MockERC20(address(s_usdc)).mint(s_deployer, amount);
         MockERC20(address(s_usdc)).approve(pool, amount);
         Rebalancer(payable(pool)).topUpRebalancingFee(amount);
+        vm.stopPrank();
+    }
+
+    function _setFeeBps() internal {
+        vm.startPrank(s_deployer);
+
+        s_parentPool.setRebalancerFeeBps(REBALANCER_FEE_BPS); // 1bps
+        s_parentPool.setLancaBridgeFeeBps(LANCA_BRIDGE_FEE_BPS); // 5bps
+        s_parentPool.setLpFeeBps(LP_FEE_BPS); // 1bps
+
+        s_childPool_1.setRebalancerFeeBps(REBALANCER_FEE_BPS);
+        s_childPool_2.setRebalancerFeeBps(REBALANCER_FEE_BPS);
+        s_childPool_3.setRebalancerFeeBps(REBALANCER_FEE_BPS);
+        s_childPool_4.setRebalancerFeeBps(REBALANCER_FEE_BPS);
+        s_childPool_5.setRebalancerFeeBps(REBALANCER_FEE_BPS);
+        s_childPool_6.setRebalancerFeeBps(REBALANCER_FEE_BPS);
+        s_childPool_7.setRebalancerFeeBps(REBALANCER_FEE_BPS);
+        s_childPool_8.setRebalancerFeeBps(REBALANCER_FEE_BPS);
+        s_childPool_9.setRebalancerFeeBps(REBALANCER_FEE_BPS);
+
+        s_childPool_1.setLancaBridgeFeeBps(LANCA_BRIDGE_FEE_BPS);
+        s_childPool_2.setLancaBridgeFeeBps(LANCA_BRIDGE_FEE_BPS);
+        s_childPool_3.setLancaBridgeFeeBps(LANCA_BRIDGE_FEE_BPS);
+        s_childPool_4.setLancaBridgeFeeBps(LANCA_BRIDGE_FEE_BPS);
+        s_childPool_5.setLancaBridgeFeeBps(LANCA_BRIDGE_FEE_BPS);
+        s_childPool_6.setLancaBridgeFeeBps(LANCA_BRIDGE_FEE_BPS);
+        s_childPool_7.setLancaBridgeFeeBps(LANCA_BRIDGE_FEE_BPS);
+        s_childPool_8.setLancaBridgeFeeBps(LANCA_BRIDGE_FEE_BPS);
+        s_childPool_9.setLancaBridgeFeeBps(LANCA_BRIDGE_FEE_BPS);
+
+        s_childPool_1.setLpFeeBps(LP_FEE_BPS);
+        s_childPool_2.setLpFeeBps(LP_FEE_BPS);
+        s_childPool_3.setLpFeeBps(LP_FEE_BPS);
+        s_childPool_4.setLpFeeBps(LP_FEE_BPS);
+        s_childPool_5.setLpFeeBps(LP_FEE_BPS);
+        s_childPool_6.setLpFeeBps(LP_FEE_BPS);
+        s_childPool_7.setLpFeeBps(LP_FEE_BPS);
+        s_childPool_8.setLpFeeBps(LP_FEE_BPS);
+        s_childPool_9.setLpFeeBps(LP_FEE_BPS);
+
         vm.stopPrank();
     }
 }

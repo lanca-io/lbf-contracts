@@ -457,9 +457,9 @@ abstract contract ParentPoolBase is LancaTest {
     function _setFeeBps() internal {
         vm.startPrank(s_deployer);
 
-        s_parentPool.setRebalancerFeeBps(10); // 1bps
-        s_parentPool.setLancaBridgeFeeBps(50); // 5bps
-        s_parentPool.setLpFeeBps(10); // 1bps
+        s_parentPool.setRebalancerFeeBps(REBALANCER_FEE_BPS); // 1bps
+        s_parentPool.setLancaBridgeFeeBps(LANCA_BRIDGE_FEE_BPS); // 5bps
+        s_parentPool.setLpFeeBps(LP_FEE_BPS); // 1bps
 
         vm.stopPrank();
     }
