@@ -10,8 +10,8 @@ import {MessageCodec} from "@concero/v2-contracts/contracts/common/libraries/Mes
 import {Storage as rs} from "../../Rebalancer/libraries/Storage.sol";
 import {Storage as pbs} from "../../Base/libraries/Storage.sol";
 import {IBase} from "../../Base/interfaces/IBase.sol";
-import {Decimals} from "../../common/libraries/Decimals.sol";
 import {BridgeCodec} from "../../common/libraries/BridgeCodec.sol";
+import {Decimals} from "../../common/libraries/Decimals.sol";
 import {ICommonErrors} from "../../common/interfaces/ICommonErrors.sol";
 import {IParentPool} from "../interfaces/IParentPool.sol";
 import {LPToken} from "../LPToken.sol";
@@ -23,19 +23,23 @@ library ParentPoolLib {
     using BridgeCodec for bytes;
     using SafeERC20 for IERC20;
 
-    uint8 internal constant LIQUIDITY_TOKEN_DECIMALS = 6;
     uint8 internal constant SCALE_TOKEN_DECIMALS = 24;
     uint8 internal constant MAX_QUEUE_LENGTH = 250;
     uint32 internal constant CHILD_POOL_SNAPSHOT_EXPIRATION_TIME = 5 minutes;
     uint32 internal constant UPDATE_TARGET_BALANCE_MESSAGE_GAS_LIMIT = 100_000;
 
-    struct TargetBalanceCalculationParams {
-        uint256 scaleFactor;
+    struct TriggerProcessParams {
+        uint256 activeBalance;
+        address iouToken;
+        address lpToken;
+        address conceroRouter;
+        uint8 liquidityTokenDecimals;
+        uint24 parentChainSelector;
         uint64 lurScoreSensitivity;
         uint64 lurScoreWeight;
         uint64 ndrScoreWeight;
+        uint256 liquidityTokenScaleFactor;
         uint256 minTargetBalance;
-        uint24 parentChainSelector;
         uint256 parentTargetBalance;
         IBase.LiqTokenDailyFlow parentYesterdayFlow;
     }
@@ -49,17 +53,271 @@ library ParentPoolLib {
         uint256 totalLiqTokenReceived;
     }
 
-    struct ProcessWithdrawalResult {
-        uint256 liqTokenAmount;
-        uint256 lancaFee;
-        uint256 rebalanceFee;
+    function enterDepositQueue(
+        s.ParentPool storage s_parentPool,
+        uint256 liquidityTokenAmount,
+        address liquidityToken
+    ) external {
+        uint64 minDepositAmount = s_parentPool.minDepositAmount;
+        require(minDepositAmount > 0, ICommonErrors.MinDepositAmountNotSet());
+        require(
+            liquidityTokenAmount >= minDepositAmount,
+            ICommonErrors.DepositAmountIsTooLow(liquidityTokenAmount, minDepositAmount)
+        );
+
+        require(
+            s_parentPool.depositQueueIds.length < MAX_QUEUE_LENGTH,
+            IParentPool.DepositQueueIsFull()
+        );
+        require(
+            s_parentPool.prevTotalPoolsBalance <= s_parentPool.liquidityCap,
+            IParentPool.LiquidityCapReached(s_parentPool.liquidityCap)
+        );
+
+        IERC20(liquidityToken).safeTransferFrom(msg.sender, address(this), liquidityTokenAmount);
+
+        IParentPool.Deposit memory deposit = IParentPool.Deposit({
+            liquidityTokenAmountToDeposit: liquidityTokenAmount,
+            lp: msg.sender
+        });
+        bytes32 depositId = keccak256(
+            abi.encodePacked(msg.sender, block.number, ++s_parentPool.depositNonce)
+        );
+
+        s_parentPool.depositQueue[depositId] = deposit;
+        s_parentPool.depositQueueIds.push(depositId);
+        s_parentPool.totalDepositAmountInQueue += liquidityTokenAmount;
+
+        emit IParentPool.DepositQueued(depositId, deposit.lp, liquidityTokenAmount);
     }
 
-    struct ProcessDepositsParams {
+    function enterWithdrawalQueue(
+        s.ParentPool storage s_parentPool,
+        uint256 lpTokenAmount,
+        address lpToken
+    ) external {
+        uint64 minWithdrawalAmount = s_parentPool.minWithdrawalAmount;
+        require(minWithdrawalAmount > 0, ICommonErrors.MinWithdrawalAmountNotSet());
+        require(
+            lpTokenAmount >= minWithdrawalAmount,
+            ICommonErrors.WithdrawalAmountIsTooLow(lpTokenAmount, minWithdrawalAmount)
+        );
+
+        require(
+            s_parentPool.withdrawalQueueIds.length < MAX_QUEUE_LENGTH,
+            IParentPool.WithdrawalQueueIsFull()
+        );
+
+        IERC20(lpToken).safeTransferFrom(msg.sender, address(this), lpTokenAmount);
+
+        IParentPool.Withdrawal memory withdraw = IParentPool.Withdrawal({
+            lpTokenAmountToWithdraw: lpTokenAmount,
+            lp: msg.sender
+        });
+        bytes32 withdrawalId = keccak256(
+            abi.encodePacked(msg.sender, block.number, ++s_parentPool.withdrawalNonce)
+        );
+
+        s_parentPool.withdrawalQueue[withdrawalId] = withdraw;
+        s_parentPool.withdrawalQueueIds.push(withdrawalId);
+
+        emit IParentPool.WithdrawalQueued(withdrawalId, withdraw.lp, lpTokenAmount);
+    }
+
+    function triggerDepositWithdrawalProcess(
+        s.ParentPool storage s_parentPool,
+        rs.Rebalancer storage s_rebalancer,
+        pbs.Base storage s_base,
+        TriggerProcessParams calldata params,
+        function() external returns (uint256) getActiveBalance,
+        function(uint256) external view returns (uint256) getRebalancerFee
+    ) external {
         uint256 totalPoolsBalance;
-        uint8 rebalancerFeeBps;
-        uint24 bpsDenominator;
-        address lpToken;
+        {
+            bool areChildPoolSnapshotsReady;
+            (areChildPoolSnapshotsReady, totalPoolsBalance) = getTotalPoolsBalance(
+                s_parentPool,
+                s_rebalancer,
+                s_base,
+                params.activeBalance,
+                IERC20(params.iouToken).totalSupply(),
+                params.liquidityTokenDecimals
+            );
+            require(areChildPoolSnapshotsReady, IParentPool.ChildPoolSnapshotsAreNotReady());
+        }
+
+        s_parentPool.prevTotalPoolsBalance = totalPoolsBalance;
+
+        uint256 totalRequestedWithdrawals;
+        uint256 availableBalance;
+        {
+            uint256 deposited = _processDepositsQueue(
+                s_parentPool,
+                s_rebalancer,
+                totalPoolsBalance,
+                params.lpToken,
+                getRebalancerFee
+            );
+
+            uint256 newTotalBalance = totalPoolsBalance + deposited;
+            uint256 withdrawals = _processWithdrawalsQueue(
+                s_parentPool,
+                newTotalBalance,
+                params.lpToken
+            );
+            totalRequestedWithdrawals = s_parentPool.remainingWithdrawalAmount + withdrawals;
+            availableBalance = newTotalBalance - totalRequestedWithdrawals;
+        }
+
+        uint24[] memory chainSelectors;
+        uint256[] memory targetBalances;
+        {
+            (chainSelectors, targetBalances) = _calculateNewTargetBalances(
+                s_parentPool,
+                availableBalance,
+                params
+            );
+        }
+
+        _updateChildPoolTargetBalances(
+            s_parentPool,
+            s_base,
+            chainSelectors,
+            targetBalances,
+            totalRequestedWithdrawals,
+            getActiveBalance(),
+            params.parentChainSelector,
+            params.conceroRouter,
+            params.liquidityTokenDecimals
+        );
+    }
+
+    function processPendingWithdrawals(
+        s.ParentPool storage s_parentPool,
+        rs.Rebalancer storage s_rebalancer,
+        pbs.Base storage s_base,
+        address liquidityToken,
+        address lpToken,
+        function(address, address, uint256) external safeTransferWrapper,
+        function(uint256) external view returns (uint256, uint256) getWithdrawalFee
+    ) external {
+        bytes32[] memory pendingWithdrawalIds = s_parentPool.pendingWithdrawalIds;
+        uint256 totalLiquidityTokenAmountToWithdraw;
+        uint256 totalLancaFee;
+        uint256 totalRebalancingFeeAmount;
+
+        for (uint256 i; i < pendingWithdrawalIds.length; ++i) {
+            IParentPool.PendingWithdrawal memory pendingWithdrawal = s_parentPool
+                .pendingWithdrawals[pendingWithdrawalIds[i]];
+            delete s_parentPool.pendingWithdrawals[pendingWithdrawalIds[i]];
+
+            (uint256 conceroFee, uint256 rebalanceFee) = getWithdrawalFee(
+                pendingWithdrawal.liqTokenAmountToWithdraw
+            );
+            uint256 amountToWithdrawWithFee = pendingWithdrawal.liqTokenAmountToWithdraw -
+                (conceroFee + rebalanceFee);
+            totalRebalancingFeeAmount += rebalanceFee;
+
+            totalLiquidityTokenAmountToWithdraw += pendingWithdrawal.liqTokenAmountToWithdraw;
+
+            try safeTransferWrapper(liquidityToken, pendingWithdrawal.lp, amountToWithdrawWithFee) {
+                LPToken(lpToken).burn(pendingWithdrawal.lpTokenAmountToWithdraw);
+                totalLancaFee += conceroFee;
+
+                emit IParentPool.WithdrawalCompleted(
+                    pendingWithdrawalIds[i],
+                    amountToWithdrawWithFee
+                );
+            } catch {
+                IERC20(lpToken).safeTransfer(
+                    pendingWithdrawal.lp,
+                    pendingWithdrawal.lpTokenAmountToWithdraw
+                );
+
+                emit IParentPool.WithdrawalFailed(
+                    pendingWithdrawal.lp,
+                    pendingWithdrawal.lpTokenAmountToWithdraw
+                );
+
+                continue;
+            }
+        }
+
+        /* @dev do not clear this array before a loop because
+                clearing it will affect getWithdrawalFee() */
+        delete s_parentPool.pendingWithdrawalIds;
+
+        s_rebalancer.totalRebalancingFeeAmount += totalRebalancingFeeAmount;
+        s_parentPool.totalWithdrawalAmountLocked -= totalLiquidityTokenAmountToWithdraw;
+        s_base.totalLancaFeeInLiqToken += totalLancaFee;
+    }
+
+    /// @notice Aggregates total pools balance from parent + child snapshots.
+    /// @param s_parentPool Storage reference to ParentPool.
+    /// @param s_rebalancer Storage reference to Rebalancer.
+    /// @param s_poolBase Storage reference to Base.
+    /// @param activeBalance Current active balance.
+    /// @param iouTotalSupply Total IOU token supply.
+    /// @param liquidityTokenDecimals Decimals of liquidity token.
+    /// @return success True if all snapshots are valid and fresh.
+    /// @return totalPoolsBalance Aggregated balance in local decimals.
+    function getTotalPoolsBalance(
+        s.ParentPool storage s_parentPool,
+        rs.Rebalancer storage s_rebalancer,
+        pbs.Base storage s_poolBase,
+        uint256 activeBalance,
+        uint256 iouTotalSupply,
+        uint8 liquidityTokenDecimals
+    ) public view returns (bool, uint256) {
+        TotalBalanceAccumulator memory acc;
+        acc.totalPoolsBalance = _toScaleDecimals(activeBalance, liquidityTokenDecimals);
+        acc.totalIouSent = _toScaleDecimals(s_rebalancer.totalIouSent, liquidityTokenDecimals);
+        acc.totalIouReceived = _toScaleDecimals(
+            s_rebalancer.totalIouReceived,
+            liquidityTokenDecimals
+        );
+        acc.iouTotalSupply = _toScaleDecimals(iouTotalSupply, liquidityTokenDecimals);
+        acc.totalLiqTokenSent = _toScaleDecimals(
+            s_poolBase.totalLiqTokenSent,
+            liquidityTokenDecimals
+        );
+        acc.totalLiqTokenReceived = _toScaleDecimals(
+            s_poolBase.totalLiqTokenReceived,
+            liquidityTokenDecimals
+        );
+
+        uint24[] memory selectors = s_parentPool.supportedChainSelectors;
+        for (uint256 i; i < selectors.length; ++i) {
+            if (
+                !_isChildPoolSnapshotTimestampInRange(
+                    s_parentPool.childPoolSnapshots[selectors[i]].timestamp
+                )
+            ) {
+                return (false, 0);
+            }
+
+            acc.totalPoolsBalance += s_parentPool.childPoolSnapshots[selectors[i]].balance;
+            acc.totalIouSent += s_parentPool.childPoolSnapshots[selectors[i]].iouTotalSent;
+            acc.totalIouReceived += s_parentPool.childPoolSnapshots[selectors[i]].iouTotalReceived;
+            acc.iouTotalSupply += s_parentPool.childPoolSnapshots[selectors[i]].iouTotalSupply;
+            acc.totalLiqTokenSent += s_parentPool
+                .childPoolSnapshots[selectors[i]]
+                .totalLiqTokenSent;
+            acc.totalLiqTokenReceived += s_parentPool
+                .childPoolSnapshots[selectors[i]]
+                .totalLiqTokenReceived;
+        }
+
+        uint256 iouOnTheWay = acc.totalIouSent - acc.totalIouReceived;
+        uint256 liqTokenOnTheWay = acc.totalLiqTokenSent - acc.totalLiqTokenReceived;
+
+        acc.totalPoolsBalance =
+            acc.totalPoolsBalance - (liqTokenOnTheWay + acc.iouTotalSupply + iouOnTheWay);
+
+        return (
+            true,
+            acc.totalPoolsBalance.toDecimals(SCALE_TOKEN_DECIMALS, liquidityTokenDecimals)
+        );
     }
 
     /// @notice Computes how much liquidity can be withdrawn for a given LP amount.
@@ -67,6 +325,7 @@ library ParentPoolLib {
     /// - Formula: `withdrawable = totalPoolsBalance * lpTokenAmount / totalLpSupply`.
     /// @param totalPoolsBalance Aggregated pools balance used for calculation.
     /// @param lpTokenAmount LP amount being redeemed.
+    /// @param lpToken LP token address.
     /// @return Withdrawable liquidity amount in token units.
     function calculateWithdrawableAmount(
         uint256 totalPoolsBalance,
@@ -77,17 +336,116 @@ library ParentPoolLib {
         return (totalPoolsBalance * lpTokenAmount) / IERC20(lpToken).totalSupply();
     }
 
+    /*   PRIVATE HELPERS   */
+
+    /// @notice Processes all queued deposits and mints LP tokens.
+    /// @param s_parentPool Storage reference to ParentPool.
+    /// @param s_rebalancer Storage reference to Rebalancer.
+    /// @param totalPoolsBalance Total pools balance.
+    /// @param lpToken LP token address.
+    /// @param getRebalancerFee Function to get the rebalancer fee.
+    /// @return totalDepositedLiqTokenAmount Total deposited liquidity amount after rebalancer fees.
+    function _processDepositsQueue(
+        s.ParentPool storage s_parentPool,
+        rs.Rebalancer storage s_rebalancer,
+        uint256 totalPoolsBalance,
+        address lpToken,
+        function(uint256) external view returns (uint256) getRebalancerFee
+    ) private returns (uint256 totalDepositedLiqTokenAmount) {
+        uint256 totalPoolBalanceWithLockedWithdrawals = totalPoolsBalance +
+            s_parentPool.totalWithdrawalAmountLocked;
+
+        bytes32[] memory depositQueueIds = s_parentPool.depositQueueIds;
+        uint256 totalDepositFee;
+
+        for (uint256 i; i < depositQueueIds.length; ++i) {
+            bytes32 depositId = depositQueueIds[i];
+            IParentPool.Deposit memory deposit = s_parentPool.depositQueue[depositId];
+            delete s_parentPool.depositQueue[depositId];
+
+            uint256 depositFee = getRebalancerFee(deposit.liquidityTokenAmountToDeposit);
+            uint256 amountToDepositWithFee = deposit.liquidityTokenAmountToDeposit - depositFee;
+            totalDepositFee += depositFee;
+
+            uint256 lpTokenAmountToMint = _calculateLpTokenAmountToMint(
+                totalPoolBalanceWithLockedWithdrawals + totalDepositedLiqTokenAmount,
+                amountToDepositWithFee,
+                lpToken
+            );
+
+            s_parentPool.totalDepositAmountInQueue -= deposit.liquidityTokenAmountToDeposit;
+            LPToken(lpToken).mint(deposit.lp, lpTokenAmountToMint);
+            totalDepositedLiqTokenAmount += amountToDepositWithFee;
+
+            emit IParentPool.DepositProcessed(
+                depositId,
+                deposit.lp,
+                amountToDepositWithFee,
+                lpTokenAmountToMint
+            );
+        }
+
+        delete s_parentPool.depositQueueIds;
+        s_rebalancer.totalRebalancingFeeAmount += totalDepositFee;
+    }
+
+    /// @notice Processes all queued withdrawals and creates pending withdrawals.
+    /// @param s_parentPool Storage reference to ParentPool.
+    /// @param totalPoolsBalance Total balance.
+    /// @param lpToken LP token address.
+    /// @return totalLiqTokenAmountToWithdraw Total liquidity to withdraw.
+    function _processWithdrawalsQueue(
+        s.ParentPool storage s_parentPool,
+        uint256 totalPoolsBalance,
+        address lpToken
+    ) private returns (uint256 totalLiqTokenAmountToWithdraw) {
+        uint256 totalPoolBalanceWithLockedWithdrawals = totalPoolsBalance +
+            s_parentPool.totalWithdrawalAmountLocked;
+        bytes32[] memory withdrawalQueueIds = s_parentPool.withdrawalQueueIds;
+
+        for (uint256 i; i < withdrawalQueueIds.length; ++i) {
+            IParentPool.Withdrawal memory withdrawal = s_parentPool.withdrawalQueue[
+                withdrawalQueueIds[i]
+            ];
+            delete s_parentPool.withdrawalQueue[withdrawalQueueIds[i]];
+
+            uint256 liqTokenAmountToWithdraw = calculateWithdrawableAmount(
+                totalPoolBalanceWithLockedWithdrawals,
+                withdrawal.lpTokenAmountToWithdraw,
+                lpToken
+            );
+
+            totalLiqTokenAmountToWithdraw += liqTokenAmountToWithdraw;
+
+            s_parentPool.pendingWithdrawals[withdrawalQueueIds[i]] = IParentPool.PendingWithdrawal({
+                liqTokenAmountToWithdraw: liqTokenAmountToWithdraw,
+                lpTokenAmountToWithdraw: withdrawal.lpTokenAmountToWithdraw,
+                lp: withdrawal.lp
+            });
+            s_parentPool.pendingWithdrawalIds.push(withdrawalQueueIds[i]);
+
+            emit IParentPool.WithdrawalProcessed(
+                withdrawalQueueIds[i],
+                withdrawal.lp,
+                withdrawal.lpTokenAmountToWithdraw,
+                liqTokenAmountToWithdraw
+            );
+        }
+
+        delete s_parentPool.withdrawalQueueIds;
+    }
+
     /// @notice Calculates new target balances for all pools.
     /// @param s_parentPool Storage reference to ParentPool.
     /// @param totalLbfBalance Total available balance.
     /// @param params Calculation parameters.
     /// @return chainSelectors Array of pool chain selectors.
     /// @return newTargetBalances Target balances for each chain selector.
-    function calculateNewTargetBalances(
+    function _calculateNewTargetBalances(
         s.ParentPool storage s_parentPool,
         uint256 totalLbfBalance,
-        TargetBalanceCalculationParams memory params
-    ) external view returns (uint24[] memory, uint256[] memory) {
+        TriggerProcessParams memory params
+    ) private view returns (uint24[] memory, uint256[] memory) {
         uint24[] memory childPoolChainSelectors = s_parentPool.supportedChainSelectors;
         uint256 childCount = childPoolChainSelectors.length;
 
@@ -106,11 +464,13 @@ library ParentPoolLib {
             IBase.LiqTokenDailyFlow memory dailyFlow = IBase.LiqTokenDailyFlow({
                 inflow: _toLocalDecimals(
                     s_parentPool.childPoolSnapshots[childPoolChainSelectors[i]].dailyFlow.inflow,
-                    SCALE_TOKEN_DECIMALS
+                    SCALE_TOKEN_DECIMALS,
+                    params.liquidityTokenDecimals
                 ),
                 outflow: _toLocalDecimals(
                     s_parentPool.childPoolSnapshots[childPoolChainSelectors[i]].dailyFlow.outflow,
-                    SCALE_TOKEN_DECIMALS
+                    SCALE_TOKEN_DECIMALS,
+                    params.liquidityTokenDecimals
                 )
             });
 
@@ -142,7 +502,7 @@ library ParentPoolLib {
 
     /// @notice Updates target balances for all pools and locks/allocates withdrawals.
     /// @dev
-    /// - Computes new target balances using `ParentPoolLib::calculateNewTargetBalances`.
+    /// - Computes new target balances using `_calculateNewTargetBalances`.
     /// - For each pool:
     ///   * If child pool:
     ///     - sends `UPDATE_TARGET_BALANCE` message via `_updateChildPoolTargetBalance`,
@@ -153,7 +513,7 @@ library ParentPoolLib {
     ///       - `remainingWithdrawalAmount`,
     ///       - `targetBalanceFloor`,
     ///       - base `targetBalance`.
-    function updateChildPoolTargetBalances(
+    function _updateChildPoolTargetBalances(
         s.ParentPool storage s_parentPool,
         pbs.Base storage s_base,
         uint24[] memory chainSelectors,
@@ -161,8 +521,9 @@ library ParentPoolLib {
         uint256 totalRequested,
         uint256 activeBalance,
         uint24 parentChainSelector,
-        address conceroRouter
-    ) external {
+        address conceroRouter,
+        uint8 liquidityTokenDecimals
+    ) private {
         for (uint256 i; i < chainSelectors.length; ++i) {
             // @dev check if it is child pool chain selector
             if (chainSelectors[i] != parentChainSelector) {
@@ -171,7 +532,7 @@ library ParentPoolLib {
                     s_base,
                     chainSelectors[i],
                     targetBalances[i],
-                    LIQUIDITY_TOKEN_DECIMALS,
+                    liquidityTokenDecimals,
                     conceroRouter
                 );
 
@@ -250,305 +611,6 @@ library ParentPoolLib {
         IConceroRouter(conceroRouter).conceroSend{value: messageFee}(messageRequest);
     }
 
-    /// @notice Aggregates total pools balance from parent + child snapshots.
-    /// @param s_parentPool Storage reference to ParentPool.
-    /// @param s_rebalancer Storage reference to Rebalancer.
-    /// @param s_poolBase Storage reference to Base.
-    /// @param activeBalance Current active balance.
-    /// @param iouTotalSupply Total IOU token supply.
-    /// @param liquidityTokenDecimals Decimals of liquidity token.
-    /// @return success True if all snapshots are valid and fresh.
-    /// @return totalPoolsBalance Aggregated balance in local decimals.
-    function getTotalPoolsBalance(
-        s.ParentPool storage s_parentPool,
-        rs.Rebalancer storage s_rebalancer,
-        pbs.Base storage s_poolBase,
-        uint256 activeBalance,
-        uint256 iouTotalSupply,
-        uint8 liquidityTokenDecimals
-    ) external view returns (bool, uint256) {
-        TotalBalanceAccumulator memory acc;
-        acc.totalPoolsBalance = _toScaleDecimals(activeBalance, liquidityTokenDecimals);
-        acc.totalIouSent = _toScaleDecimals(s_rebalancer.totalIouSent, liquidityTokenDecimals);
-        acc.totalIouReceived = _toScaleDecimals(
-            s_rebalancer.totalIouReceived,
-            liquidityTokenDecimals
-        );
-        acc.iouTotalSupply = _toScaleDecimals(iouTotalSupply, liquidityTokenDecimals);
-        acc.totalLiqTokenSent = _toScaleDecimals(
-            s_poolBase.totalLiqTokenSent,
-            liquidityTokenDecimals
-        );
-        acc.totalLiqTokenReceived = _toScaleDecimals(
-            s_poolBase.totalLiqTokenReceived,
-            liquidityTokenDecimals
-        );
-
-        uint24[] memory selectors = s_parentPool.supportedChainSelectors;
-        for (uint256 i; i < selectors.length; ++i) {
-            if (
-                !_isChildPoolSnapshotTimestampInRange(
-                    s_parentPool.childPoolSnapshots[selectors[i]].timestamp
-                )
-            ) {
-                return (false, 0);
-            }
-
-            acc.totalPoolsBalance += s_parentPool.childPoolSnapshots[selectors[i]].balance;
-            acc.totalIouSent += s_parentPool.childPoolSnapshots[selectors[i]].iouTotalSent;
-            acc.totalIouReceived += s_parentPool.childPoolSnapshots[selectors[i]].iouTotalReceived;
-            acc.iouTotalSupply += s_parentPool.childPoolSnapshots[selectors[i]].iouTotalSupply;
-            acc.totalLiqTokenSent += s_parentPool
-                .childPoolSnapshots[selectors[i]]
-                .totalLiqTokenSent;
-            acc.totalLiqTokenReceived += s_parentPool
-                .childPoolSnapshots[selectors[i]]
-                .totalLiqTokenReceived;
-        }
-
-        uint256 iouOnTheWay = acc.totalIouSent - acc.totalIouReceived;
-        uint256 liqTokenOnTheWay = acc.totalLiqTokenSent - acc.totalLiqTokenReceived;
-
-        acc.totalPoolsBalance =
-            acc.totalPoolsBalance - (liqTokenOnTheWay + acc.iouTotalSupply + iouOnTheWay);
-
-        return (
-            true,
-            acc.totalPoolsBalance.toDecimals(SCALE_TOKEN_DECIMALS, liquidityTokenDecimals)
-        );
-    }
-
-    function enterDepositQueue(
-        s.ParentPool storage s_parentPool,
-        uint256 liquidityTokenAmount,
-        address liquidityToken
-    ) external {
-        uint64 minDepositAmount = s_parentPool.minDepositAmount;
-        require(minDepositAmount > 0, ICommonErrors.MinDepositAmountNotSet());
-        require(
-            liquidityTokenAmount >= minDepositAmount,
-            ICommonErrors.DepositAmountIsTooLow(liquidityTokenAmount, minDepositAmount)
-        );
-
-        require(
-            s_parentPool.depositQueueIds.length < MAX_QUEUE_LENGTH,
-            IParentPool.DepositQueueIsFull()
-        );
-        require(
-            s_parentPool.prevTotalPoolsBalance <= s_parentPool.liquidityCap,
-            IParentPool.LiquidityCapReached(s_parentPool.liquidityCap)
-        );
-
-        IERC20(liquidityToken).safeTransferFrom(msg.sender, address(this), liquidityTokenAmount);
-
-        IParentPool.Deposit memory deposit = IParentPool.Deposit({
-            liquidityTokenAmountToDeposit: liquidityTokenAmount,
-            lp: msg.sender
-        });
-        bytes32 depositId = keccak256(
-            abi.encodePacked(msg.sender, block.number, ++s_parentPool.depositNonce)
-        );
-
-        s_parentPool.depositQueue[depositId] = deposit;
-        s_parentPool.depositQueueIds.push(depositId);
-        s_parentPool.totalDepositAmountInQueue += liquidityTokenAmount;
-
-        emit IParentPool.DepositQueued(depositId, deposit.lp, liquidityTokenAmount);
-    }
-
-    function enterWithdrawalQueue(
-        s.ParentPool storage s_parentPool,
-        uint256 lpTokenAmount,
-        address lpToken
-    ) external {
-        uint64 minWithdrawalAmount = s_parentPool.minWithdrawalAmount;
-        require(minWithdrawalAmount > 0, ICommonErrors.MinWithdrawalAmountNotSet());
-        require(
-            lpTokenAmount >= minWithdrawalAmount,
-            ICommonErrors.WithdrawalAmountIsTooLow(lpTokenAmount, minWithdrawalAmount)
-        );
-
-        require(
-            s_parentPool.withdrawalQueueIds.length < MAX_QUEUE_LENGTH,
-            IParentPool.WithdrawalQueueIsFull()
-        );
-
-        IERC20(lpToken).safeTransferFrom(msg.sender, address(this), lpTokenAmount);
-
-        IParentPool.Withdrawal memory withdraw = IParentPool.Withdrawal({
-            lpTokenAmountToWithdraw: lpTokenAmount,
-            lp: msg.sender
-        });
-        bytes32 withdrawalId = keccak256(
-            abi.encodePacked(msg.sender, block.number, ++s_parentPool.withdrawalNonce)
-        );
-
-        s_parentPool.withdrawalQueue[withdrawalId] = withdraw;
-        s_parentPool.withdrawalQueueIds.push(withdrawalId);
-
-        emit IParentPool.WithdrawalQueued(withdrawalId, withdraw.lp, lpTokenAmount);
-    }
-
-    /// @notice Processes all queued deposits and mints LP tokens.
-    /// @param s_parentPool Storage reference to ParentPool.
-    /// @param s_rebalancer Storage reference to Rebalancer.
-    /// @param params Parameters for processing deposits.
-    /// @return totalDepositedLiqTokenAmount Total deposited liquidity amount after rebalancer fees.
-    function processDepositsQueue(
-        s.ParentPool storage s_parentPool,
-        rs.Rebalancer storage s_rebalancer,
-        ProcessDepositsParams calldata params
-    ) external returns (uint256 totalDepositedLiqTokenAmount) {
-        uint256 totalPoolBalanceWithLockedWithdrawals = params.totalPoolsBalance +
-            s_parentPool.totalWithdrawalAmountLocked;
-
-        bytes32[] memory depositQueueIds = s_parentPool.depositQueueIds;
-        uint256 totalDepositFee;
-
-        for (uint256 i; i < depositQueueIds.length; ++i) {
-            bytes32 depositId = depositQueueIds[i];
-            IParentPool.Deposit memory deposit = s_parentPool.depositQueue[depositId];
-            delete s_parentPool.depositQueue[depositId];
-
-            uint256 depositFee = (deposit.liquidityTokenAmountToDeposit * params.rebalancerFeeBps) /
-                params.bpsDenominator;
-            uint256 amountToDepositWithFee = deposit.liquidityTokenAmountToDeposit - depositFee;
-            totalDepositFee += depositFee;
-
-            uint256 lpTokenAmountToMint = _calculateLpTokenAmountToMint(
-                totalPoolBalanceWithLockedWithdrawals + totalDepositedLiqTokenAmount,
-                amountToDepositWithFee,
-                params.lpToken
-            );
-
-            s_parentPool.totalDepositAmountInQueue -= deposit.liquidityTokenAmountToDeposit;
-            LPToken(params.lpToken).mint(deposit.lp, lpTokenAmountToMint);
-            totalDepositedLiqTokenAmount += amountToDepositWithFee;
-
-            emit IParentPool.DepositProcessed(
-                depositId,
-                deposit.lp,
-                amountToDepositWithFee,
-                lpTokenAmountToMint
-            );
-        }
-
-        delete s_parentPool.depositQueueIds;
-        s_rebalancer.totalRebalancingFeeAmount += totalDepositFee;
-    }
-
-    /// @notice Processes all queued withdrawals and creates pending withdrawals.
-    /// @param s_parentPool Storage reference to ParentPool.
-    /// @param totalPoolsBalance Total balance.
-    /// @param lpToken LP token address.
-    /// @return totalLiqTokenAmountToWithdraw Total liquidity to withdraw.
-    function processWithdrawalsQueue(
-        s.ParentPool storage s_parentPool,
-        uint256 totalPoolsBalance,
-        address lpToken
-    ) external returns (uint256 totalLiqTokenAmountToWithdraw) {
-        uint256 totalPoolBalanceWithLockedWithdrawals = totalPoolsBalance +
-            s_parentPool.totalWithdrawalAmountLocked;
-        bytes32[] memory withdrawalQueueIds = s_parentPool.withdrawalQueueIds;
-
-        for (uint256 i; i < withdrawalQueueIds.length; ++i) {
-            IParentPool.Withdrawal memory withdrawal = s_parentPool.withdrawalQueue[
-                withdrawalQueueIds[i]
-            ];
-            delete s_parentPool.withdrawalQueue[withdrawalQueueIds[i]];
-
-            uint256 liqTokenAmountToWithdraw = calculateWithdrawableAmount(
-                totalPoolBalanceWithLockedWithdrawals,
-                withdrawal.lpTokenAmountToWithdraw,
-                lpToken
-            );
-
-            totalLiqTokenAmountToWithdraw += liqTokenAmountToWithdraw;
-
-            s_parentPool.pendingWithdrawals[withdrawalQueueIds[i]] = IParentPool.PendingWithdrawal({
-                liqTokenAmountToWithdraw: liqTokenAmountToWithdraw,
-                lpTokenAmountToWithdraw: withdrawal.lpTokenAmountToWithdraw,
-                lp: withdrawal.lp
-            });
-            s_parentPool.pendingWithdrawalIds.push(withdrawalQueueIds[i]);
-
-            emit IParentPool.WithdrawalProcessed(
-                withdrawalQueueIds[i],
-                withdrawal.lp,
-                withdrawal.lpTokenAmountToWithdraw,
-                liqTokenAmountToWithdraw
-            );
-        }
-
-        delete s_parentPool.withdrawalQueueIds;
-    }
-
-    function processPendingWithdrawals(
-        s.ParentPool storage s_parentPool,
-        rs.Rebalancer storage s_rebalancer,
-        pbs.Base storage s_base,
-        address liquidityToken,
-        address lpToken,
-        function(address, address, uint256) external safeTransferWrapper,
-        function(uint256) external view returns (uint256, uint256) getWithdrawalFee
-    ) external {
-        bytes32[] memory pendingWithdrawalIds = s_parentPool.pendingWithdrawalIds;
-        uint256 totalLiquidityTokenAmountToWithdraw;
-        uint256 totalLancaFee;
-        uint256 totalRebalancingFeeAmount;
-
-        for (uint256 i; i < pendingWithdrawalIds.length; ++i) {
-            ProcessWithdrawalResult memory result = _processOneWithdrawal(
-                s_parentPool,
-                pendingWithdrawalIds[i],
-                liquidityToken,
-                lpToken,
-                safeTransferWrapper,
-                getWithdrawalFee
-            );
-            totalLiquidityTokenAmountToWithdraw += result.liqTokenAmount;
-            totalLancaFee += result.lancaFee;
-            totalRebalancingFeeAmount += result.rebalanceFee;
-        }
-
-        /* @dev do not clear this array before a loop because
-                clearing it will affect getWithdrawalFee() */
-        delete s_parentPool.pendingWithdrawalIds;
-
-        s_rebalancer.totalRebalancingFeeAmount += totalRebalancingFeeAmount;
-        s_parentPool.totalWithdrawalAmountLocked -= totalLiquidityTokenAmountToWithdraw;
-        s_base.totalLancaFeeInLiqToken += totalLancaFee;
-    }
-
-    // ============ PRIVATE HELPERS ============
-
-    function _processOneWithdrawal(
-        s.ParentPool storage s_parentPool,
-        bytes32 withdrawalId,
-        address liquidityToken,
-        address lpToken,
-        function(address, address, uint256) external safeTransferWrapper,
-        function(uint256) external view returns (uint256, uint256) getWithdrawalFee
-    ) private returns (ProcessWithdrawalResult memory result) {
-        IParentPool.PendingWithdrawal memory pw = s_parentPool.pendingWithdrawals[withdrawalId];
-        delete s_parentPool.pendingWithdrawals[withdrawalId];
-
-        result.liqTokenAmount = pw.liqTokenAmountToWithdraw;
-
-        (uint256 conceroFee, uint256 rebalanceFee) = getWithdrawalFee(pw.liqTokenAmountToWithdraw);
-        uint256 amountToWithdrawWithFee = pw.liqTokenAmountToWithdraw - (conceroFee + rebalanceFee);
-        result.rebalanceFee = rebalanceFee;
-
-        try safeTransferWrapper(liquidityToken, pw.lp, amountToWithdrawWithFee) {
-            LPToken(lpToken).burn(pw.lpTokenAmountToWithdraw);
-            result.lancaFee = conceroFee;
-            emit IParentPool.WithdrawalCompleted(withdrawalId, amountToWithdrawWithFee);
-        } catch {
-            IERC20(lpToken).safeTransfer(pw.lp, pw.lpTokenAmountToWithdraw);
-            emit IParentPool.WithdrawalFailed(pw.lp, pw.lpTokenAmountToWithdraw);
-        }
-    }
-
     /// @notice Calculates the amount of LP tokens to mint for a given deposit.
     /// @dev
     /// - If total LP supply is zero, mints 1:1 relative to deposit.
@@ -582,7 +644,7 @@ library ParentPoolLib {
     function _calculatePoolWeight(
         uint256 prevTargetBalance,
         IBase.LiqTokenDailyFlow memory dailyFlow,
-        TargetBalanceCalculationParams memory params
+        TriggerProcessParams memory params
     ) private pure returns (uint256) {
         if (prevTargetBalance < params.minTargetBalance) {
             return params.minTargetBalance;
@@ -590,7 +652,7 @@ library ParentPoolLib {
         return
             (prevTargetBalance *
                 _calculateLiquidityHealthScore(dailyFlow, prevTargetBalance, params)) /
-            params.scaleFactor;
+            params.liquidityTokenScaleFactor;
     }
 
     /// @notice Computes the overall liquidity health score of a pool.
@@ -605,13 +667,13 @@ library ParentPoolLib {
     function _calculateLiquidityHealthScore(
         IBase.LiqTokenDailyFlow memory dailyFlow,
         uint256 targetBalance,
-        TargetBalanceCalculationParams memory params
+        TriggerProcessParams memory params
     ) private pure returns (uint256) {
         uint256 lurScore = _calculateLiquidityUtilisationRatioScore(
             dailyFlow.inflow,
             dailyFlow.outflow,
             targetBalance,
-            params.scaleFactor,
+            params.liquidityTokenScaleFactor,
             params.lurScoreSensitivity
         );
 
@@ -619,13 +681,13 @@ library ParentPoolLib {
             dailyFlow.inflow,
             dailyFlow.outflow,
             targetBalance,
-            params.scaleFactor
+            params.liquidityTokenScaleFactor
         );
 
         uint256 lhs = ((params.lurScoreWeight * lurScore) + (params.ndrScoreWeight * ndrScore)) /
-            params.scaleFactor;
+            params.liquidityTokenScaleFactor;
 
-        return params.scaleFactor + (params.scaleFactor - lhs);
+        return params.liquidityTokenScaleFactor + (params.liquidityTokenScaleFactor - lhs);
     }
 
     /// @notice Computes the Liquidity Utilisation Ratio (LUR) score.
@@ -716,8 +778,9 @@ library ParentPoolLib {
     /// @return Amount scaled to `i_liquidityTokenDecimals`.
     function _toLocalDecimals(
         uint256 amountInSrcDecimals,
-        uint8 srcDecimals
+        uint8 srcDecimals,
+        uint8 liquidityTokenDecimals
     ) internal pure returns (uint256) {
-        return amountInSrcDecimals.toDecimals(srcDecimals, LIQUIDITY_TOKEN_DECIMALS);
+        return amountInSrcDecimals.toDecimals(srcDecimals, liquidityTokenDecimals);
     }
 }

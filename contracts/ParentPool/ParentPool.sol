@@ -1,23 +1,24 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.28;
 
-import {ICommonErrors} from "../common/interfaces/ICommonErrors.sol";
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
-import {ILancaKeeper} from "./interfaces/ILancaKeeper.sol";
-import {IParentPool} from "./interfaces/IParentPool.sol";
-import {LPToken} from "./LPToken.sol";
-import {Base} from "../Base/Base.sol";
-import {Rebalancer} from "../Rebalancer/Rebalancer.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import {Storage as pbs} from "../Base/libraries/Storage.sol";
-import {Storage as rs} from "../Rebalancer/libraries/Storage.sol";
-import {Storage as s} from "./libraries/Storage.sol";
-import {LancaBridge} from "../LancaBridge/LancaBridge.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+
 import {BridgeCodec} from "../common/libraries/BridgeCodec.sol";
 import {Decimals} from "../common/libraries/Decimals.sol";
-import {IBase} from "../Base/interfaces/IBase.sol";
+import {ICommonErrors} from "../common/interfaces/ICommonErrors.sol";
+import {ILancaKeeper} from "./interfaces/ILancaKeeper.sol";
+import {IParentPool} from "./interfaces/IParentPool.sol";
 import {ParentPoolLib} from "./libraries/ParentPoolLib.sol";
+import {Rebalancer} from "../Rebalancer/Rebalancer.sol";
+import {LancaBridge} from "../LancaBridge/LancaBridge.sol";
+import {Storage as s} from "./libraries/Storage.sol";
+import {Storage as rs} from "../Rebalancer/libraries/Storage.sol";
+import {Storage as pbs} from "../Base/libraries/Storage.sol";
+import {IBase} from "../Base/interfaces/IBase.sol";
+import {Base} from "../Base/Base.sol";
+import {LPToken} from "./LPToken.sol";
 
 /// @title Lanca Parent Pool
 /// @notice Main Lanca pool on the "parent" chain aggregating liquidity and coordinating child pools.
@@ -42,7 +43,6 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
     using BridgeCodec for bytes;
     using Decimals for uint256;
 
-    uint8 internal constant MAX_QUEUE_LENGTH = 250;
     uint8 internal constant SCALE_TOKEN_DECIMALS = 24;
 
     LPToken internal immutable i_lpToken;
@@ -106,62 +106,35 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
     /// - Steps:
     ///   1. Ensures deposit and withdrawal queues meet minimum lengths (`areQueuesFull()`).
     ///   2. Aggregates total pools balance from parent + all child pools (`_getTotalPoolsBalance`).
-    ///   3. Processes deposits queue via `ParentPoolLib::processDepositsQueue`.
-    ///   4. Processes withdrawals queue via `ParentPoolLib::processWithdrawalsQueue`.
-    ///   5. Updates target balances across pools and locks withdrawals via `_processPoolsUpdate`.
+    ///   3. Processes deposits queue via `ParentPoolLib::_processDepositsQueue`.
+    ///   4. Processes withdrawals queue via `ParentPoolLib::_processWithdrawalsQueue`.
+    ///   5. Updates target balances across pools and locks withdrawals via `ParentPoolLib::_updateChildPoolTargetBalances`.
     function triggerDepositWithdrawProcess() external onlyRole(LANCA_KEEPER) {
         require(areQueuesFull(), QueuesAreNotFull());
 
-        (bool areChildPoolSnapshotsReady, uint256 totalPoolsBalance) = _getTotalPoolsBalance();
-        require(areChildPoolSnapshotsReady, ChildPoolSnapshotsAreNotReady());
-
         s.ParentPool storage s_parentPool = s.parentPool();
 
-        s_parentPool.prevTotalPoolsBalance = totalPoolsBalance;
-
-        uint256 deposited = ParentPoolLib.processDepositsQueue(
-            s.parentPool(),
+        ParentPoolLib.triggerDepositWithdrawalProcess(
+            s_parentPool,
             rs.rebalancer(),
-            ParentPoolLib.ProcessDepositsParams({
-                totalPoolsBalance: totalPoolsBalance,
-                rebalancerFeeBps: pbs.base().rebalancerFeeBps,
-                bpsDenominator: BPS_DENOMINATOR,
-                lpToken: address(i_lpToken)
-            })
-        );
-        uint256 newTotalBalance = totalPoolsBalance + deposited;
-        uint256 withdrawals = ParentPoolLib.processWithdrawalsQueue(
-            s_parentPool,
-            newTotalBalance,
-            address(i_lpToken)
-        );
-        uint256 totalRequestedWithdrawals = s_parentPool.remainingWithdrawalAmount + withdrawals;
-
-        (uint24[] memory chainSelectors, uint256[] memory targetBalances) = ParentPoolLib
-            .calculateNewTargetBalances(
-                s_parentPool,
-                newTotalBalance - totalRequestedWithdrawals,
-                ParentPoolLib.TargetBalanceCalculationParams({
-                    scaleFactor: i_liquidityTokenScaleFactor,
-                    lurScoreSensitivity: s_parentPool.lurScoreSensitivity,
-                    lurScoreWeight: s_parentPool.lurScoreWeight,
-                    ndrScoreWeight: s_parentPool.ndrScoreWeight,
-                    minTargetBalance: i_minTargetBalance,
-                    parentChainSelector: i_chainSelector,
-                    parentTargetBalance: getTargetBalance(),
-                    parentYesterdayFlow: getYesterdayFlow()
-                })
-            );
-
-        ParentPoolLib.updateChildPoolTargetBalances(
-            s_parentPool,
             pbs.base(),
-            chainSelectors,
-            targetBalances,
-            totalRequestedWithdrawals,
-            getActiveBalance(),
-            i_chainSelector,
-            i_conceroRouter
+            ParentPoolLib.TriggerProcessParams({
+                activeBalance: getActiveBalance(),
+                iouToken: address(i_iouToken),
+                lpToken: address(i_lpToken),
+                conceroRouter: i_conceroRouter,
+                liquidityTokenDecimals: i_liquidityTokenDecimals,
+                parentChainSelector: i_chainSelector,
+                lurScoreSensitivity: s_parentPool.lurScoreSensitivity,
+                lurScoreWeight: s_parentPool.lurScoreWeight,
+                ndrScoreWeight: s_parentPool.ndrScoreWeight,
+                liquidityTokenScaleFactor: i_liquidityTokenScaleFactor,
+                minTargetBalance: i_minTargetBalance,
+                parentTargetBalance: getTargetBalance(),
+                parentYesterdayFlow: getYesterdayFlow()
+            }),
+            this.getActiveBalance,
+            this.getRebalancerFee
         );
     }
 
