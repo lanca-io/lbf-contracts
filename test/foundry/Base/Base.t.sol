@@ -257,7 +257,6 @@ contract BaseTest is LancaTest {
 
     function test_removeValidatorLib_onlyOwner_revert() public {
         address notOwner = makeAddr("not owner");
-        address validatorLib = makeAddr("validatorLib");
         vm.expectRevert();
         vm.prank(notOwner);
         s_base.removeValidatorLib();

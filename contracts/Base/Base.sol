@@ -8,7 +8,6 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import {IOUToken} from "../Rebalancer/IOUToken.sol";
 import {IBase} from "./interfaces/IBase.sol";
-import {CommonConstants} from "../common/CommonConstants.sol";
 import {Storage as rs} from "../Rebalancer/libraries/Storage.sol";
 import {Storage as s} from "./libraries/Storage.sol";
 import {BridgeCodec} from "../common/libraries/BridgeCodec.sol";
@@ -29,6 +28,7 @@ abstract contract Base is IBase, AccessControlUpgradeable, ConceroClient {
     error RelayerIsNotSet();
     error InvalidLiqTokenDecimals();
 
+    uint24 internal constant BPS_DENOMINATOR = 100_000;
     uint32 private constant SECONDS_IN_DAY = 86400;
     bytes32 public constant ADMIN = keccak256("ADMIN");
     bytes32 public constant LANCA_KEEPER = keccak256("LANCA_KEEPER");
@@ -125,17 +125,28 @@ abstract contract Base is IBase, AccessControlUpgradeable, ConceroClient {
         return getTodayStartTimestamp() - 1;
     }
 
-    function getLpFee(uint256 amount) public pure returns (uint256) {
-        return (amount * CommonConstants.LP_PREMIUM_BPS) / CommonConstants.BPS_DENOMINATOR;
+    function getLpFee(uint256 amount) public view returns (uint256) {
+        return (amount * s.base().lpFeeBps) / BPS_DENOMINATOR;
     }
 
-    function getLancaFee(uint256 amount) public pure returns (uint256) {
-        return
-            (amount * (CommonConstants.LANCA_BRIDGE_PREMIUM_BPS)) / CommonConstants.BPS_DENOMINATOR;
+    function getLancaFee(uint256 amount) public view returns (uint256) {
+        return (amount * (s.base().lancaBridgeFeeBps)) / BPS_DENOMINATOR;
     }
 
-    function getRebalancerFee(uint256 amount) public pure returns (uint256) {
-        return (amount * CommonConstants.REBALANCER_PREMIUM_BPS) / CommonConstants.BPS_DENOMINATOR;
+    function getRebalancerFee(uint256 amount) public view returns (uint256) {
+        return (amount * s.base().rebalancerFeeBps) / BPS_DENOMINATOR;
+    }
+
+    function getRebalancerFeeBps() external view returns (uint8) {
+        return s.base().rebalancerFeeBps;
+    }
+
+    function getLpFeeBps() external view returns (uint8) {
+        return s.base().lpFeeBps;
+    }
+
+    function getLancaBridgeFeeBps() external view returns (uint8) {
+        return s.base().lancaBridgeFeeBps;
     }
 
     /*   ADMIN FUNCTIONS   */
@@ -190,6 +201,18 @@ abstract contract Base is IBase, AccessControlUpgradeable, ConceroClient {
         _setIsValidatorAllowed(currentValidator, false);
 
         s_base.validatorLib = address(0);
+    }
+
+    function setRebalancerFeeBps(uint8 rebalancerFeeBps) external onlyRole(ADMIN) {
+        s.base().rebalancerFeeBps = rebalancerFeeBps;
+    }
+
+    function setLpFeeBps(uint8 lpFeeBps) external onlyRole(ADMIN) {
+        s.base().lpFeeBps = lpFeeBps;
+    }
+
+    function setLancaBridgeFeeBps(uint8 lancaBridgeFeeBps) external onlyRole(ADMIN) {
+        s.base().lancaBridgeFeeBps = lancaBridgeFeeBps;
     }
 
     /*   INTERNAL FUNCTIONS   */

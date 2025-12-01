@@ -254,7 +254,7 @@ contract ReceiveToken is LancaBridgeBase {
     function test_handleConceroReceiveBridgeLiquidity_ReorgScenario() public {
         uint256 originalAmount = 100e6;
         uint256 newAmount = 150e6;
-        uint256 nonce = 123;
+
         address dstUser = makeAddr("dstUser");
 
         bytes memory firstMessage = BridgeCodec.encodeBridgeData(

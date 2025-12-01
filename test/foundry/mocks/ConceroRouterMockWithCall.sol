@@ -59,7 +59,6 @@ contract ConceroRouterMockWithCall is IConceroRouter, Script {
         return s_fee;
     }
 
-    // TODO: mb remove it
     function readAddress(bytes memory data) internal pure returns (address) {
         address res;
         assembly {

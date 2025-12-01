@@ -9,14 +9,17 @@ library Storage {
             ~bytes32(uint256(0xff));
 
     struct Base {
-        uint256 targetBalance; // LD
-        uint256 totalLancaFeeInLiqToken; // LD
-        mapping(uint32 timestamp => IBase.LiqTokenDailyFlow flow) flowByDay; // LD
+        uint256 targetBalance;
+        uint256 totalLancaFeeInLiqToken;
+        mapping(uint32 timestamp => IBase.LiqTokenDailyFlow flow) flowByDay;
         mapping(uint24 chainSelector => bytes32 dstPool) dstPools;
-        uint256 totalLiqTokenSent; // LD
-        uint256 totalLiqTokenReceived; // LD
+        uint256 totalLiqTokenSent;
+        uint256 totalLiqTokenReceived;
         address relayerLib;
         address validatorLib;
+        uint8 rebalancerFeeBps;
+        uint8 lpFeeBps;
+        uint8 lancaBridgeFeeBps;
     }
 
     /* SLOT-BASED STORAGE ACCESS */

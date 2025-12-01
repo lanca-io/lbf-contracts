@@ -106,7 +106,7 @@ abstract contract LancaBridgeBase is LancaTest {
     }
 
     function _receiveBridge(
-        address pool,
+        address,
         uint256 amount,
         address receiver,
         uint32 dstChainGasLimit
