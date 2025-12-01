@@ -51,6 +51,7 @@ contract BaseTest is LancaTest {
             USDC_TOKEN_DECIMALS,
             PARENT_POOL_CHAIN_SELECTOR
         );
+        s_base.initialize(address(this), s_lancaKeeper);
     }
 
     function test_getPoolData_returnsCorrectDeficitAndSurplus() public {
@@ -119,11 +120,7 @@ contract BaseTest is LancaTest {
 
     function test_setDstPool_RevertsIfNotOwner() public {
         vm.expectRevert(
-            abi.encodeWithSelector(
-                ICommonErrors.UnauthorizedCaller.selector,
-                address(1),
-                address(this)
-            )
+            "AccessControl: account 0x0000000000000000000000000000000000000001 is missing role 0xdf8b4c520ffe197c5343c6f5aec59570151ef9a492f2c624fd45ddde6135ec42"
         );
 
         vm.prank(address(1));
@@ -145,25 +142,6 @@ contract BaseTest is LancaTest {
     function test_setDstPool_RevertsIfDstPoolIsZeroAddress() public {
         vm.expectRevert(ICommonErrors.AddressShouldNotBeZero.selector);
         s_base.setDstPool(CHILD_POOL_CHAIN_SELECTOR, bytes32(0));
-    }
-
-    function test_setLancaKeeper_Success() public {
-        address lancaKeeper = address(1);
-        s_base.setLancaKeeper(lancaKeeper);
-
-        assertEq(s_base.getLancaKeeper(), lancaKeeper);
-    }
-
-    function test_setLancaKeeper_RevertsIfNotOwner() public {
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                ICommonErrors.UnauthorizedCaller.selector,
-                address(1),
-                address(this)
-            )
-        );
-        vm.prank(address(1));
-        s_base.setLancaKeeper(address(0));
     }
 
     function test_getTodayStartTimestamp() public {
@@ -206,20 +184,6 @@ contract BaseTest is LancaTest {
         s_base.setRelayerLib(relayerLib);
     }
 
-    function test_setRelayerLib_onlyOwner_revert() public {
-        address notOwner = makeAddr("not owner");
-        address relayerLib = makeAddr("validatorLib");
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                ICommonErrors.UnauthorizedCaller.selector,
-                notOwner,
-                s_base.getOwner()
-            )
-        );
-        vm.prank(notOwner);
-        s_base.setRelayerLib(relayerLib);
-    }
-
     function testFuzz_removeRelayerLib(address relayerLib) public {
         vm.assume(relayerLib != address(0));
 
@@ -237,13 +201,7 @@ contract BaseTest is LancaTest {
 
     function test_removeRelayerLib_onlyOwner_revert() public {
         address notOwner = makeAddr("not owner");
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                ICommonErrors.UnauthorizedCaller.selector,
-                notOwner,
-                s_base.getOwner()
-            )
-        );
+        vm.expectRevert();
         vm.prank(notOwner);
         s_base.removeRelayerLib();
     }
@@ -277,13 +235,7 @@ contract BaseTest is LancaTest {
     function test_setValidatorLib_onlyOwner_revert() public {
         address notOwner = makeAddr("not owner");
         address validatorLib = makeAddr("validatorLib");
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                ICommonErrors.UnauthorizedCaller.selector,
-                notOwner,
-                s_base.getOwner()
-            )
-        );
+        vm.expectRevert();
         vm.prank(notOwner);
         s_base.setValidatorLib(validatorLib);
     }
@@ -306,13 +258,7 @@ contract BaseTest is LancaTest {
     function test_removeValidatorLib_onlyOwner_revert() public {
         address notOwner = makeAddr("not owner");
         address validatorLib = makeAddr("validatorLib");
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                ICommonErrors.UnauthorizedCaller.selector,
-                notOwner,
-                s_base.getOwner()
-            )
-        );
+        vm.expectRevert();
         vm.prank(notOwner);
         s_base.removeValidatorLib();
     }

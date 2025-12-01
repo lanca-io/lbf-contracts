@@ -7,6 +7,8 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IOUToken} from "../../../contracts/Rebalancer/IOUToken.sol";
 import {MockERC20} from "../mocks/MockERC20.sol";
 import {Test} from "forge-std/src/Test.sol";
+import {ValidatorCodec} from "@concero/v2-contracts/contracts/common/libraries/ValidatorCodec.sol";
+import {StringsUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/StringsUpgradeable.sol";
 
 abstract contract LancaBaseTest is Test {
     using BridgeCodec for bytes32;
@@ -26,6 +28,7 @@ abstract contract LancaBaseTest is Test {
     uint8 internal constant SCALE_TOKEN_DECIMALS = 24;
     uint256 internal constant USDC_TOKEN_DECIMALS_SCALE = 10 ** USDC_TOKEN_DECIMALS;
     uint256 internal constant STD_TOKEN_DECIMALS_SCALE = 10 ** STD_TOKEN_DECIMALS;
+    uint32 internal constant VALIDATION_GAS_LIMIT = 100_000;
 
     address public s_deployer = vm.envAddress("DEPLOYER_ADDRESS");
     address public s_proxyDeployer = vm.envAddress("PROXY_DEPLOYER_ADDRESS");
@@ -40,6 +43,7 @@ abstract contract LancaBaseTest is Test {
     address public s_liquidityProvider = makeAddr("liquidityProvider");
     bool[] public s_validationChecks = new bool[](1);
     address[] public s_validatorLibs = new address[](1);
+    bytes[] public s_internalValidatorConfigs = new bytes[](1);
 
     IERC20 public s_usdc = IERC20(new MockERC20("USD Coin", "USDC", USDC_TOKEN_DECIMALS));
     IERC20 public s_18DecUsdc = IERC20(new MockERC20("USD Coin", "USDC", STD_TOKEN_DECIMALS));
@@ -49,5 +53,20 @@ abstract contract LancaBaseTest is Test {
     constructor() {
         s_validationChecks[0] = true;
         s_validatorLibs[0] = s_validatorLib;
+
+        s_internalValidatorConfigs[0] = ValidatorCodec.encodeEvmConfig(VALIDATION_GAS_LIMIT);
+    }
+
+    function _constructAccessControlError(
+        address account,
+        bytes32 role
+    ) internal pure returns (bytes memory) {
+        return
+            abi.encodePacked(
+                "AccessControl: account ",
+                StringsUpgradeable.toHexString(uint160(account), 20),
+                " is missing role ",
+                StringsUpgradeable.toHexString(uint256(role), 32)
+            );
     }
 }

@@ -104,6 +104,10 @@ contract InvariantTestBase is LancaTest {
             PARENT_POOL_CHAIN_SELECTOR
         );
 
+        s_parentPool.initialize(s_deployer, s_lancaKeeper);
+        s_childPool_1.initialize(s_deployer, s_lancaKeeper);
+        s_childPool_2.initialize(s_deployer, s_lancaKeeper);
+
         vm.stopPrank();
 
         vm.label(address(s_childPool_1), "childPool_1");
@@ -197,7 +201,7 @@ contract InvariantTestBase is LancaTest {
         vm.startPrank(s_deployer);
         s_parentPool.setMinDepositAmount(MIN_DEPOSIT_AMOUNT);
         s_parentPool.setMinWithdrawalAmount(MIN_WITHDRAWAL_AMOUNT);
-        s_parentPool.setLancaKeeper(s_lancaKeeper);
+        s_parentPool.grantRole(s_parentPool.LANCA_KEEPER(), s_lancaKeeper);
         s_parentPool.setLurScoreSensitivity(uint64(5 * USDC_TOKEN_DECIMALS_SCALE));
         s_parentPool.setScoresWeights(
             uint64((7 * USDC_TOKEN_DECIMALS_SCALE) / 10),
@@ -206,8 +210,8 @@ contract InvariantTestBase is LancaTest {
         s_parentPool.setLiquidityCap(LIQUIDITY_CAP);
         s_parentPool.setAverageConceroMessageFee(AVERAGE_CONCERO_MESSAGE_FEE);
 
-        s_childPool_1.setLancaKeeper(s_lancaKeeper);
-        s_childPool_2.setLancaKeeper(s_lancaKeeper);
+        s_childPool_1.grantRole(s_childPool_1.LANCA_KEEPER(), s_lancaKeeper);
+        s_childPool_2.grantRole(s_childPool_2.LANCA_KEEPER(), s_lancaKeeper);
 
         s_iouToken.grantRole(s_iouToken.MINTER_ROLE(), address(s_parentPool));
         s_iouTokenChildPool_1.grantRole(
@@ -237,9 +241,9 @@ contract InvariantTestBase is LancaTest {
 
         vm.startPrank(s_lancaKeeper);
         s_conceroRouterMockWithCall.setSrcChainSelector(CHILD_POOL_CHAIN_SELECTOR);
-        s_childPool_1.sendSnapshotToParentPool();
+        s_childPool_1.sendSnapshotToParentPool{value: 0.01 ether}();
         s_conceroRouterMockWithCall.setSrcChainSelector(CHILD_POOL_CHAIN_SELECTOR_2);
-        s_childPool_2.sendSnapshotToParentPool();
+        s_childPool_2.sendSnapshotToParentPool{value: 0.01 ether}();
         s_conceroRouterMockWithCall.setSrcChainSelector(PARENT_POOL_CHAIN_SELECTOR);
         s_parentPool.triggerDepositWithdrawProcess();
         vm.stopPrank();

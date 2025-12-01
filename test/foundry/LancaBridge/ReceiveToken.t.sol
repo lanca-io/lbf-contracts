@@ -52,7 +52,8 @@ contract ReceiveToken is LancaBridgeBase {
             messageRequest.toMessageReceiptBytes(
                 CHILD_POOL_CHAIN_SELECTOR,
                 address(s_childPool),
-                NONCE
+                NONCE,
+                s_internalValidatorConfigs
             ),
             s_validationChecks,
             s_validatorLibs,
@@ -84,7 +85,8 @@ contract ReceiveToken is LancaBridgeBase {
             messageRequest.toMessageReceiptBytes(
                 PARENT_POOL_CHAIN_SELECTOR,
                 address(s_parentPool),
-                NONCE
+                NONCE,
+                s_internalValidatorConfigs
             ),
             s_validationChecks,
             s_validatorLibs,
@@ -129,7 +131,8 @@ contract ReceiveToken is LancaBridgeBase {
             messageRequest.toMessageReceiptBytes(
                 CHILD_POOL_CHAIN_SELECTOR,
                 address(s_childPool),
-                NONCE
+                NONCE,
+                s_internalValidatorConfigs
             ),
             s_validationChecks,
             s_validatorLibs,
@@ -193,7 +196,8 @@ contract ReceiveToken is LancaBridgeBase {
             messageRequest.toMessageReceiptBytes(
                 PARENT_POOL_CHAIN_SELECTOR,
                 address(s_parentPool),
-                NONCE
+                NONCE,
+                s_internalValidatorConfigs
             ),
             s_validationChecks,
             s_validatorLibs,
@@ -238,7 +242,8 @@ contract ReceiveToken is LancaBridgeBase {
             messageRequest.toMessageReceiptBytes(
                 CHILD_POOL_CHAIN_SELECTOR,
                 address(s_childPool),
-                NONCE
+                NONCE,
+                s_internalValidatorConfigs
             ),
             s_validationChecks,
             s_validatorLibs,
@@ -271,7 +276,8 @@ contract ReceiveToken is LancaBridgeBase {
             messageRequest.toMessageReceiptBytes(
                 CHILD_POOL_CHAIN_SELECTOR,
                 address(s_childPool),
-                NONCE
+                NONCE,
+                s_internalValidatorConfigs
             ),
             s_validationChecks,
             s_validatorLibs,
@@ -303,7 +309,8 @@ contract ReceiveToken is LancaBridgeBase {
             reorgMessageRequest.toMessageReceiptBytes(
                 CHILD_POOL_CHAIN_SELECTOR,
                 address(s_childPool),
-                NONCE
+                NONCE,
+                s_internalValidatorConfigs
             ),
             s_validationChecks,
             s_validatorLibs,
@@ -341,7 +348,8 @@ contract ReceiveToken is LancaBridgeBase {
             messageRequest.toMessageReceiptBytes(
                 CHILD_POOL_CHAIN_SELECTOR,
                 address(s_childPool),
-                NONCE
+                NONCE,
+                s_internalValidatorConfigs
             ),
             s_validationChecks,
             s_validatorLibs,
@@ -391,7 +399,8 @@ contract ReceiveToken is LancaBridgeBase {
             messageRequest.toMessageReceiptBytes(
                 CHILD_POOL_CHAIN_SELECTOR,
                 address(s_childPool),
-                NONCE
+                NONCE,
+                s_internalValidatorConfigs
             ),
             s_validationChecks,
             s_validatorLibs,
@@ -428,7 +437,8 @@ contract ReceiveToken is LancaBridgeBase {
             messageRequest.toMessageReceiptBytes(
                 CHILD_POOL_CHAIN_SELECTOR,
                 address(s_childPool),
-                NONCE
+                NONCE,
+                s_internalValidatorConfigs
             ),
             s_validationChecks,
             s_validatorLibs,
@@ -473,7 +483,8 @@ contract ReceiveToken is LancaBridgeBase {
             messageRequest.toMessageReceiptBytes(
                 CHILD_POOL_CHAIN_SELECTOR,
                 address(s_childPool),
-                NONCE
+                NONCE,
+                s_internalValidatorConfigs
             ),
             s_validationChecks,
             s_validatorLibs,

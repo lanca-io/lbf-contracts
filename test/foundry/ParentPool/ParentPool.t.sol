@@ -12,8 +12,6 @@ import {ParentPool, IParentPool, ParentPoolBase, LPToken} from "./ParentPoolBase
 import {Base} from "contracts/Base/Base.sol";
 import {MockERC20} from "../mocks/MockERC20.sol";
 
-import {console} from "forge-std/src/console.sol";
-
 contract ParentPoolTest is ParentPoolBase {
     using MessageCodec for IConceroRouter.MessageRequest;
     using BridgeCodec for address;
@@ -468,90 +466,70 @@ contract ParentPoolTest is ParentPoolBase {
     /** -- Test Admin Functions Unauthorized Caller -- */
 
     function test_triggerDepositWithdrawProcess_RevertsUnauthorizedCaller() public {
-        vm.expectRevert(
-            abi.encodeWithSelector(ICommonErrors.UnauthorizedCaller.selector, s_user, s_lancaKeeper)
-        );
+        vm.expectRevert(_constructAccessControlError(s_user, s_parentPool.LANCA_KEEPER()));
 
         vm.prank(s_user);
         s_parentPool.triggerDepositWithdrawProcess();
     }
 
     function test_processPendingWithdrawals_RevertsUnauthorizedCaller() public {
-        vm.expectRevert(
-            abi.encodeWithSelector(ICommonErrors.UnauthorizedCaller.selector, s_user, s_lancaKeeper)
-        );
+        vm.expectRevert(_constructAccessControlError(s_user, s_parentPool.LANCA_KEEPER()));
 
         vm.prank(s_user);
         s_parentPool.processPendingWithdrawals();
     }
 
     function test_setMinDepositQueueLength_RevertsUnauthorizedCaller() public {
-        vm.expectRevert(
-            abi.encodeWithSelector(ICommonErrors.UnauthorizedCaller.selector, s_user, s_deployer)
-        );
+        vm.expectRevert(_constructAccessControlError(s_user, s_parentPool.ADMIN()));
 
         vm.prank(s_user);
         s_parentPool.setMinDepositQueueLength(100);
     }
 
     function test_setMinWithdrawalQueueLength_RevertsUnauthorizedCaller() public {
-        vm.expectRevert(
-            abi.encodeWithSelector(ICommonErrors.UnauthorizedCaller.selector, s_user, s_deployer)
-        );
+        vm.expectRevert(_constructAccessControlError(s_user, s_parentPool.ADMIN()));
 
         vm.prank(s_user);
         s_parentPool.setMinWithdrawalQueueLength(100);
     }
 
     function test_setDstPool_RevertsUnauthorizedCaller() public {
-        vm.expectRevert(
-            abi.encodeWithSelector(ICommonErrors.UnauthorizedCaller.selector, s_user, s_deployer)
-        );
+        vm.expectRevert(_constructAccessControlError(s_user, s_parentPool.ADMIN()));
 
         vm.prank(s_user);
         s_parentPool.setDstPool(1, address(0).toBytes32());
     }
 
     function test_setLurScoreSensitivity_RevertsUnauthorizedCaller() public {
-        vm.expectRevert(
-            abi.encodeWithSelector(ICommonErrors.UnauthorizedCaller.selector, s_user, s_deployer)
-        );
+        vm.expectRevert(_constructAccessControlError(s_user, s_parentPool.ADMIN()));
 
         vm.prank(s_user);
         s_parentPool.setLurScoreSensitivity(100);
     }
 
     function test_setScoresWeights_RevertsUnauthorizedCaller() public {
-        vm.expectRevert(
-            abi.encodeWithSelector(ICommonErrors.UnauthorizedCaller.selector, s_user, s_deployer)
-        );
+        vm.expectRevert(_constructAccessControlError(s_user, s_parentPool.ADMIN()));
 
         vm.prank(s_user);
         s_parentPool.setScoresWeights(100, 100);
     }
 
     function test_setLiquidityCap_RevertsUnauthorizedCaller() public {
-        vm.expectRevert(
-            abi.encodeWithSelector(ICommonErrors.UnauthorizedCaller.selector, s_user, s_deployer)
-        );
+        vm.expectRevert(_constructAccessControlError(s_user, s_parentPool.ADMIN()));
 
         vm.prank(s_user);
         s_parentPool.setLiquidityCap(100);
     }
 
     function test_setMinDepositAmount_RevertsUnauthorizedCaller() public {
-        vm.expectRevert(
-            abi.encodeWithSelector(ICommonErrors.UnauthorizedCaller.selector, s_user, s_deployer)
-        );
+        vm.expectRevert(_constructAccessControlError(s_user, s_parentPool.ADMIN()));
 
         vm.prank(s_user);
         s_parentPool.setMinDepositAmount(100);
     }
 
     function test_setAverageConceroMessageFee_RevertsUnauthorizedCaller() public {
-        vm.expectRevert(
-            abi.encodeWithSelector(ICommonErrors.UnauthorizedCaller.selector, s_user, s_deployer)
-        );
+        vm.expectRevert(_constructAccessControlError(s_user, s_parentPool.ADMIN()));
 
         vm.prank(s_user);
         s_parentPool.setAverageConceroMessageFee(100);
@@ -570,7 +548,12 @@ contract ParentPoolTest is ParentPoolBase {
 
         vm.prank(s_conceroRouter);
         s_parentPool.conceroReceive(
-            messageRequest.toMessageReceiptBytes(CHILD_POOL_CHAIN_SELECTOR, address(0), NONCE),
+            messageRequest.toMessageReceiptBytes(
+                CHILD_POOL_CHAIN_SELECTOR,
+                address(0),
+                NONCE,
+                s_internalValidatorConfigs
+            ),
             s_validationChecks,
             s_validatorLibs,
             s_relayerLib

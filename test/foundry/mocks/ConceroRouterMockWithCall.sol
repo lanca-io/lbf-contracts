@@ -23,7 +23,7 @@ contract ConceroRouterMockWithCall is IConceroRouter, Script {
     function conceroSend(
         IConceroRouter.MessageRequest calldata messageRequest
     ) external payable returns (bytes32 messageId) {
-        require(msg.value == _getFee(), InvalidFeeValue());
+        require(msg.value >= _getFee(), InvalidFeeValue());
 
         bool[] memory validationChecks = new bool[](1);
         validationChecks[0] = true;
@@ -33,7 +33,8 @@ contract ConceroRouterMockWithCall is IConceroRouter, Script {
         bytes memory messageReceipt = messageRequest.toMessageReceiptBytes(
             s_srcChainSelector,
             msg.sender,
-            ++s_nonce
+            ++s_nonce,
+            new bytes[](1)
         );
         address receiver = readAddress(messageRequest.dstChainData);
         messageId = keccak256(messageReceipt);

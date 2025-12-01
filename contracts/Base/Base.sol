@@ -4,7 +4,6 @@ pragma solidity ^0.8.28;
 import {ICommonErrors} from "../common/interfaces/ICommonErrors.sol";
 import {ConceroClient} from "@concero/v2-contracts/contracts/ConceroClient/ConceroClient.sol";
 import {MessageCodec} from "@concero/v2-contracts/contracts/common/libraries/MessageCodec.sol";
-import {ConceroOwnable} from "../common/ConceroOwnable.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import {IOUToken} from "../Rebalancer/IOUToken.sol";
@@ -14,8 +13,9 @@ import {Storage as rs} from "../Rebalancer/libraries/Storage.sol";
 import {Storage as s} from "./libraries/Storage.sol";
 import {BridgeCodec} from "../common/libraries/BridgeCodec.sol";
 import {Decimals} from "../common/libraries/Decimals.sol";
+import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 
-abstract contract Base is IBase, ConceroClient, ConceroOwnable {
+abstract contract Base is IBase, AccessControlUpgradeable, ConceroClient {
     using s for s.Base;
     using rs for rs.Rebalancer;
     using MessageCodec for bytes;
@@ -30,28 +30,20 @@ abstract contract Base is IBase, ConceroClient, ConceroOwnable {
     error InvalidLiqTokenDecimals();
 
     uint32 private constant SECONDS_IN_DAY = 86400;
+    bytes32 public constant ADMIN = keccak256("ADMIN");
+    bytes32 public constant LANCA_KEEPER = keccak256("LANCA_KEEPER");
 
     uint24 internal immutable i_chainSelector;
     address internal immutable i_liquidityToken;
     IOUToken internal immutable i_iouToken;
     uint8 internal immutable i_liquidityTokenDecimals;
 
-    modifier onlyLancaKeeper() {
-        s.Base storage s_base = s.base();
-        require(
-            msg.sender == s_base.lancaKeeper,
-            ICommonErrors.UnauthorizedCaller(msg.sender, s_base.lancaKeeper)
-        );
-
-        _;
-    }
-
     constructor(
         address liquidityToken,
         address conceroRouter,
         address iouToken,
         uint24 chainSelector
-    ) ConceroClient(conceroRouter) {
+    ) AccessControlUpgradeable() ConceroClient(conceroRouter) {
         i_liquidityTokenDecimals = IERC20Metadata(liquidityToken).decimals();
         i_iouToken = IOUToken(iouToken);
 
@@ -62,6 +54,16 @@ abstract contract Base is IBase, ConceroClient, ConceroOwnable {
     }
 
     receive() external payable {}
+
+    // INITIALIZER //
+
+    function initialize(address admin, address lancaKeeper) public initializer {
+        _setRoleAdmin(LANCA_KEEPER, ADMIN);
+
+        _grantRole(DEFAULT_ADMIN_ROLE, admin);
+        _grantRole(ADMIN, admin);
+        _grantRole(LANCA_KEEPER, lancaKeeper);
+    }
 
     /*   VIEW FUNCTIONS   */
 
@@ -93,10 +95,6 @@ abstract contract Base is IBase, ConceroClient, ConceroOwnable {
 
     function getDstPool(uint24 chainSelector) public view returns (bytes32) {
         return s.base().dstPools[chainSelector];
-    }
-
-    function getLancaKeeper() public view returns (address) {
-        return s.base().lancaKeeper;
     }
 
     function getRelayerLib() public view returns (address) {
@@ -142,39 +140,35 @@ abstract contract Base is IBase, ConceroClient, ConceroOwnable {
 
     /*   ADMIN FUNCTIONS   */
 
-    function setDstPool(uint24 chainSelector, bytes32 dstPool) public virtual onlyOwner {
+    function setDstPool(uint24 chainSelector, bytes32 dstPool) public virtual onlyRole(ADMIN) {
         require(chainSelector != i_chainSelector, ICommonErrors.InvalidChainSelector());
         require(dstPool != bytes32(0), ICommonErrors.AddressShouldNotBeZero());
 
         s.base().dstPools[chainSelector] = dstPool;
     }
 
-    function setLancaKeeper(address lancaKeeper) external onlyOwner {
-        s.base().lancaKeeper = lancaKeeper;
-    }
-
-    function setRelayerLib(address relayerLib) external onlyOwner {
+    function setRelayerLib(address relayerLib) external onlyRole(ADMIN) {
         s.Base storage s_base = s.base();
 
         require(relayerLib != address(0), ICommonErrors.AddressShouldNotBeZero());
         require(s_base.relayerLib == address(0), RelayerAlreadySet(s_base.relayerLib));
 
         s_base.relayerLib = relayerLib;
-        _setIsRelayerAllowed(relayerLib, true);
+        _setIsRelayerLibAllowed(relayerLib, true);
     }
 
-    function removeRelayerLib() external onlyOwner {
+    function removeRelayerLib() external onlyRole(ADMIN) {
         s.Base storage s_base = s.base();
 
         address currentRelayer = s_base.relayerLib;
         require(currentRelayer != address(0), RelayerIsNotSet());
 
-        _setIsRelayerAllowed(currentRelayer, false);
+        _setIsRelayerLibAllowed(currentRelayer, false);
 
         s_base.relayerLib = address(0);
     }
 
-    function setValidatorLib(address validatorLib) external onlyOwner {
+    function setValidatorLib(address validatorLib) external onlyRole(ADMIN) {
         s.Base storage s_base = s.base();
 
         require(validatorLib != address(0), ICommonErrors.AddressShouldNotBeZero());
@@ -186,7 +180,7 @@ abstract contract Base is IBase, ConceroClient, ConceroOwnable {
         _setIsValidatorAllowed(validatorLib, true);
     }
 
-    function removeValidatorLib() external onlyOwner {
+    function removeValidatorLib() external onlyRole(ADMIN) {
         s.Base storage s_base = s.base();
 
         address currentValidator = s_base.validatorLib;

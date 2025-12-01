@@ -3,7 +3,6 @@ pragma solidity ^0.8.28;
 
 import {IConceroRouter} from "@concero/v2-contracts/contracts/interfaces/IConceroRouter.sol";
 import {MessageCodec} from "@concero/v2-contracts/contracts/common/libraries/MessageCodec.sol";
-
 import {Rebalancer} from "../Rebalancer/Rebalancer.sol";
 import {LancaBridge} from "../LancaBridge/LancaBridge.sol";
 import {Storage as s} from "./libraries/Storage.sol";
@@ -34,7 +33,7 @@ contract ChildPool is Rebalancer, LancaBridge {
         i_parentPoolChainSelector = parentPoolChainSelector;
     }
 
-    function sendSnapshotToParentPool() external payable onlyLancaKeeper {
+    function sendSnapshotToParentPool() external payable onlyRole(LANCA_KEEPER) {
         pbs.Base storage s_base = pbs.base();
 
         bytes32 parentPool = s_base.dstPools[i_parentPoolChainSelector];
@@ -61,10 +60,7 @@ contract ChildPool is Rebalancer, LancaBridge {
             payload: getEncodedSnapshot()
         });
 
-        // TODO: mb get rid of this
-        uint256 messageFee = IConceroRouter(i_conceroRouter).getMessageFee(messageRequest);
-
-        IConceroRouter(i_conceroRouter).conceroSend{value: messageFee}(messageRequest);
+        IConceroRouter(i_conceroRouter).conceroSend{value: msg.value}(messageRequest);
     }
 
     function getSnapshotMessageFee() external view returns (uint256) {

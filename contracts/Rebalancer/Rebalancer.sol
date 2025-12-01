@@ -116,7 +116,7 @@ abstract contract Rebalancer is IRebalancer, Base {
 
     /* ADMIN FUNCTIONS */
 
-    function topUpRebalancingFee(uint256 amount) external onlyOwner {
+    function topUpRebalancingFee(uint256 amount) external onlyRole(ADMIN) {
         IERC20(i_liquidityToken).safeTransferFrom(msg.sender, address(this), amount);
         s.rebalancer().totalRebalancingFeeAmount += amount;
     }

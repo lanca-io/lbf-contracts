@@ -6,9 +6,9 @@
     "homepage": "https://lanca.io",
     "description": "Lanca Bridging Framework Contracts. If you discover any security vulnerabilities, report them responsibly to security@lanca.io. Thank you!",
     "engines": {
-        "node": "22.15.0"
+        "node": "22"
     },
-    "packageManager": "yarn@1.21",
+    "packageManager": "yarn@1.22.22",
     "scripts": {
         "chain": "hardhat node --network hardhat --no-deploy",
         "fork": "ETHEREUM_FORKING_ENABLED=true hardhat node --network hardhat --no-deploy",
@@ -39,7 +39,7 @@
         "@tenderly/api-client": "1.1.0",
         "@trivago/prettier-plugin-sort-imports": "5.2.2",
         "@typechain/ethers-v6": "0.5.1",
-        "@types/mocha": "^10.0.10",
+        "@types/mocha": "10.0.10",
         "@types/prettier": "3.0.0",
         "@typescript-eslint/eslint-plugin": "8.38.0",
         "@typescript-eslint/parser": "8.38.0",
@@ -50,7 +50,7 @@
         "eslint-plugin-prettier": "5.5.3",
         "ethers-v5": "npm:ethers@6.15.0",
         "husky": "9.1.7",
-        "mocha": "^11.7.1",
+        "mocha": "11.7.1",
         "prettier": "3.6.2",
         "prettier-plugin-solidity": "2.1.0",
         "solady": "0.1.24",
@@ -60,12 +60,8 @@
         "ts-node": "10.9.2",
         "typechain": "8.3.2",
         "typescript": "5.8.3",
-        "viem": "2.33.0"
-    },
-    "dependencies": {
-        "@chainlink/contracts": "1.4.0",
+        "viem": "2.33.0",
         "@chainlink/env-enc": "1.0.5",
-        "@chainlink/functions-toolkit": "0.3.2",
         "@concero/contract-utils": "github:concero/contract-utils",
         "@concero/rpcs": "github:concero/rpcs",
         "@concero/v2-contracts": "github:concero/messaging-contracts-v2#feature/v3/dev",
@@ -75,7 +71,6 @@
         "@nomicfoundation/hardhat-network-helpers": "1.1.0",
         "@nomicfoundation/hardhat-verify": "2.1.0",
         "@nomicfoundation/hardhat-viem": "2.1.0",
-        "@openzeppelin/contracts": "^5.4.0",
         "@tenderly/hardhat-tenderly": "2.5.2",
         "@typechain/hardhat": "9.1.0",
         "dotenv": "17.2.0",
@@ -83,8 +78,11 @@
         "forge-std": "https://github.com/foundry-rs/forge-std.git",
         "hardhat": "2.26.1",
         "hardhat-contract-sizer": "2.10.0",
-        "hardhat-deploy": "^1.0.4",
+        "hardhat-deploy": "1.0.4",
         "hardhat-gas-reporter": "2.3.0",
         "solidity-coverage": "0.8.16"
+    },
+    "dependencies": {
+      "@openzeppelin/contracts": "5.4.0"
     }
 }

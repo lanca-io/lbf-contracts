@@ -47,6 +47,7 @@ abstract contract ParentPoolBase is LancaTest {
             PARENT_POOL_CHAIN_SELECTOR,
             MIN_TARGET_BALANCE
         );
+        s_parentPool.initialize(s_deployer, s_lancaKeeper);
 
         s_lpToken.grantRole(s_lpToken.MINTER_ROLE(), address(s_parentPool));
         s_iouToken.grantRole(s_iouToken.MINTER_ROLE(), address(s_parentPool));
@@ -165,8 +166,9 @@ abstract contract ParentPoolBase is LancaTest {
     }
 
     function _setLancaKeeper() internal {
-        vm.prank(s_deployer);
-        s_parentPool.setLancaKeeper(s_lancaKeeper);
+        vm.startPrank(s_deployer);
+        s_parentPool.grantRole(s_parentPool.LANCA_KEEPER(), s_lancaKeeper);
+        vm.stopPrank();
     }
 
     function _setMinDepositAmount(uint256 amount) internal {

@@ -46,7 +46,6 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
         address iouToken,
         address conceroRouter,
         uint24 chainSelector,
-        // todo: mb move to storage
         uint256 minTargetBalance
     ) Base(liquidityToken, conceroRouter, iouToken, chainSelector) {
         i_lpToken = LPToken(lpToken);
@@ -119,7 +118,7 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
         emit WithdrawalQueued(withdrawalId, withdraw.lp, lpTokenAmount);
     }
 
-    function triggerDepositWithdrawProcess() external onlyLancaKeeper {
+    function triggerDepositWithdrawProcess() external onlyRole(LANCA_KEEPER) {
         require(areQueuesFull(), QueuesAreNotFull());
 
         (bool areChildPoolSnapshotsReady, uint256 totalPoolsBalance) = _getTotalPoolsBalance();
@@ -137,7 +136,7 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
         _processPoolsUpdate(newTotalBalance, totalRequestedWithdrawals);
     }
 
-    function processPendingWithdrawals() external onlyLancaKeeper {
+    function processPendingWithdrawals() external onlyRole(LANCA_KEEPER) {
         s.ParentPool storage s_parentPool = s.parentPool();
         require(
             isReadyToProcessPendingWithdrawals(),
@@ -344,15 +343,15 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
 
     /*   ADMIN FUNCTIONS   */
 
-    function setMinDepositQueueLength(uint16 length) external onlyOwner {
+    function setMinDepositQueueLength(uint16 length) external onlyRole(ADMIN) {
         s.parentPool().minDepositQueueLength = length;
     }
 
-    function setMinWithdrawalQueueLength(uint16 length) external onlyOwner {
+    function setMinWithdrawalQueueLength(uint16 length) external onlyRole(ADMIN) {
         s.parentPool().minWithdrawalQueueLength = length;
     }
 
-    function setDstPool(uint24 chainSelector, bytes32 dstPool) public override onlyOwner {
+    function setDstPool(uint24 chainSelector, bytes32 dstPool) public override onlyRole(ADMIN) {
         super.setDstPool(chainSelector, dstPool);
 
         s.ParentPool storage s_parentPool = s.parentPool();
@@ -369,9 +368,7 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
         s_parentPool.supportedChainSelectors.push(chainSelector);
     }
 
-    // TODO: add remove dst pool
-
-    function setLurScoreSensitivity(uint64 lurScoreSensitivity) external onlyOwner {
+    function setLurScoreSensitivity(uint64 lurScoreSensitivity) external onlyRole(ADMIN) {
         require(
             (lurScoreSensitivity > i_liquidityTokenScaleFactor) &&
                 (lurScoreSensitivity < (10 * i_liquidityTokenScaleFactor)),
@@ -380,7 +377,10 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
         s.parentPool().lurScoreSensitivity = lurScoreSensitivity;
     }
 
-    function setScoresWeights(uint64 lurScoreWeight, uint64 ndrScoreWeight) external onlyOwner {
+    function setScoresWeights(
+        uint64 lurScoreWeight,
+        uint64 ndrScoreWeight
+    ) external onlyRole(ADMIN) {
         require(
             lurScoreWeight + ndrScoreWeight == i_liquidityTokenScaleFactor,
             InvalidScoreWeights()
@@ -392,19 +392,19 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
         s_parentPool.ndrScoreWeight = ndrScoreWeight;
     }
 
-    function setLiquidityCap(uint256 newLiqCap) external onlyOwner {
+    function setLiquidityCap(uint256 newLiqCap) external onlyRole(ADMIN) {
         s.parentPool().liquidityCap = newLiqCap;
     }
 
-    function setMinDepositAmount(uint64 newMinDepositAmount) external onlyOwner {
+    function setMinDepositAmount(uint64 newMinDepositAmount) external onlyRole(ADMIN) {
         s.parentPool().minDepositAmount = newMinDepositAmount;
     }
 
-    function setMinWithdrawalAmount(uint64 newMinWithdrawalAmount) external onlyOwner {
+    function setMinWithdrawalAmount(uint64 newMinWithdrawalAmount) external onlyRole(ADMIN) {
         s.parentPool().minWithdrawalAmount = newMinWithdrawalAmount;
     }
 
-    function setAverageConceroMessageFee(uint96 averageConceroMessageFee) external onlyOwner {
+    function setAverageConceroMessageFee(uint96 averageConceroMessageFee) external onlyRole(ADMIN) {
         s.parentPool().averageConceroMessageFee = averageConceroMessageFee;
     }
 
@@ -762,7 +762,7 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
 
             totalPoolsBalance += s_parentPool
                 .childPoolSnapshots[supportedChainSelectors[i]]
-                .balance; // 100 +
+                .balance;
             totalIouSent += s_parentPool
                 .childPoolSnapshots[supportedChainSelectors[i]]
                 .iouTotalSent;
@@ -780,7 +780,6 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
                 .totalLiqTokenReceived;
         }
 
-        // TODO: check overflow
         uint256 iouOnTheWay = totalIouSent - totalIouReceived;
         uint256 liqTokenOnTheWay = totalLiqTokenSent - totalLiqTokenReceived;
 

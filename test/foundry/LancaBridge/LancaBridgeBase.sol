@@ -30,6 +30,7 @@ abstract contract LancaBridgeBase is LancaTest {
             CHILD_POOL_CHAIN_SELECTOR,
             PARENT_POOL_CHAIN_SELECTOR
         );
+        s_childPool.initialize(s_deployer, s_lancaKeeper);
 
         s_parentPool = new ParentPool(
             address(s_usdc),
@@ -39,6 +40,7 @@ abstract contract LancaBridgeBase is LancaTest {
             PARENT_POOL_CHAIN_SELECTOR,
             MIN_TARGET_BALANCE
         );
+        s_parentPool.initialize(s_deployer, s_lancaKeeper);
         vm.stopPrank();
 
         _addDstPools();
@@ -126,7 +128,8 @@ abstract contract LancaBridgeBase is LancaTest {
             messageRequest.toMessageReceiptBytes(
                 CHILD_POOL_CHAIN_SELECTOR,
                 address(s_childPool),
-                NONCE
+                NONCE,
+                s_internalValidatorConfigs
             ),
             s_validationChecks,
             s_validatorLibs,

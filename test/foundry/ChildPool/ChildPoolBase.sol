@@ -22,6 +22,7 @@ abstract contract ChildPoolBase is LancaTest {
             CHILD_POOL_CHAIN_SELECTOR,
             PARENT_POOL_CHAIN_SELECTOR
         );
+        s_childPool.initialize(s_deployer, s_lancaKeeper);
 
         _fundTestAddresses();
         _approveUSDCForAll();

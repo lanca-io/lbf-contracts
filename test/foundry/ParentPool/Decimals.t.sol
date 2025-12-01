@@ -18,8 +18,6 @@ import {ParentPoolBase} from "./ParentPoolBase.sol";
 import {BridgeCodec} from "contracts/common/libraries/BridgeCodec.sol";
 import {Decimals} from "contracts/common/libraries/Decimals.sol";
 
-import {console} from "forge-std/src/console.sol";
-
 contract DecimalsTest is ParentPoolBase {
     using BridgeCodec for address;
 
@@ -48,6 +46,7 @@ contract DecimalsTest is ParentPoolBase {
             PARENT_POOL_CHAIN_SELECTOR,
             MIN_TARGET_BALANCE
         );
+        s_parentPool.initialize(s_deployer, s_lancaKeeper);
 
         s_lpToken.grantRole(s_lpToken.MINTER_ROLE(), address(s_parentPool));
         s_iouToken.grantRole(s_iouToken.MINTER_ROLE(), address(s_parentPool));
@@ -65,10 +64,11 @@ contract DecimalsTest is ParentPoolBase {
             CHILD_POOL_CHAIN_SELECTOR_1,
             PARENT_POOL_CHAIN_SELECTOR
         );
+        s_childPool.initialize(s_deployer, s_lancaKeeper);
 
         s_parentPool.setDstPool(CHILD_POOL_CHAIN_SELECTOR_1, address(s_childPool).toBytes32());
         s_childPool.setDstPool(PARENT_POOL_CHAIN_SELECTOR, address(s_parentPool).toBytes32());
-        s_childPool.setLancaKeeper(s_lancaKeeper);
+        s_childPool.grantRole(s_childPool.LANCA_KEEPER(), s_lancaKeeper);
         s_iouTokenChildPool.grantRole(s_iouTokenChildPool.MINTER_ROLE(), address(s_childPool));
 
         s_parentPool.setLiquidityCap(_addDecimals(1000000));
@@ -188,7 +188,7 @@ contract DecimalsTest is ParentPoolBase {
     function _sendSnapshotToParentPool() internal {
         s_conceroRouterMockWithCall.setSrcChainSelector(CHILD_POOL_CHAIN_SELECTOR_1);
         vm.prank(s_lancaKeeper);
-        s_childPool.sendSnapshotToParentPool();
+        s_childPool.sendSnapshotToParentPool{value: 0.01 ether}();
     }
 
     function _triggerDepositWithdrawal() internal {

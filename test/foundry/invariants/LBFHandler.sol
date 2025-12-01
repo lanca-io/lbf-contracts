@@ -288,9 +288,9 @@ contract LBFHandler is Test {
     function _sendSnapshotsToParentPool() internal {
         vm.startPrank(s_lancaKeeper);
         i_conceroRouter.setSrcChainSelector(CHILD_POOL_CHAIN_SELECTOR_1);
-        i_childPool_1.sendSnapshotToParentPool();
+        i_childPool_1.sendSnapshotToParentPool{value: 0.01 ether}();
         i_conceroRouter.setSrcChainSelector(CHILD_POOL_CHAIN_SELECTOR_2);
-        i_childPool_2.sendSnapshotToParentPool();
+        i_childPool_2.sendSnapshotToParentPool{value: 0.01 ether}();
         vm.stopPrank();
     }
 

@@ -76,7 +76,8 @@ contract ReceiveSnapshot is ParentPoolBase {
             messageRequest.toMessageReceiptBytes(
                 childPoolChainSelector_1,
                 address(s_childPool_1),
-                NONCE
+                NONCE,
+                s_internalValidatorConfigs
             ),
             s_validationChecks,
             s_validatorLibs,
@@ -155,7 +156,12 @@ contract ReceiveSnapshot is ParentPoolBase {
 
         vm.prank(s_conceroRouter);
         s_parentPool.conceroReceive(
-            messageRequest.toMessageReceiptBytes(childPoolChainSelector_1, invalidSender, NONCE),
+            messageRequest.toMessageReceiptBytes(
+                childPoolChainSelector_1,
+                invalidSender,
+                NONCE,
+                s_internalValidatorConfigs
+            ),
             s_validationChecks,
             s_validatorLibs,
             s_relayerLib

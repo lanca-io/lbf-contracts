@@ -95,7 +95,8 @@ contract Rebalancer is RebalancerBase {
             messageRequest.toMessageReceiptBytes(
                 childPoolChainSelector_1,
                 address(s_childPool_1),
-                NONCE
+                NONCE,
+                s_internalValidatorConfigs
             ),
             s_validationChecks,
             s_validatorLibs,

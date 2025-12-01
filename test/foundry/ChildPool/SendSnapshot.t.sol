@@ -29,8 +29,8 @@ contract SendSnapshot is ChildPoolBase {
             CHILD_POOL_CHAIN_SELECTOR,
             PARENT_POOL_CHAIN_SELECTOR
         );
+        s_childPool.initialize(s_deployer, s_lancaKeeper);
 
-        s_childPool.setLancaKeeper(s_lancaKeeper);
         s_childPool.setDstPool(PARENT_POOL_CHAIN_SELECTOR, parentPool.toBytes32());
         vm.stopPrank();
 
@@ -98,8 +98,8 @@ contract SendSnapshot is ChildPoolBase {
             CHILD_POOL_CHAIN_SELECTOR,
             PARENT_POOL_CHAIN_SELECTOR
         );
+        s_childPool.initialize(s_deployer, s_lancaKeeper);
 
-        s_childPool.setLancaKeeper(s_lancaKeeper);
         vm.stopPrank();
 
         vm.prank(s_lancaKeeper);

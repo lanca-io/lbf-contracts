@@ -26,7 +26,8 @@ contract ChildPoolTest is ChildPoolBase {
             messageRequest.toMessageReceiptBytes(
                 PARENT_POOL_CHAIN_SELECTOR,
                 s_mockParentPool,
-                NONCE
+                NONCE,
+                s_internalValidatorConfigs
             ),
             s_validationChecks,
             s_validatorLibs,
@@ -50,7 +51,8 @@ contract ChildPoolTest is ChildPoolBase {
             messageRequest.toMessageReceiptBytes(
                 PARENT_POOL_CHAIN_SELECTOR,
                 s_mockParentPool,
-                NONCE
+                NONCE,
+                s_internalValidatorConfigs
             ),
             s_validationChecks,
             s_validatorLibs,
@@ -86,7 +88,8 @@ contract ChildPoolTest is ChildPoolBase {
             messageRequest.toMessageReceiptBytes(
                 PARENT_POOL_CHAIN_SELECTOR,
                 unauthorizedSender,
-                NONCE
+                NONCE,
+                s_internalValidatorConfigs
             ),
             s_validationChecks,
             s_validatorLibs,
