@@ -11,7 +11,6 @@ type DeployArgs = {
 	conceroRouter: string;
 	iouToken: string;
 	liquidityToken: string;
-	liquidityTokenDecimals: number;
 	chainSelector: number;
 	parentPoolChainSelector: number;
 };
@@ -32,7 +31,6 @@ const deployChildPool: DeploymentFunction = async function (
 	const conceroRouter = getEnvVar(`CONCERO_ROUTER_PROXY_${getNetworkEnvKey(name)}`);
 	const iouToken = getEnvVar(`IOU_${getNetworkEnvKey(name)}`);
 	const liquidityToken = getEnvVar(`USDC_PROXY_${getNetworkEnvKey(name)}`);
-	const defaultLiquidityTokenDecimals = 6;
 
 	if (!conceroRouter || !iouToken || !liquidityToken) {
 		throw new Error("Missing env variables for ChildPool deployment");
@@ -45,8 +43,6 @@ const deployChildPool: DeploymentFunction = async function (
 		conceroRouter,
 		iouToken,
 		liquidityToken,
-		liquidityTokenDecimals:
-			overrideArgs?.liquidityTokenDecimals || defaultLiquidityTokenDecimals,
 		chainSelector: Number(chain.chainSelector),
 		parentPoolChainSelector: parentPoolChainSelectors[chain.type],
 	};
@@ -63,7 +59,6 @@ const deployChildPool: DeploymentFunction = async function (
 			args.conceroRouter,
 			args.iouToken,
 			args.liquidityToken,
-			args.liquidityTokenDecimals,
 			args.chainSelector,
 			args.parentPoolChainSelector,
 		],
@@ -78,7 +73,6 @@ const deployChildPool: DeploymentFunction = async function (
 			conceroRouter: ${args.conceroRouter}, 
 			iouToken: ${args.iouToken}, 
 			liquidityToken: ${args.liquidityToken}, 
-			liquidityTokenDecimals: ${args.liquidityTokenDecimals}, 
 			chainSelector: ${args.chainSelector}, 
 			parentPoolChainSelector: ${args.parentPoolChainSelector}`,
 		"deployChildPool",

@@ -1,4 +1,4 @@
-import { NetworkType } from "@concero/contract-utils/dist/types";
+import { NetworkType } from "@concero/contract-utils";
 import { WriteContractParameters } from "viem";
 import type { WaitForTransactionReceiptParameters } from "viem/actions/public/waitForTransactionReceipt";
 
@@ -13,14 +13,25 @@ enum ProxyEnum {
 }
 
 type ParentPoolVariables = {
-	targetDepositQueueLength: number;
-	targetWithdrawalQueueLength: number;
+	minDepositQueueLength: number;
+	minWithdrawalQueueLength: number;
 	lurScoreSensitivity: bigint;
 	lurScoreWeight: bigint;
 	ndrScoreWeight: bigint;
+	minDepositAmount: bigint;
+	minWithdrawalAmount: bigint;
+	averageConceroMessageFee: bigint;
+};
+
+type PoolFeeBps = {
+	rebalancerFeeBps: number;
+	lpFeeBps: number;
+	lancaBridgeFeeBps: number;
 };
 
 const MINTER_ROLE = "0x9f2df0fed2c77648de5860a4cc508cd0818c85b8b8a1ab4ceeef8d981c8956a6"; // keccak256("MINTER_ROLE")
+const ADDRESS_ZERO = "0x0000000000000000000000000000000000000000";
+const EMPTY_BYTES = "0x0000000000000000000000000000000000000000000000000000000000000000";
 
 const liqTokenDecimals = 6;
 
@@ -36,11 +47,20 @@ const writeContractConfig: WriteContractParameters = {
 };
 
 const parentPoolVariables: ParentPoolVariables = {
-	targetDepositQueueLength: 0,
-	targetWithdrawalQueueLength: 0,
+	minDepositQueueLength: 0,
+	minWithdrawalQueueLength: 0,
 	lurScoreSensitivity: 5n * 10n ** BigInt(liqTokenDecimals),
 	lurScoreWeight: (7n * 10n ** BigInt(liqTokenDecimals)) / 10n,
 	ndrScoreWeight: (3n * 10n ** BigInt(liqTokenDecimals)) / 10n,
+	minDepositAmount: 100n * 10n ** BigInt(liqTokenDecimals),
+	minWithdrawalAmount: 99n * 10n ** BigInt(liqTokenDecimals),
+	averageConceroMessageFee: 0n, // TODO: set actual value
+};
+
+const poolFeeBps: PoolFeeBps = {
+	rebalancerFeeBps: 0, // TODO: set actual value
+	lpFeeBps: 0, // TODO: set actual value
+	lancaBridgeFeeBps: 0, // TODO: set actual value
 };
 
 const parentPoolChainSelectors: Record<NetworkType, number> = {
@@ -84,7 +104,11 @@ export {
 	parentPoolChainSelectors,
 	ParentPoolVariables,
 	parentPoolVariables,
+	PoolFeeBps,
+	poolFeeBps,
 	MINTER_ROLE,
 	liqTokenDecimals,
 	parenPoolLiqCap,
+	ADDRESS_ZERO,
+	EMPTY_BYTES,
 };

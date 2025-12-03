@@ -1,11 +1,21 @@
 import { hardhatDeployWrapper } from "@concero/contract-utils";
 import { Deployment } from "hardhat-deploy/types";
 import { HardhatRuntimeEnvironment } from "hardhat/types";
+import { encodeFunctionData } from "viem";
 
 import { ProxyEnum, conceroNetworks } from "../constants";
 import { DEPLOY_CONFIG_TESTNET } from "../constants/deployConfigTestnet";
+import { lancaProxyAbi } from "../constants/lancaProxyAbi";
 import { EnvPrefixes, IProxyType } from "../types/deploymentVariables";
-import { getEnvAddress, getFallbackClients, getViemAccount, log, updateEnvAddress } from "../utils";
+import {
+	err,
+	getEnvAddress,
+	getEnvVar,
+	getFallbackClients,
+	getViemAccount,
+	log,
+	updateEnvAddress,
+} from "../utils";
 
 export async function deployTransparentProxy(
 	hre: HardhatRuntimeEnvironment,
@@ -40,16 +50,34 @@ export async function deployTransparentProxy(
 		gasLimit = config.proxy?.gasLimit || 0;
 	}
 
+	const adminAddress = viemAccount.address;
+	const lancaKeeperAddress = getEnvVar(`LANCA_KEEPER`);
+	if (!lancaKeeperAddress) {
+		err("Missing LANCA_KEEPER address", "deployTransparentProxy", name);
+		return {} as Deployment;
+	}
+
+	const poolInitializeData = encodeFunctionData({
+		abi: lancaProxyAbi,
+		functionName: "initialize",
+		args: [adminAddress, lancaKeeperAddress],
+	});
+
 	const deployment = await hardhatDeployWrapper("TransparentUpgradeableProxy", {
 		hre,
-		args: [initialImplementation, proxyAdmin, "0x"],
+		args: [initialImplementation, proxyAdmin, poolInitializeData],
 		publicClient,
 		gasLimit,
 		proxy: true,
 	});
 
 	log(
-		`Deployed at: ${deployment.address}. Initial impl: ${initialImplementationAlias}, Proxy admin: ${proxyAdminAlias}`,
+		`Deployed at: ${deployment.address}. 
+		Initial impl: ${initialImplementationAlias}, 
+		Proxy admin: ${proxyAdminAlias},
+		Hash: ${deployment.transactionHash},
+		Pool initialize data: ${poolInitializeData}
+		`,
 		`deployTransparentProxy: ${proxyType}`,
 		name,
 	);

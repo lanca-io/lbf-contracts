@@ -2,12 +2,13 @@ import { getNetworkEnvKey } from "@concero/contract-utils";
 import { Deployment } from "hardhat-deploy/types";
 import { HardhatRuntimeEnvironment } from "hardhat/types";
 
-import { conceroNetworks } from "../constants";
-import { log, updateEnvVariable } from "../utils";
+import { conceroNetworks, liqTokenDecimals } from "../constants";
+import { getFallbackClients, getViemAccount, log, updateEnvVariable } from "../utils";
 
 type DeployArgs = {
 	defaultAdmin: string;
 	minter: string;
+	decimals: number;
 };
 
 type DeploymentFunction = (
@@ -19,20 +20,23 @@ const deployLPToken: DeploymentFunction = async function (
 	hre: HardhatRuntimeEnvironment,
 	overrideArgs?: Partial<DeployArgs>,
 ): Promise<Deployment> {
-	const { deployer } = await hre.getNamedAccounts();
 	const { deploy } = hre.deployments;
 	const { name } = hre.network;
 
-	const chain = conceroNetworks[name];
+	const chain = conceroNetworks[name as keyof typeof conceroNetworks];
+
+	const viemAccount = getViemAccount(chain.type, "deployer");
+	const deployer = viemAccount.address;
 
 	const args: DeployArgs = {
 		defaultAdmin: overrideArgs?.defaultAdmin || deployer,
 		minter: overrideArgs?.minter || deployer,
+		decimals: overrideArgs?.decimals || liqTokenDecimals,
 	};
 
 	const deployment = await deploy("LPToken", {
 		from: deployer,
-		args: [args.defaultAdmin, args.minter],
+		args: [args.defaultAdmin, args.minter, args.decimals],
 		log: true,
 		autoMine: true,
 		skipIfAlreadyDeployed: true,

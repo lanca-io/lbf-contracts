@@ -31,11 +31,17 @@
         "check-updates": "npx npm-check-updates",
         "prepare": "husky",
         "operator-setup": "bun test/operator/testOperator.ts",
-        "rebuild": "yarn clean && yarn compile"
+        "rebuild": "yarn clean && yarn compile",
+        "update:stablecoin": "yarn cache clean @lanca/stablecoin-evm && yarn upgrade @lanca/stablecoin-evm",
+        "update:canonical-bridge": "yarn cache clean @lanca/canonical-bridge && yarn upgrade @lanca/canonical-bridge",
+        "update:v2-contracts": "yarn cache clean @concero/v2-contracts && yarn upgrade @concero/v2-contracts",
+        "update:rpcs": "yarn cache clean @concero/rpcs && yarn upgrade @concero/rpcs",
+        "update:all": "yarn cache clean && yarn upgrade"
     },
     "devDependencies": {
         "@chainlink/solhint-plugin-chainlink-solidity": "1.0.1",
         "@lanca/canonical-bridge": "https://github.com/lanca-io/lanca-canonical-bridge",
+        "@lanca/stablecoin-evm": "github:lanca-io/lcb-stablecoin-evm",
         "@tenderly/api-client": "1.1.0",
         "@trivago/prettier-plugin-sort-imports": "5.2.2",
         "@typechain/ethers-v6": "0.5.1",

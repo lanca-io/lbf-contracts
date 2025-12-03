@@ -12,7 +12,8 @@ import { compileContracts } from "../../utils/compileContracts";
 import { grantMinterRoleForIOUToken } from "../utils/grantMinterRoleForIOUToken";
 import { grantMinterRoleForLPToken } from "../utils/grantMinterRoleForLPToken";
 import { setAllDstPools } from "../utils/setAllDstPools";
-import { setLancaKeeper } from "../utils/setLancaKeeper";
+import { setFeeBps } from "../utils/setFeeBps";
+import { setLibs } from "../utils/setLibs";
 import { setParentPoolCalculationVars } from "../utils/setParentPoolCalculationVars";
 import { setParentPoolLiqCap } from "../utils/setParentPoolLiqCap";
 import { upgradeProxyImplementation } from "../utils/upgradeProxyImplementation";
@@ -21,16 +22,23 @@ async function deployParentPoolTask(taskArgs: any, hre: HardhatRuntimeEnvironmen
 	compileContracts({ quiet: true });
 
 	if (taskArgs.lp) {
-		await deployLPToken(hre, { defaultAdmin: taskArgs.admin, minter: taskArgs.minter });
+		await deployLPToken(hre, {
+			defaultAdmin: taskArgs.admin,
+			minter: taskArgs.minter,
+			decimals: taskArgs.decimals,
+		});
 	}
 
 	if (taskArgs.iou) {
-		await deployIOUToken(hre, { defaultAdmin: taskArgs.admin, minter: taskArgs.minter });
+		await deployIOUToken(hre, {
+			defaultAdmin: taskArgs.admin,
+			minter: taskArgs.minter,
+			decimals: taskArgs.decimals,
+		});
 	}
 
 	if (taskArgs.implementation) {
 		await deployParentPool(hre, {
-			liquidityTokenDecimals: taskArgs.decimals,
 			minTargetBalance: taskArgs.mtb,
 		});
 	}
@@ -47,10 +55,11 @@ async function deployParentPoolTask(taskArgs: any, hre: HardhatRuntimeEnvironmen
 	if (taskArgs.vars) {
 		await setParentPoolCalculationVars(hre.network.name);
 		await setParentPoolLiqCap(hre.network.name);
-		await setLancaKeeper(hre.network.name);
-		await setAllDstPools(hre.network.name);
+		await setLibs(hre.network.name);
+		await setFeeBps(hre.network.name);
 		await grantMinterRoleForLPToken(hre.network.name);
 		await grantMinterRoleForIOUToken(hre.network.name);
+		await setAllDstPools(hre.network.name);
 	}
 }
 
@@ -60,7 +69,7 @@ task("deploy-parent-pool", "Deploy ParentPool")
 	.addFlag("vars", "Set contract variables")
 	.addFlag("lp", "Deploy LPToken")
 	.addFlag("iou", "Deploy IOU Token")
-	.addOptionalParam("decimals", "Liquidity token decimals")
+	.addOptionalParam("decimals", "Token decimals (LP, IOU)")
 	.addOptionalParam("mtb", "Minimum target balance")
 	.addOptionalParam("admin", "LPToken default admin")
 	.addOptionalParam("minter", "LPToken minter")

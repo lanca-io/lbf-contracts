@@ -10,14 +10,19 @@ import { deployTransparentProxy } from "../../deploy/TransparentProxy";
 import { compileContracts } from "../../utils/compileContracts";
 import { grantMinterRoleForIOUToken } from "../utils/grantMinterRoleForIOUToken";
 import { setAllDstPools } from "../utils/setAllDstPools";
-import { setLancaKeeper } from "../utils/setLancaKeeper";
+import { setFeeBps } from "../utils/setFeeBps";
+import { setLibs } from "../utils/setLibs";
 import { upgradeProxyImplementation } from "../utils/upgradeProxyImplementation";
 
 async function deployChildPoolTask(taskArgs: any, hre: HardhatRuntimeEnvironment) {
 	compileContracts({ quiet: true });
 
 	if (taskArgs.iou) {
-		await deployIOUToken(hre, { defaultAdmin: taskArgs.admin, minter: taskArgs.minter });
+		await deployIOUToken(hre, {
+			defaultAdmin: taskArgs.admin,
+			minter: taskArgs.minter,
+			decimals: taskArgs.decimals,
+		});
 	}
 
 	if (taskArgs.implementation) {
@@ -34,9 +39,10 @@ async function deployChildPoolTask(taskArgs: any, hre: HardhatRuntimeEnvironment
 	}
 
 	if (taskArgs.vars) {
-		await setLancaKeeper(hre.network.name);
-		await setAllDstPools(hre.network.name);
+		await setLibs(hre.network.name);
+		await setFeeBps(hre.network.name);
 		await grantMinterRoleForIOUToken(hre.network.name);
+		await setAllDstPools(hre.network.name);
 	}
 }
 
@@ -45,6 +51,7 @@ task("deploy-child-pool", "Deploy ChildPool")
 	.addFlag("implementation", "Deploy implementation")
 	.addFlag("iou", "Deploy IOU Token")
 	.addFlag("vars", "Set variables")
+	.addOptionalParam("decimals", "Token decimals (IOU)")
 	.setAction(async (taskArgs, hre: HardhatRuntimeEnvironment) => {
 		await deployChildPoolTask(taskArgs, hre);
 	});

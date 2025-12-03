@@ -3,16 +3,15 @@ import { Deployment } from "hardhat-deploy/types";
 import { HardhatRuntimeEnvironment } from "hardhat/types";
 import { formatUnits, parseUnits } from "viem";
 
-import { conceroNetworks } from "../constants";
+import { conceroNetworks, liqTokenDecimals } from "../constants";
 import { getEnvVar, log, updateEnvVariable } from "../utils";
 
 type DeployArgs = {
 	liquidityToken: string;
-	liquidityTokenDecimals: number;
 	lpToken: string;
+	iouToken: string;
 	conceroRouter: string;
 	chainSelector: number;
-	iouToken: string;
 	minTargetBalance: bigint;
 };
 
@@ -33,7 +32,7 @@ const deployParentPool: DeploymentFunction = async function (
 
 	const liquidityToken = getEnvVar(`USDC_PROXY_${getNetworkEnvKey(name)}`);
 	const lpToken = getEnvVar(`LPT_${getNetworkEnvKey(name)}`);
-	const conceroRouter = getEnvVar(`CONCERO_ROUTER_PROXY_${getNetworkEnvKey(name)}`); // TODO: v2-contracts
+	const conceroRouter = getEnvVar(`CONCERO_ROUTER_PROXY_${getNetworkEnvKey(name)}`);
 	const iouToken = getEnvVar(`IOU_${getNetworkEnvKey(name)}`);
 	const defaultLiquidityTokenDecimals = 6;
 	const defaultMinTargetBalance = parseUnits("10000", defaultLiquidityTokenDecimals);
@@ -44,41 +43,49 @@ const deployParentPool: DeploymentFunction = async function (
 
 	const args: DeployArgs = {
 		liquidityToken,
-		liquidityTokenDecimals:
-			overrideArgs?.liquidityTokenDecimals || defaultLiquidityTokenDecimals,
 		lpToken,
+		iouToken,
 		conceroRouter,
 		chainSelector: chain.chainSelector,
-		iouToken,
 		minTargetBalance: overrideArgs?.minTargetBalance || defaultMinTargetBalance,
 	};
+
+	const parentPoolLib = await deploy("ParentPoolLib", {
+		from: deployer,
+		args: [],
+		log: true,
+		autoMine: true,
+		skipIfAlreadyDeployed: true,
+	});
 
 	const deployment = await deploy("ParentPool", {
 		from: deployer,
 		args: [
 			args.liquidityToken,
-			args.liquidityTokenDecimals,
 			args.lpToken,
+			args.iouToken,
 			args.conceroRouter,
 			args.chainSelector,
-			args.iouToken,
 			args.minTargetBalance,
 		],
 		log: true,
 		autoMine: true,
 		skipIfAlreadyDeployed: true,
+		libraries: {
+			ParentPoolLib: parentPoolLib.address,
+		},
 	});
 
 	log(`ParentPool deployed at: ${deployment.address}`, "deployParentPool", name);
 	log(
 		`Args: 
 			liquidityToken: ${args.liquidityToken}, 
-			liquidityTokenDecimals: ${args.liquidityTokenDecimals}, 
 			lpToken: ${args.lpToken}, 
+			iouToken: ${args.iouToken}, 
 			conceroRouter: ${args.conceroRouter}, 
 			chainSelector: ${args.chainSelector}, 
-			iouToken: ${args.iouToken}, 
-			minTargetBalance: ${Number(formatUnits(args.minTargetBalance, args.liquidityTokenDecimals)).toFixed(args.liquidityTokenDecimals)} `,
+			minTargetBalance: ${Number(formatUnits(args.minTargetBalance, liqTokenDecimals)).toFixed(liqTokenDecimals)} 
+			parentPoolLib: ${parentPoolLib.address}`,
 		"deployParentPool",
 		name,
 	);

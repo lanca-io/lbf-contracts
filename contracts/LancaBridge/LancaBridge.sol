@@ -36,7 +36,7 @@ abstract contract LancaBridge is ILancaBridge, Base {
     using rs for rs.Rebalancer;
     using bs for bs.Bridge;
 
-    uint32 internal constant BRIDGE_GAS_OVERHEAD = 100_000;
+    uint32 internal constant BRIDGE_GAS_OVERHEAD = 150_000;
 
     /// @inheritdoc ILancaBridge
     function bridge(

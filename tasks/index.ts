@@ -4,7 +4,6 @@ import { deployParentPoolTask } from "./pool/deployParentPool.task";
 import depositToParentPoolTask from "./pool/depositToParentPool.task";
 import withdrawFromParentPoolTask from "./pool/withdrawFromParentPool.task";
 import { setDstPoolTask } from "./setDstPool.task";
-import { setLancaKeeperTask } from "./setLancaKeeper.task";
 import testTask from "./testTask";
 import { updateAllChildPoolImplementations } from "./updateAllChildPoolImplementations.task";
 import updateAllPoolsVarsTask from "./updateAllPoolsVars.task";
@@ -16,7 +15,6 @@ export default {
 	deployChildPoolTask,
 	deployMockUSDCTask,
 	setDstPoolTask,
-	setLancaKeeperTask,
 	depositToParentPoolTask,
 	withdrawFromParentPoolTask,
 	bridgeTask,

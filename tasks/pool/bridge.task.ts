@@ -2,7 +2,7 @@ import { task } from "hardhat/config";
 
 import { getNetworkEnvKey } from "@concero/contract-utils";
 import { type HardhatRuntimeEnvironment } from "hardhat/types";
-import { erc20Abi, parseUnits } from "viem";
+import { encodePacked, erc20Abi, parseUnits } from "viem";
 
 import { conceroNetworks } from "../../constants";
 import { liqTokenDecimals } from "../../constants/deploymentVariables";
@@ -27,7 +27,10 @@ async function sendBridge(amount: string, srcChainName: string, dstChainName: st
 
 	const { status: approveStatus } = await publicClient.waitForTransactionReceipt({ hash });
 
-	console.log("approve", approveStatus, hash);
+	const receiver = walletClient.account?.address!;
+	const tokenAmount = parseUnits(amount, liqTokenDecimals);
+	const dstChainData = encodePacked(["address", "uint32"], [receiver as `0x${string}`, 0]);
+	const args = [tokenAmount, conceroNetworks[dstChainName].chainSelector, dstChainData, ""];
 
 	hash = await walletClient.writeContract({
 		abi: parentPoolAbi,
@@ -39,15 +42,9 @@ async function sendBridge(amount: string, srcChainName: string, dstChainName: st
 			abi: parentPoolAbi,
 			functionName: "getBridgeNativeFee",
 			address: srcPool,
-			args: [conceroNetworks[dstChainName].chainSelector, 0n],
+			args: args,
 		})) as bigint,
-		args: [
-			walletClient.account?.address!,
-			parseUnits(amount, liqTokenDecimals),
-			conceroNetworks[dstChainName].chainSelector,
-			0n,
-			"",
-		],
+		args: args,
 	});
 
 	const { status } = await publicClient.waitForTransactionReceipt({ hash });

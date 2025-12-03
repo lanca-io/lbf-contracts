@@ -1,7 +1,9 @@
 import { getNetworkEnvKey } from "@concero/contract-utils";
+import { pad } from "viem";
 
 import { conceroNetworks } from "../../constants";
-import { getEnvVar, getFallbackClients, getViemAccount, log } from "../../utils";
+import { err, getEnvVar, getFallbackClients, getViemAccount, log, warn } from "../../utils";
+import { isParentPoolNetwork } from "./isParentPoolNetwork";
 
 export async function setDstPool(srcChainName: string, dstChainName: string) {
 	const srcChain = conceroNetworks[srcChainName as keyof typeof conceroNetworks];
@@ -21,21 +23,22 @@ export async function setDstPool(srcChainName: string, dstChainName: string) {
 		throw new Error("Missing destination chain name");
 	}
 
-	const viemAccount = getViemAccount(srcChain.type, "deployer");
+	const viemAccount = getViemAccount(srcChain.type, "proxyDeployer");
 	const { walletClient, publicClient } = getFallbackClients(srcChain, viemAccount);
 
-	let srcPoolProxyAddress: string | undefined;
-	let dstPoolProxyAddress: string | undefined;
+	const parentPoolPrefix = "PARENT_POOL_PROXY_";
+	const childPoolPrefix = "CHILD_POOL_PROXY_";
 
-	if (srcChainName === "arbitrum" || srcChainName === "arbitrumSepolia") {
-		srcPoolProxyAddress = getEnvVar(`PARENT_POOL_PROXY_${getNetworkEnvKey(srcChainName)}`);
-		dstPoolProxyAddress = getEnvVar(`CHILD_POOL_PROXY_${getNetworkEnvKey(dstChainName)}`);
-	} else if (dstChainName === "arbitrum" || dstChainName === "arbitrumSepolia") {
-		srcPoolProxyAddress = getEnvVar(`CHILD_POOL_PROXY_${getNetworkEnvKey(srcChainName)}`);
-		dstPoolProxyAddress = getEnvVar(`PARENT_POOL_PROXY_${getNetworkEnvKey(dstChainName)}`);
-	} else {
-		srcPoolProxyAddress = getEnvVar(`CHILD_POOL_PROXY_${getNetworkEnvKey(srcChainName)}`);
-		dstPoolProxyAddress = getEnvVar(`CHILD_POOL_PROXY_${getNetworkEnvKey(dstChainName)}`);
+	const srcPoolProxyAddress = getEnvVar(
+		`${isParentPoolNetwork(srcChainName) ? parentPoolPrefix : childPoolPrefix}${getNetworkEnvKey(srcChainName)}`,
+	);
+	const dstPoolProxyAddress = getEnvVar(
+		`${isParentPoolNetwork(dstChainName) ? parentPoolPrefix : childPoolPrefix}${getNetworkEnvKey(dstChainName)}`,
+	);
+
+	if (!srcPoolProxyAddress) {
+		console.warn(`Missing required Pool proxy address for ${srcChainName}`);
+		return;
 	}
 
 	if (!dstPoolProxyAddress) {
@@ -54,13 +57,17 @@ export async function setDstPool(srcChainName: string, dstChainName: string) {
 			functionName: "getDstPool",
 			args: [dstChainSelector],
 		});
+		const dstPoolProxyBytes32 = pad(dstPoolProxyAddress as `0x${string}`, {
+			size: 32,
+			dir: "right",
+		});
 
-		if (currentDstPool !== dstPoolProxyAddress) {
+		if (currentDstPool !== dstPoolProxyBytes32) {
 			const setDstPoolHash = await walletClient.writeContract({
 				address: srcPoolProxyAddress,
 				abi: parentPoolAbi,
 				functionName: "setDstPool",
-				args: [dstChainSelector, dstPoolProxyAddress],
+				args: [dstChainSelector, dstPoolProxyBytes32],
 			});
 
 			log(
@@ -69,14 +76,13 @@ export async function setDstPool(srcChainName: string, dstChainName: string) {
 				srcChainName,
 			);
 		} else {
-			log(
+			warn(
 				`Destination pool already set for ${srcChainName} to ${dstChainName}`,
 				"setDstPool",
-				srcChainName,
 			);
 		}
 	} catch (error) {
-		log(
+		err(
 			`Failed to set destination pool for ${srcChainName} to ${dstChainName}: ${error.message}`,
 			"setDstPool",
 			srcChainName,

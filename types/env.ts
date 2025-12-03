@@ -36,6 +36,9 @@ export interface env extends EnvTokens {
 	CONCERO_BRIDGE_OPTIMISM_SEPOLIA: string;
 	LOCALHOST_RPC_URL: string;
 	HARDHAT_RPC_URL: string;
+
+	//.env.addresses
+	LANCA_KEEPER: string;
 }
 
 export default env;

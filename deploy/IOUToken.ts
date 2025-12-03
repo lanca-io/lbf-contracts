@@ -2,13 +2,14 @@ import { getNetworkEnvKey, hardhatDeployWrapper } from "@concero/contract-utils"
 import { Deployment } from "hardhat-deploy/types";
 import { HardhatRuntimeEnvironment } from "hardhat/types";
 
-import { conceroNetworks } from "../constants";
+import { conceroNetworks, liqTokenDecimals } from "../constants";
 import { DEPLOY_CONFIG_TESTNET } from "../constants/deployConfigTestnet";
 import { getFallbackClients, getViemAccount, log, updateEnvVariable } from "../utils";
 
 type DeployArgs = {
 	defaultAdmin: string;
 	minter: string;
+	decimals: number;
 };
 
 type DeploymentFunction = (
@@ -31,6 +32,7 @@ const deployIOUToken: DeploymentFunction = async function (
 	const args: DeployArgs = {
 		defaultAdmin: overrideArgs?.defaultAdmin || deployer,
 		minter: overrideArgs?.minter || deployer,
+		decimals: overrideArgs?.decimals || liqTokenDecimals,
 	};
 
 	let gasLimit = 0;
@@ -41,7 +43,7 @@ const deployIOUToken: DeploymentFunction = async function (
 
 	const deployment = await hardhatDeployWrapper("IOUToken", {
 		hre,
-		args: [args.defaultAdmin, args.minter],
+		args: [args.defaultAdmin, args.minter, args.decimals],
 		publicClient,
 		gasLimit,
 		skipIfAlreadyDeployed: true,
