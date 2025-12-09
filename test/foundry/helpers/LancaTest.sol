@@ -64,4 +64,9 @@ abstract contract LancaTest is LancaBaseTest {
         vm.prank(s_deployer);
         ParentPool(payable(parentPool)).setAverageConceroMessageFee(AVERAGE_CONCERO_MESSAGE_FEE);
     }
+
+    function _setLiquidityCap(address parentPool, uint256 amount) internal {
+        vm.prank(s_deployer);
+        ParentPool(payable(parentPool)).setLiquidityCap(amount);
+    }
 }

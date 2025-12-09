@@ -58,6 +58,7 @@ contract InvariantTestBase is LancaTest {
         _setVars();
         _setFeeBps();
         _initialDepositToParentPool();
+        _setLiquidityCap(address(s_parentPool), type(uint256).max);
     }
 
     function _deployTokens() internal {

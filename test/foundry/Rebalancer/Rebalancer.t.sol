@@ -198,6 +198,7 @@ contract Rebalancer is RebalancerBase {
     function test_RebalancerFee_ParentPoolRemaining() public {
         _setSupportedChildPools(9); // 9 child pools
         _setQueuesLength(0, 0);
+        _setLiquidityCap(address(s_parentPool), _addDecimals(1_000_000));
         _enterDepositQueue(s_user, _addDecimals(1_000_000));
         _fillChildPoolSnapshots();
         _triggerDepositWithdrawProcess();
@@ -270,6 +271,7 @@ contract Rebalancer is RebalancerBase {
     function test_RebalancerFee_ExtraProfit() public {
         _setSupportedChildPools(2); // 2 child pools
         _setQueuesLength(0, 0);
+        _setLiquidityCap(address(s_parentPool), _addDecimals(1_200_000));
         _enterDepositQueue(s_user, _addDecimals(1_200_000));
         _fillChildPoolSnapshots();
         _triggerDepositWithdrawProcess();

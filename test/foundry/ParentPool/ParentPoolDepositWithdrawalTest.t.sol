@@ -43,6 +43,7 @@ contract ParentPoolDepositWithdrawalTest is ParentPoolBase {
     /** -- Test Target Balances calculation -- */
 
     function testFuzz_initialDepositAndUpdateTargetBalances(uint256 amountToDepositPerUser) public {
+        _setLiquidityCap(address(s_parentPool), type(uint256).max);
         vm.assume(
             amountToDepositPerUser > s_parentPool.getMinDepositAmount() &&
                 amountToDepositPerUser < MAX_DEPOSIT_AMOUNT
@@ -85,11 +86,12 @@ contract ParentPoolDepositWithdrawalTest is ParentPoolBase {
         vm.prank(s_deployer);
         s_parentPool.setMinWithdrawalQueueLength(0);
 
-        _mintUsdc(address(s_parentPool), 110_000 * USDC_TOKEN_DECIMALS_SCALE);
+        _mintUsdc(address(s_parentPool), _addDecimals(110_000));
+        _setLiquidityCap(address(s_parentPool), _addDecimals(11_000));
 
         _setupParentPoolWithWhitePaperExample();
 
-        uint256 remainingAmount = 10_000 * USDC_TOKEN_DECIMALS_SCALE;
+        uint256 remainingAmount = _addDecimals(10_000);
         uint256 amountToDepositPerUser = remainingAmount / s_parentPool.getMinDepositQueueLength();
         _fillDepositWithdrawalQueue(
             amountToDepositPerUser + s_parentPool.getRebalancerFee(amountToDepositPerUser),
@@ -100,10 +102,10 @@ contract ParentPoolDepositWithdrawalTest is ParentPoolBase {
         s_parentPool.triggerDepositWithdrawProcess();
 
         uint256[4] memory childPoolsExpectedTargetBalances = [
-            (103806730177 * USDC_TOKEN_DECIMALS_SCALE) / 1000000,
-            (109881337396 * USDC_TOKEN_DECIMALS_SCALE) / 1000000,
-            (89273197519 * USDC_TOKEN_DECIMALS_SCALE) / 1000000,
-            (99187718579 * USDC_TOKEN_DECIMALS_SCALE) / 1000000
+            (_addDecimals(103806730177) / 1000000),
+            (_addDecimals(109881337396) / 1000000),
+            (_addDecimals(89273197519) / 1000000),
+            (_addDecimals(99187718579) / 1000000)
         ];
 
         for (uint256 i; i < _getChildPoolsChainSelectors().length; ++i) {
@@ -113,8 +115,7 @@ contract ParentPoolDepositWithdrawalTest is ParentPoolBase {
             );
         }
 
-        uint256 expectedParentPoolTargetBalance = (97851016227 * USDC_TOKEN_DECIMALS_SCALE) /
-            1000000;
+        uint256 expectedParentPoolTargetBalance = _addDecimals(97851016227) / 1000000;
         assertEq(s_parentPool.getTargetBalance(), expectedParentPoolTargetBalance);
     }
 
@@ -660,8 +661,7 @@ contract ParentPoolDepositWithdrawalTest is ParentPoolBase {
 
     function test_calculateLIQWhenDepositWithdrawalQueueWithInflow() public {
         // Setting pools
-        vm.prank(s_deployer);
-        s_parentPool.setLiquidityCap(_addDecimals(10_000));
+        _setLiquidityCap(address(s_parentPool), _addDecimals(15_000));
 
         _setSupportedChildPools(9);
         _setQueuesLength(0, 0);
@@ -737,8 +737,7 @@ contract ParentPoolDepositWithdrawalTest is ParentPoolBase {
 
     function test_calculateLIQWhenDepositWithdrawalQueueWithOutflow() public {
         // Setting pools
-        vm.prank(s_deployer);
-        s_parentPool.setLiquidityCap(_addDecimals(10_000));
+        _setLiquidityCap(address(s_parentPool), _addDecimals(15_000));
 
         _setSupportedChildPools(9);
         _setQueuesLength(0, 0);
@@ -1270,6 +1269,7 @@ contract ParentPoolDepositWithdrawalTest is ParentPoolBase {
     }
 
     function testFuzz_DepositArbitration(uint96 depositAmount) public {
+        _setLiquidityCap(address(s_parentPool), type(uint256).max);
         vm.assume(depositAmount > s_parentPool.getMinDepositAmount());
 
         address user2 = makeAddr("user2");
