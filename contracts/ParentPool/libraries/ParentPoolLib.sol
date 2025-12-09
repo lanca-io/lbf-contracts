@@ -858,6 +858,7 @@ library ParentPoolLib {
     /// @notice Computes the Net Drain Rate (NDR) score.
     /// @dev
     /// - If `inflow >= outflow` or `targetBalance == 0`, returns maximum score.
+    /// - If `ndr >= scaleFactor`, returns 0.
     /// - Otherwise:
     ///   * `ndr = (outflow - inflow) * scale / targetBalance`,
     ///   * score = `scale - ndr`.
@@ -872,7 +873,11 @@ library ParentPoolLib {
         uint256 scaleFactor
     ) private pure returns (uint256) {
         if (inflow >= outflow || targetBalance == 0) return scaleFactor;
+
         uint256 ndr = ((outflow - inflow) * scaleFactor) / targetBalance;
+
+        if (ndr >= scaleFactor) return 0;
+
         return scaleFactor - ndr;
     }
 

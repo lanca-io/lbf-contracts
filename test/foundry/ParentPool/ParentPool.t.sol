@@ -154,6 +154,36 @@ contract ParentPoolTest is ParentPoolBase {
 
     /** -- Trigger Deposit Withdraw Process -- */
 
+    /**
+     * @notice Calculates NDR score correctly when NDR is greater than scale factor
+     * @dev Scenario:
+     *      - Target balance: 300k
+     *      - Inflow: 100k
+     *      - Outflow: 500k
+     *      - Net drain: 400kw
+     *
+     *      scaleFactor = 1_000_000
+     *      ndr = (outflow - inflow) * scale / targetBalance
+     *      ndr = (500k - 100k) * 1e6 / 300k = 1_333_333
+     *      ndr score = ndr > scaleFactor, return 0
+     */
+    function test_triggerDepositWithdrawProcess_SuccessWhenNdrIsGreaterThanScaleFactor() public {
+        uint256 targetBalance = _addDecimals(300_000);
+        uint256 dailyInflow = _addDecimals(100_000); // received from bridges
+        uint256 dailyOutflow = _addDecimals(500_000); // sent out via bridges
+
+        // Set parent pool state
+        s_parentPool.exposed_setTargetBalance(targetBalance);
+        s_parentPool.exposed_setYesterdayFlow(dailyInflow, dailyOutflow);
+
+        _setQueuesLength(0, 0);
+        _enterDepositQueue(s_user, _addDecimals(100));
+        _fillChildPoolSnapshots();
+
+        vm.prank(s_lancaKeeper);
+        s_parentPool.triggerDepositWithdrawProcess(); // should NOT revert
+    }
+
     function test_triggerDepositWithdrawProcess_RevertsQueuesAreNotFull() public {
         vm.expectRevert(IParentPool.QueuesAreNotFull.selector);
 
