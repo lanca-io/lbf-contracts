@@ -242,16 +242,29 @@ contract ParentPoolTest is ParentPoolBase {
         assertEq(rebalanceFee, s_parentPool.getRebalancerFee(_addDecimals(2_000)));
     }
 
-    function test_setDstPool_ReversInvalidChainSelector() public {
-        vm.expectRevert(ICommonErrors.AddressShouldNotBeZero.selector);
+    function test_setDstPool_SuccessCorrectingDstPoolAddress() public {
+        bytes32 WRONG_ADDRESS = bytes32(uint256(uint160(address(0xDEAD))));
+        bytes32 CORRECT_ADDRESS = bytes32(uint256(uint160(makeAddr("correctPool"))));
+        uint24 testChainSelector = 100;
 
         vm.prank(s_deployer);
-        s_parentPool.setDstPool(1, address(0).toBytes32());
+        s_parentPool.setDstPool(testChainSelector, WRONG_ADDRESS);
 
-        vm.expectRevert(ICommonErrors.InvalidChainSelector.selector);
+        assertEq(
+            s_parentPool.getDstPool(testChainSelector),
+            WRONG_ADDRESS,
+            "Failed to set wrong address"
+        );
 
+        // Admin tries to correct
         vm.prank(s_deployer);
-        s_parentPool.setDstPool(1, address(1).toBytes32());
+        s_parentPool.setDstPool(testChainSelector, CORRECT_ADDRESS);
+
+        assertEq(
+            s_parentPool.getDstPool(testChainSelector),
+            CORRECT_ADDRESS,
+            "Failed to correct address"
+        );
     }
 
     function test_setLurScoreSensitivity_RevertsInvalidLurScoreSensitivity() public {

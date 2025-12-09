@@ -387,14 +387,17 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
 
         uint24[] memory supportedChainSelectors = s_parentPool.supportedChainSelectors;
 
+        bool exists = false;
         for (uint256 i; i < supportedChainSelectors.length; ++i) {
-            require(
-                supportedChainSelectors[i] != chainSelector,
-                ICommonErrors.InvalidChainSelector()
-            );
+            if (supportedChainSelectors[i] == chainSelector) {
+                exists = true;
+                break;
+            }
         }
 
-        s_parentPool.supportedChainSelectors.push(chainSelector);
+        if (!exists) {
+            s_parentPool.supportedChainSelectors.push(chainSelector);
+        }
     }
 
     /// @notice Sets the LUR score sensitivity parameter.
