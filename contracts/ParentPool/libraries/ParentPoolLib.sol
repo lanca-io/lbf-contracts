@@ -88,7 +88,7 @@ library ParentPoolLib {
     /// - `minDepositAmount` must be set (`> 0`), otherwise reverts with `MinDepositAmountNotSet`.
     /// - `liquidityTokenAmount >= minDepositAmount`, otherwise reverts with `DepositAmountIsTooLow`.
     /// - `depositQueueIds.length < MAX_QUEUE_LENGTH`, otherwise reverts with `DepositQueueIsFull`.
-    /// - `prevTotalPoolsBalance <= liquidityCap`, otherwise reverts with `LiquidityCapReached`.
+    /// - `Total liquidity in the pool + deposit <= liquidityCap`, otherwise reverts with `LiquidityCapReached`.
     ///
     /// Effects:
     /// - Transfers `liquidityTokenAmount` of `liquidityToken` from `msg.sender` to the parent pool.
@@ -119,7 +119,10 @@ library ParentPoolLib {
             IParentPool.DepositQueueIsFull()
         );
         require(
-            s_parentPool.prevTotalPoolsBalance <= s_parentPool.liquidityCap,
+            s_parentPool.prevTotalPoolsBalance +
+                s_parentPool.totalDepositAmountInQueue +
+                liquidityTokenAmount <=
+                s_parentPool.liquidityCap,
             IParentPool.LiquidityCapReached(s_parentPool.liquidityCap)
         );
 

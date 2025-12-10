@@ -167,10 +167,10 @@ abstract contract Base is IBase, AccessControlUpgradeable, ConceroClient {
         return s.base().flowByDay[getYesterdayStartTimestamp()];
     }
 
-    /// @notice Returns the start-of-day index for yesterday.
+    /// @notice Returns the start-of-day index for today.
     /// @dev
-    /// - Defined as `getTodayStartTimestamp() - 1`.
-    /// @return Day index representing the previous day.
+    /// - Calculated as `block.timestamp / 86400`.
+    /// @return Day index representing the current day.
     function getTodayStartTimestamp() public view returns (uint32) {
         return uint32(block.timestamp) / SECONDS_IN_DAY;
     }

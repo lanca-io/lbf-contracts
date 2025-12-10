@@ -63,6 +63,7 @@ abstract contract ParentPoolBase is LancaTest {
         _setMinWithdrawalAmount(_addDecimals(100));
         _setLibs();
         _setFeeBps();
+        _setLiquidityCap(address(s_parentPool), DEFAULT_LIQUIDITY_CAP);
     }
 
     /* HELPER FUNCTIONS */

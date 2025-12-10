@@ -57,6 +57,8 @@ contract ParentPoolTest is ParentPoolBase {
     }
 
     function test_enterDepositQueue_RevertsDepositQueueIsFull() public {
+        _setLiquidityCap(address(s_parentPool), _addDecimals(25_000));
+
         for (uint256 i; i < 250; i++) {
             _enterDepositQueue(s_user, _addDecimals(100));
         }
@@ -67,7 +69,7 @@ contract ParentPoolTest is ParentPoolBase {
         s_parentPool.enterDepositQueue(_addDecimals(100));
     }
 
-    function test_enterDepositQueue_LiquidityCapReached() public {
+    function test_enterDepositQueue_RevertsLiquidityCapReached() public {
         _baseSetup();
 
         uint256 newLiquidityCap = _addDecimals(100);
@@ -83,6 +85,55 @@ contract ParentPoolTest is ParentPoolBase {
         );
         vm.prank(s_user);
         s_parentPool.enterDepositQueue(newLiquidityCap + 1);
+    }
+
+    function test_enterDepositQueue_RevertsLiquidityCapReachedWhenMultipleDeposits() public {
+        _setSupportedChildPools(9);
+        _setQueuesLength(0, 0);
+
+        vm.prank(s_deployer);
+        s_parentPool.setRebalancerFeeBps(0);
+
+        // Set liquidity cap to 1000 USDC
+        uint256 liquidityCap = _addDecimals(1000);
+        vm.prank(s_deployer);
+        s_parentPool.setLiquidityCap(liquidityCap);
+
+        // Simulate existing pool balance at 950 USDC (close to cap)
+        uint256 initialBalance = _addDecimals(950);
+        deal(address(s_usdc), address(s_parentPool), initialBalance);
+
+        _setMinDepositAmount(_addDecimals(1));
+
+        // Process once to set prevTotalPoolsBalance = 950
+        _fillChildPoolSnapshots(0);
+        _enterDepositQueue(s_user, _addDecimals(1));
+
+        vm.prank(s_lancaKeeper);
+        s_parentPool.triggerDepositWithdrawProcess();
+
+        // Verify initial state
+        assertEq(s_parentPool.getLiquidityCap(), liquidityCap);
+
+        // Now queue multiple deposits that should exceed cap
+        uint256 depositAmount = _addDecimals(30);
+        address user1 = makeAddr("user1");
+        address user2 = makeAddr("user2");
+
+        // Fund users
+        deal(address(s_usdc), user1, depositAmount);
+        deal(address(s_usdc), user2, depositAmount);
+
+        // First deposit: 950 + 30 = 980
+        _enterDepositQueue(user1, depositAmount);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(IParentPool.LiquidityCapReached.selector, liquidityCap)
+        );
+
+        // Second deposit: 950 + 60 = 1010
+        vm.prank(user2);
+        s_parentPool.enterDepositQueue(depositAmount);
     }
 
     function test_enterDepositQueue_EmitsDepositQueued() public {
@@ -120,6 +171,8 @@ contract ParentPoolTest is ParentPoolBase {
     }
 
     function test_enterWithdrawalQueue_RevertsWithdrawalQueueIsFull() public {
+        _setLiquidityCap(address(s_parentPool), _addDecimals(100_000));
+
         _setQueuesLength(0, 0);
         _enterDepositQueue(s_user, _addDecimals(100_000));
 
@@ -469,8 +522,6 @@ contract ParentPoolTest is ParentPoolBase {
     }
 
     function test_getLiquidityCap() public {
-        assertEq(s_parentPool.getLiquidityCap(), 0);
-
         vm.prank(s_deployer);
         s_parentPool.setLiquidityCap(100);
         assertEq(s_parentPool.getLiquidityCap(), 100);
