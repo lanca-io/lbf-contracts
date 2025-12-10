@@ -164,7 +164,7 @@ abstract contract LancaBridge is ILancaBridge, Base {
     ///   1. Decodes bridge data:
     ///      * `tokenAmount`, `decimals`, `tokenSender`, `dstChainData`, `payload`.
     ///   2. Converts `tokenAmount` from source decimals to local decimals.
-    ///   3. Updates inflow accounting via `_handleInflow`.
+    ///   3. Updates outflow accounting via `_handleOutflow`.
     ///   4. Calls `_deliverBridge` to transfer tokens to the final receiver and optional hook.
     /// @param messageId Concero message ID.
     /// @param srcChainSelector Source chain selector.
@@ -186,7 +186,7 @@ abstract contract LancaBridge is ILancaBridge, Base {
 
         tokenAmount = _toLocalDecimals(tokenAmount, decimals);
 
-        _handleInflow(tokenAmount, srcChainSelector, nonce);
+        _handleOutflow(tokenAmount, srcChainSelector, nonce);
 
         _deliverBridge(
             messageId,
@@ -258,7 +258,7 @@ abstract contract LancaBridge is ILancaBridge, Base {
     /// @param tokenAmount Amount of tokens received (in local decimals).
     /// @param srcChainSelector Source chain selector.
     /// @param nonce Concero message nonce for this bridge.
-    function _handleInflow(uint256 tokenAmount, uint24 srcChainSelector, uint256 nonce) internal {
+    function _handleOutflow(uint256 tokenAmount, uint24 srcChainSelector, uint256 nonce) internal {
         bs.Bridge storage s_bridge = bs.bridge();
         s.Base storage s_base = s.base();
 
