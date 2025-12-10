@@ -88,7 +88,7 @@ library ParentPoolLib {
     /// - `minDepositAmount` must be set (`> 0`), otherwise reverts with `MinDepositAmountNotSet`.
     /// - `liquidityTokenAmount >= minDepositAmount`, otherwise reverts with `DepositAmountIsTooLow`.
     /// - `depositQueueIds.length < MAX_QUEUE_LENGTH`, otherwise reverts with `DepositQueueIsFull`.
-    /// - `prevTotalPoolsBalance <= liquidityCap`, otherwise reverts with `LiquidityCapReached`.
+    /// - `Total liquidity in the pool + deposit <= liquidityCap`, otherwise reverts with `LiquidityCapReached`.
     ///
     /// Effects:
     /// - Transfers `liquidityTokenAmount` of `liquidityToken` from `msg.sender` to the parent pool.
@@ -119,7 +119,10 @@ library ParentPoolLib {
             IParentPool.DepositQueueIsFull()
         );
         require(
-            s_parentPool.prevTotalPoolsBalance <= s_parentPool.liquidityCap,
+            s_parentPool.prevTotalPoolsBalance +
+                s_parentPool.totalDepositAmountInQueue +
+                liquidityTokenAmount <=
+                s_parentPool.liquidityCap,
             IParentPool.LiquidityCapReached(s_parentPool.liquidityCap)
         );
 
@@ -858,6 +861,7 @@ library ParentPoolLib {
     /// @notice Computes the Net Drain Rate (NDR) score.
     /// @dev
     /// - If `inflow >= outflow` or `targetBalance == 0`, returns maximum score.
+    /// - If `ndr >= scaleFactor`, returns 0.
     /// - Otherwise:
     ///   * `ndr = (outflow - inflow) * scale / targetBalance`,
     ///   * score = `scale - ndr`.
@@ -872,7 +876,11 @@ library ParentPoolLib {
         uint256 scaleFactor
     ) private pure returns (uint256) {
         if (inflow >= outflow || targetBalance == 0) return scaleFactor;
+
         uint256 ndr = ((outflow - inflow) * scaleFactor) / targetBalance;
+
+        if (ndr >= scaleFactor) return 0;
+
         return scaleFactor - ndr;
     }
 

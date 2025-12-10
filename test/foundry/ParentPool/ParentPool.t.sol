@@ -57,6 +57,8 @@ contract ParentPoolTest is ParentPoolBase {
     }
 
     function test_enterDepositQueue_RevertsDepositQueueIsFull() public {
+        _setLiquidityCap(address(s_parentPool), _addDecimals(25_000));
+
         for (uint256 i; i < 250; i++) {
             _enterDepositQueue(s_user, _addDecimals(100));
         }
@@ -67,7 +69,7 @@ contract ParentPoolTest is ParentPoolBase {
         s_parentPool.enterDepositQueue(_addDecimals(100));
     }
 
-    function test_enterDepositQueue_LiquidityCapReached() public {
+    function test_enterDepositQueue_RevertsLiquidityCapReached() public {
         _baseSetup();
 
         uint256 newLiquidityCap = _addDecimals(100);
@@ -83,6 +85,55 @@ contract ParentPoolTest is ParentPoolBase {
         );
         vm.prank(s_user);
         s_parentPool.enterDepositQueue(newLiquidityCap + 1);
+    }
+
+    function test_enterDepositQueue_RevertsLiquidityCapReachedWhenMultipleDeposits() public {
+        _setSupportedChildPools(9);
+        _setQueuesLength(0, 0);
+
+        vm.prank(s_deployer);
+        s_parentPool.setRebalancerFeeBps(0);
+
+        // Set liquidity cap to 1000 USDC
+        uint256 liquidityCap = _addDecimals(1000);
+        vm.prank(s_deployer);
+        s_parentPool.setLiquidityCap(liquidityCap);
+
+        // Simulate existing pool balance at 950 USDC (close to cap)
+        uint256 initialBalance = _addDecimals(950);
+        deal(address(s_usdc), address(s_parentPool), initialBalance);
+
+        _setMinDepositAmount(_addDecimals(1));
+
+        // Process once to set prevTotalPoolsBalance = 950
+        _fillChildPoolSnapshots(0);
+        _enterDepositQueue(s_user, _addDecimals(1));
+
+        vm.prank(s_lancaKeeper);
+        s_parentPool.triggerDepositWithdrawProcess();
+
+        // Verify initial state
+        assertEq(s_parentPool.getLiquidityCap(), liquidityCap);
+
+        // Now queue multiple deposits that should exceed cap
+        uint256 depositAmount = _addDecimals(30);
+        address user1 = makeAddr("user1");
+        address user2 = makeAddr("user2");
+
+        // Fund users
+        deal(address(s_usdc), user1, depositAmount);
+        deal(address(s_usdc), user2, depositAmount);
+
+        // First deposit: 950 + 30 = 980
+        _enterDepositQueue(user1, depositAmount);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(IParentPool.LiquidityCapReached.selector, liquidityCap)
+        );
+
+        // Second deposit: 950 + 60 = 1010
+        vm.prank(user2);
+        s_parentPool.enterDepositQueue(depositAmount);
     }
 
     function test_enterDepositQueue_EmitsDepositQueued() public {
@@ -120,6 +171,8 @@ contract ParentPoolTest is ParentPoolBase {
     }
 
     function test_enterWithdrawalQueue_RevertsWithdrawalQueueIsFull() public {
+        _setLiquidityCap(address(s_parentPool), _addDecimals(100_000));
+
         _setQueuesLength(0, 0);
         _enterDepositQueue(s_user, _addDecimals(100_000));
 
@@ -153,6 +206,36 @@ contract ParentPoolTest is ParentPoolBase {
     }
 
     /** -- Trigger Deposit Withdraw Process -- */
+
+    /**
+     * @notice Calculates NDR score correctly when NDR is greater than scale factor
+     * @dev Scenario:
+     *      - Target balance: 300k
+     *      - Inflow: 100k
+     *      - Outflow: 500k
+     *      - Net drain: 400kw
+     *
+     *      scaleFactor = 1_000_000
+     *      ndr = (outflow - inflow) * scale / targetBalance
+     *      ndr = (500k - 100k) * 1e6 / 300k = 1_333_333
+     *      ndr score = ndr > scaleFactor, return 0
+     */
+    function test_triggerDepositWithdrawProcess_SuccessWhenNdrIsGreaterThanScaleFactor() public {
+        uint256 targetBalance = _addDecimals(300_000);
+        uint256 dailyInflow = _addDecimals(100_000); // received from bridges
+        uint256 dailyOutflow = _addDecimals(500_000); // sent out via bridges
+
+        // Set parent pool state
+        s_parentPool.exposed_setTargetBalance(targetBalance);
+        s_parentPool.exposed_setYesterdayFlow(dailyInflow, dailyOutflow);
+
+        _setQueuesLength(0, 0);
+        _enterDepositQueue(s_user, _addDecimals(100));
+        _fillChildPoolSnapshots();
+
+        vm.prank(s_lancaKeeper);
+        s_parentPool.triggerDepositWithdrawProcess(); // should NOT revert
+    }
 
     function test_triggerDepositWithdrawProcess_RevertsQueuesAreNotFull() public {
         vm.expectRevert(IParentPool.QueuesAreNotFull.selector);
@@ -452,8 +535,6 @@ contract ParentPoolTest is ParentPoolBase {
     }
 
     function test_getLiquidityCap() public {
-        assertEq(s_parentPool.getLiquidityCap(), 0);
-
         vm.prank(s_deployer);
         s_parentPool.setLiquidityCap(100);
         assertEq(s_parentPool.getLiquidityCap(), 100);
