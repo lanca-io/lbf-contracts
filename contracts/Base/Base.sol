@@ -384,7 +384,7 @@ abstract contract Base is IBase, AccessControlUpgradeable, ConceroClient {
                 message
             );
         } else if (messageType == ConceroMessageType.UPDATE_TARGET_BALANCE) {
-            _handleConceroReceiveUpdateTargetBalance(message);
+            _handleConceroReceiveUpdateTargetBalance(sourceChainSelector, message);
         } else {
             revert InvalidConceroMessageType();
         }
@@ -435,6 +435,10 @@ abstract contract Base is IBase, AccessControlUpgradeable, ConceroClient {
     /// @dev
     /// - Must be implemented by concrete pool contracts.
     /// - Typically updates `targetBalance` or related rebalancing parameters.
+    /// @param sourceChainSelector Chain selector of the source chain.
     /// @param messageData Payload containing new target balance or config.
-    function _handleConceroReceiveUpdateTargetBalance(bytes calldata messageData) internal virtual;
+    function _handleConceroReceiveUpdateTargetBalance(
+        uint24 sourceChainSelector,
+        bytes calldata messageData
+    ) internal virtual;
 }
