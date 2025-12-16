@@ -4,8 +4,7 @@ import { getNetworkEnvKey } from "@concero/contract-utils";
 import { type HardhatRuntimeEnvironment } from "hardhat/types";
 import { encodePacked, erc20Abi, parseUnits } from "viem";
 
-import { conceroNetworks } from "../../constants";
-import { liqTokenDecimals } from "../../constants/deploymentVariables";
+import { conceroNetworks, liqTokenDecimals } from "../../constants";
 import { compileContracts, getEnvAddress, getEnvVar, getFallbackClients } from "../../utils";
 import { isParentPoolNetwork } from "../utils/isParentPoolNetwork";
 
