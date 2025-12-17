@@ -1,6 +1,7 @@
 import { conceroNetworks } from "./conceroNetworks";
 import {
 	ADDRESS_ZERO,
+	ADMIN_SLOT,
 	EMPTY_BYTES,
 	ProxyEnum,
 	envPrefixes,
@@ -24,4 +25,5 @@ export {
 	lancaProxyAbi,
 	ADDRESS_ZERO,
 	EMPTY_BYTES,
+	ADMIN_SLOT,
 };

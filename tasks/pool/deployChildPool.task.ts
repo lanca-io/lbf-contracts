@@ -1,12 +1,13 @@
 import { task } from "hardhat/config";
 
 import { type HardhatRuntimeEnvironment } from "hardhat/types";
+import { encodeFunctionData } from "viem";
 
-import { ProxyEnum } from "../../constants";
+import { ProxyEnum, lancaProxyAbi } from "../../constants";
 import { deployChildPool } from "../../deploy/ChildPool";
 import { deployIOUToken } from "../../deploy/IOUToken";
-import { deployProxyAdmin } from "../../deploy/ProxyAdmin";
 import { deployTransparentProxy } from "../../deploy/TransparentProxy";
+import { err, getEnvVar } from "../../utils";
 import { compileContracts } from "../../utils/compileContracts";
 import { grantMinterRoleForIOUToken } from "../utils/grantMinterRoleForIOUToken";
 import { setAllDstPools } from "../utils/setAllDstPools";
@@ -30,8 +31,18 @@ async function deployChildPoolTask(taskArgs: any, hre: HardhatRuntimeEnvironment
 	}
 
 	if (taskArgs.proxy) {
-		await deployProxyAdmin(hre, ProxyEnum.childPoolProxy);
-		await deployTransparentProxy(hre, ProxyEnum.childPoolProxy);
+		const [deployer] = await hre.ethers.getSigners();
+		const lancaKeeperAddress = getEnvVar(`LANCA_KEEPER`);
+		if (!lancaKeeperAddress) {
+			err("Missing LANCA_KEEPER address", "deployTransparentProxy", hre.network.name);
+			return;
+		}
+		const callData = encodeFunctionData({
+			abi: lancaProxyAbi,
+			functionName: "initialize",
+			args: [deployer.address, lancaKeeperAddress],
+		});
+		await deployTransparentProxy(hre, ProxyEnum.childPoolProxy, callData);
 	}
 
 	if (taskArgs.implementation) {

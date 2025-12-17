@@ -6,7 +6,7 @@ import { err, getEnvVar, getFallbackClients, getViemAccount, log, warn } from ".
 
 export async function setParentPoolCalculationVars(name: string) {
 	const chain = conceroNetworks[name as keyof typeof conceroNetworks];
-	const viemAccount = getViemAccount(chain.type, "proxyDeployer");
+	const viemAccount = getViemAccount(chain.type, "deployer");
 	const { walletClient, publicClient } = getFallbackClients(chain, viemAccount);
 
 	const parentPoolProxyAddress = getEnvVar(`PARENT_POOL_PROXY_${getNetworkEnvKey(name)}`);

@@ -18,7 +18,7 @@ export async function setLibs(srcChainName: string): Promise<void> {
 
 	const { abi: baseAbi } = await import("../../artifacts/contracts/Base/Base.sol/Base.json");
 
-	const viemAccount = getViemAccount(networkType, "proxyDeployer");
+	const viemAccount = getViemAccount(networkType, "deployer");
 	const { walletClient, publicClient } = getFallbackClients(srcChain, viemAccount);
 
 	const currentValidatorLib = await publicClient.readContract({

@@ -7,7 +7,7 @@ import { isParentPoolNetwork } from "./isParentPoolNetwork";
 
 export async function setFeeBps(name: string) {
 	const chain = conceroNetworks[name as keyof typeof conceroNetworks];
-	const viemAccount = getViemAccount(chain.type, "proxyDeployer");
+	const viemAccount = getViemAccount(chain.type, "deployer");
 	const { walletClient, publicClient } = getFallbackClients(chain, viemAccount);
 
 	const prefix = isParentPoolNetwork(name) ? "PARENT_POOL_PROXY_" : "CHILD_POOL_PROXY_";

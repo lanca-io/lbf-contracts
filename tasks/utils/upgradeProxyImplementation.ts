@@ -27,11 +27,9 @@ export async function upgradeProxyImplementation(
 		return;
 	}
 
-	const { abi: proxyAdminAbi } = await import(
-		"../../artifacts/contracts/Proxy/LancaProxyAdmin.sol/LancaProxyAdmin.json"
-	);
+	const { abi: proxyAdminAbi } = hre.artifacts.readArtifactSync("ProxyAdmin");
 
-	const viemAccount = getViemAccount(type, "proxyDeployer");
+	const viemAccount = getViemAccount(type, "deployer");
 	const { walletClient } = getFallbackClients(chain, viemAccount);
 
 	const [conceroProxy, conceroProxyAlias] = getEnvAddress(proxyType, name);

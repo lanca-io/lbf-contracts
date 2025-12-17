@@ -23,7 +23,7 @@ export async function setDstPool(srcChainName: string, dstChainName: string) {
 		throw new Error("Missing destination chain name");
 	}
 
-	const viemAccount = getViemAccount(srcChain.type, "proxyDeployer");
+	const viemAccount = getViemAccount(srcChain.type, "deployer");
 	const { walletClient, publicClient } = getFallbackClients(srcChain, viemAccount);
 
 	const parentPoolPrefix = "PARENT_POOL_PROXY_";
