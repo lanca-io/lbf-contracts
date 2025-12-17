@@ -105,20 +105,9 @@ abstract contract LancaBridgeBase is LancaTest {
         _setValidatorLibs(address(s_childPool));
     }
 
-    function _receiveBridge(
-        address,
-        uint256 amount,
-        address receiver,
-        uint32 dstChainGasLimit
-    ) internal {
+    function _receiveBridge(address, uint256 amount, address receiver) internal {
         IConceroRouter.MessageRequest memory messageRequest = _buildMessageRequest(
-            BridgeCodec.encodeBridgeData(
-                s_user,
-                amount,
-                USDC_TOKEN_DECIMALS,
-                MessageCodec.encodeEvmDstChainData(receiver, dstChainGasLimit),
-                ""
-            ),
+            BridgeCodec.encodeBridgeData(s_user, receiver, amount, USDC_TOKEN_DECIMALS, ""),
             PARENT_POOL_CHAIN_SELECTOR,
             address(s_parentPool)
         );

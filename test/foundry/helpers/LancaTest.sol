@@ -26,6 +26,23 @@ abstract contract LancaTest is LancaBaseTest {
     }
 
     function _buildMessageRequest(
+        bytes memory messagePayload,
+        uint24 dstChainSelector,
+        address dstPool,
+        uint32 dstChainClientGasLimit
+    ) internal view returns (IConceroRouter.MessageRequest memory) {
+        return
+            _buildMessageRequest(
+                messagePayload,
+                dstChainSelector,
+                dstPool,
+                300_000 + dstChainClientGasLimit,
+                type(uint64).max,
+                address(0)
+            );
+    }
+
+    function _buildMessageRequest(
         bytes memory payload,
         uint24 dstChainSelector,
         address dstPool,
