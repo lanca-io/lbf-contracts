@@ -34,7 +34,7 @@ contract TestPoolBase is Base {
         uint256,
         bytes calldata
     ) internal override {}
-    function _handleConceroReceiveUpdateTargetBalance(bytes calldata) internal override {}
+    function _handleConceroReceiveUpdateTargetBalance(uint24, bytes calldata) internal override {}
 }
 
 contract BaseTest is LancaTest {

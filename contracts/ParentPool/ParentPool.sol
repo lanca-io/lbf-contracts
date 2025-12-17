@@ -554,7 +554,10 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
     /// @dev
     /// - Parent pool does not accept `UPDATE_TARGET_BALANCE` messages (it is the source of truth).
     /// - Always reverts with `FunctionNotImplemented`.
-    function _handleConceroReceiveUpdateTargetBalance(bytes calldata) internal pure override {
+    function _handleConceroReceiveUpdateTargetBalance(
+        uint24,
+        bytes calldata
+    ) internal pure override {
         revert ICommonErrors.FunctionNotImplemented();
     }
 
