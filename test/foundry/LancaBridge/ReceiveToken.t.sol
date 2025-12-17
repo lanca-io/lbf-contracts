@@ -35,13 +35,7 @@ contract ReceiveToken is LancaBridgeBase {
         address dstUser = makeAddr("dstUser");
 
         IConceroRouter.MessageRequest memory messageRequest = _buildMessageRequest(
-            BridgeCodec.encodeBridgeData(
-                s_user,
-                bridgeAmount,
-                USDC_TOKEN_DECIMALS,
-                MessageCodec.encodeEvmDstChainData(dstUser, 0),
-                ""
-            ),
+            BridgeCodec.encodeBridgeData(s_user, dstUser, bridgeAmount, USDC_TOKEN_DECIMALS, ""),
             PARENT_POOL_CHAIN_SELECTOR,
             address(s_parentPool)
         );
@@ -68,13 +62,7 @@ contract ReceiveToken is LancaBridgeBase {
         address dstUser = makeAddr("dstUser");
 
         IConceroRouter.MessageRequest memory messageRequest = _buildMessageRequest(
-            BridgeCodec.encodeBridgeData(
-                s_user,
-                bridgeAmount,
-                STD_TOKEN_DECIMALS,
-                MessageCodec.encodeEvmDstChainData(dstUser, 0),
-                ""
-            ),
+            BridgeCodec.encodeBridgeData(s_user, dstUser, bridgeAmount, STD_TOKEN_DECIMALS, ""),
             CHILD_POOL_CHAIN_SELECTOR,
             address(s_childPool)
         );
@@ -107,13 +95,7 @@ contract ReceiveToken is LancaBridgeBase {
         });
 
         IConceroRouter.MessageRequest memory messageRequest = _buildMessageRequest(
-            BridgeCodec.encodeBridgeData(
-                s_user,
-                bridgeAmount,
-                STD_TOKEN_DECIMALS,
-                MessageCodec.encodeEvmDstChainData(dstUser, 0),
-                ""
-            ),
+            BridgeCodec.encodeBridgeData(s_user, dstUser, bridgeAmount, STD_TOKEN_DECIMALS, ""),
             PARENT_POOL_CHAIN_SELECTOR,
             address(s_parentPool)
         );
@@ -179,9 +161,9 @@ contract ReceiveToken is LancaBridgeBase {
         IConceroRouter.MessageRequest memory messageRequest = _buildMessageRequest(
             BridgeCodec.encodeBridgeData(
                 s_user,
+                dstUser,
                 amountInUsdcDecimals,
                 USDC_TOKEN_DECIMALS,
-                MessageCodec.encodeEvmDstChainData(dstUser, 0),
                 ""
             ),
             CHILD_POOL_CHAIN_SELECTOR,
@@ -224,13 +206,7 @@ contract ReceiveToken is LancaBridgeBase {
         address dstUser = makeAddr("dstUser");
 
         IConceroRouter.MessageRequest memory messageRequest = _buildMessageRequest(
-            BridgeCodec.encodeBridgeData(
-                s_user,
-                bridgeAmount,
-                USDC_TOKEN_DECIMALS,
-                MessageCodec.encodeEvmDstChainData(dstUser, 0),
-                ""
-            ),
+            BridgeCodec.encodeBridgeData(s_user, dstUser, bridgeAmount, USDC_TOKEN_DECIMALS, ""),
             PARENT_POOL_CHAIN_SELECTOR,
             address(s_parentPool)
         );
@@ -259,9 +235,9 @@ contract ReceiveToken is LancaBridgeBase {
 
         bytes memory firstMessage = BridgeCodec.encodeBridgeData(
             s_user,
+            dstUser,
             originalAmount,
             USDC_TOKEN_DECIMALS,
-            MessageCodec.encodeEvmDstChainData(dstUser, 0),
             ""
         );
 
@@ -286,9 +262,9 @@ contract ReceiveToken is LancaBridgeBase {
 
         bytes memory reorgMessage = BridgeCodec.encodeBridgeData(
             s_user,
+            dstUser,
             newAmount,
             USDC_TOKEN_DECIMALS,
-            MessageCodec.encodeEvmDstChainData(dstUser, 0),
             ""
         );
 
@@ -334,13 +310,14 @@ contract ReceiveToken is LancaBridgeBase {
         IConceroRouter.MessageRequest memory messageRequest = _buildMessageRequest(
             BridgeCodec.encodeBridgeData(
                 s_user,
+                address(lancaClient),
                 bridgeAmount,
                 USDC_TOKEN_DECIMALS,
-                MessageCodec.encodeEvmDstChainData(address(lancaClient), dstGasLimit),
                 dstCallData
             ),
             PARENT_POOL_CHAIN_SELECTOR,
-            address(s_parentPool)
+            address(s_parentPool),
+            dstGasLimit
         );
 
         vm.prank(s_conceroRouter);
@@ -383,13 +360,14 @@ contract ReceiveToken is LancaBridgeBase {
         IConceroRouter.MessageRequest memory messageRequest = _buildMessageRequest(
             BridgeCodec.encodeBridgeData(
                 s_user,
+                invalidReceiver,
                 bridgeAmount,
                 USDC_TOKEN_DECIMALS,
-                MessageCodec.encodeEvmDstChainData(invalidReceiver, dstGasLimit),
                 dstCallData
             ),
             PARENT_POOL_CHAIN_SELECTOR,
-            address(s_parentPool)
+            address(s_parentPool),
+            dstGasLimit
         );
 
         vm.expectRevert(ILancaBridge.InvalidConceroMessage.selector);
@@ -420,13 +398,14 @@ contract ReceiveToken is LancaBridgeBase {
         IConceroRouter.MessageRequest memory messageRequest = _buildMessageRequest(
             BridgeCodec.encodeBridgeData(
                 s_user,
+                dstUser,
                 bridgeAmount,
                 USDC_TOKEN_DECIMALS,
-                MessageCodec.encodeEvmDstChainData(dstUser, dstGasLimit),
                 dstCallData
             ),
             PARENT_POOL_CHAIN_SELECTOR,
-            address(s_parentPool)
+            address(s_parentPool),
+            dstGasLimit
         );
 
         vm.expectEmit(false, false, false, true);
@@ -467,13 +446,14 @@ contract ReceiveToken is LancaBridgeBase {
         IConceroRouter.MessageRequest memory messageRequest = _buildMessageRequest(
             BridgeCodec.encodeBridgeData(
                 s_user,
+                address(lancaClient),
                 bridgeAmount,
                 USDC_TOKEN_DECIMALS,
-                MessageCodec.encodeEvmDstChainData(address(lancaClient), dstGasLimit),
                 dstCallData
             ),
             PARENT_POOL_CHAIN_SELECTOR,
-            address(s_parentPool)
+            address(s_parentPool),
+            dstGasLimit
         );
 
         vm.expectRevert(abi.encode(revertReason));
