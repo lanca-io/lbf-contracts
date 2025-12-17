@@ -295,6 +295,7 @@ library ParentPoolLib {
     ///   * On success:
     ///       - Burns user's LP tokens via `LPToken(lpToken).burn`.
     ///       - Adds `conceroFee` to `totalLancaFee`.
+    ///       - Adds `rebalanceFee` to `totalRebalancingFeeAmount`.
     ///       - Emits `WithdrawalCompleted`.
     ///   * On failure:
     ///       - Returns LP tokens back to the user.
@@ -337,13 +338,13 @@ library ParentPoolLib {
             );
             uint256 amountToWithdrawWithFee = pendingWithdrawal.liqTokenAmountToWithdraw -
                 (conceroFee + rebalanceFee);
-            totalRebalancingFeeAmount += rebalanceFee;
 
             totalLiquidityTokenAmountToWithdraw += pendingWithdrawal.liqTokenAmountToWithdraw;
 
             try safeTransferWrapper(liquidityToken, pendingWithdrawal.lp, amountToWithdrawWithFee) {
                 LPToken(lpToken).burn(pendingWithdrawal.lpTokenAmountToWithdraw);
                 totalLancaFee += conceroFee;
+                totalRebalancingFeeAmount += rebalanceFee;
 
                 emit IParentPool.WithdrawalCompleted(
                     pendingWithdrawalIds[i],

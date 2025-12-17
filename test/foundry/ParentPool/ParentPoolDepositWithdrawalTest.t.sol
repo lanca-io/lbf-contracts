@@ -940,6 +940,66 @@ contract ParentPoolDepositWithdrawalTest is ParentPoolBase {
         );
     }
 
+    /**
+     * @notice This test verifies that fees are only accumulated in case of a successful USDC transfer.
+     * @dev If a USDC transfer fails, for example when a user is blacklisted,
+     *      no fees should be accumulated for that withdrawal.
+     */
+    function test_processPendingWithdrawals_FeeShouldAccumulateOnlyForSuccessfulWithdrawals()
+        public
+    {
+        // Clear fee BPS and average Concero message fee
+        vm.startPrank(s_deployer);
+        s_parentPool.setRebalancerFeeBps(0);
+        s_parentPool.setAverageConceroMessageFee(0);
+        vm.stopPrank();
+
+        _baseSetupWithLPMinting();
+
+        // For clarity, we set new fee BPS and average Concero message fee
+        uint8 newFeeBps = 100; // 0.1%
+        uint96 newAverageConceroMessageFee = 10e6; // 10 USDC
+
+        vm.startPrank(s_deployer);
+        s_parentPool.setRebalancerFeeBps(newFeeBps);
+        s_parentPool.setAverageConceroMessageFee(newAverageConceroMessageFee);
+        vm.stopPrank();
+
+        // Add 3 users to blacklist
+        address[] memory users = _getUsers(5);
+        MockERC20(address(s_usdc)).blacklist(users[0]);
+        MockERC20(address(s_usdc)).blacklist(users[1]);
+        MockERC20(address(s_usdc)).blacklist(users[2]);
+
+        uint256 withdrawalAmount = _addDecimals(1_000);
+
+        for (uint256 i; i < users.length; i++) {
+            _enterWithdrawalQueue(users[i], withdrawalAmount);
+        }
+
+        _fillChildPoolSnapshots(_addDecimals(1_000));
+        _triggerDepositWithdrawProcess();
+        _fillDeficit(s_parentPool.getDeficit());
+
+        (uint256 conceroFee, uint256 rebalanceFee) = s_parentPool.getWithdrawalFee(
+            withdrawalAmount
+        );
+        _processPendingWithdrawals();
+
+        /**
+         * @dev Only 2 users will be successful withdrawals
+         *      It means that we need to multiply fee by 2
+         *      Lanca fee is calculated as averageConceroMessageFee * childPoolsCount * 4 / pendingWithdrawalCount * 2
+         *      Rebalance fee is calculated as rebalancerFee * 2
+         */
+
+        uint256 expectedLancaFee = conceroFee * 2; // 10e6 * 9 * 4 / 5 * 2 = 144e6
+        uint256 expectedRebalanceFee = rebalanceFee * 2; // 1000e6 * 100 / 100_000 * 2 = 2e6
+
+        assertEq(s_parentPool.exposed_getLancaFeeInLiqToken(), expectedLancaFee);
+        assertEq(s_parentPool.exposed_getRebalancingFeeInLiqToken(), expectedRebalanceFee);
+    }
+
     /** -- Test deposit plus surplus greater than withdrawal -- */
 
     function test_depositPlusSurplusGreaterThanWithdrawal() public {
