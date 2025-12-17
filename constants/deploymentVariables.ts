@@ -58,9 +58,9 @@ const parentPoolVariables: ParentPoolVariables = {
 };
 
 const poolFeeBps: PoolFeeBps = {
-	rebalancerFeeBps: 0, // TODO: set actual value
-	lpFeeBps: 0, // TODO: set actual value
-	lancaBridgeFeeBps: 0, // TODO: set actual value
+	rebalancerFeeBps: 5, // TODO: set actual value
+	lpFeeBps: 5, // TODO: set actual value
+	lancaBridgeFeeBps: 50, // TODO: set actual value
 };
 
 const parentPoolChainSelectors: Record<NetworkType, number> = {
