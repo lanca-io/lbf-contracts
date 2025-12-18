@@ -523,6 +523,7 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
     /// @dev
     /// - Decodes snapshot + source decimals via `decodeChildPoolSnapshot`.
     /// - Converts all amounts to `SCALE_TOKEN_DECIMALS` using `_toScaleDecimals`.
+    /// - Checks if the snapshot is newer than the existing one.
     /// - Stores the converted snapshot in `childPoolSnapshots[sourceChainSelector]`.
     /// @param sourceChainSelector Chain selector of the child pool.
     /// @param messageData Encoded snapshot payload.
@@ -548,7 +549,9 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
             srcDecimals
         );
 
-        s.parentPool().childPoolSnapshots[sourceChainSelector] = snapshot;
+        if (snapshot.timestamp > s.parentPool().childPoolSnapshots[sourceChainSelector].timestamp) {
+            s.parentPool().childPoolSnapshots[sourceChainSelector] = snapshot;
+        }
     }
 
     /// @dev
