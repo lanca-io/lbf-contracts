@@ -11,6 +11,7 @@ import {ChildPool} from "contracts/ChildPool/ChildPool.sol";
 import {RebalancerBase} from "../Rebalancer/RebalancerBase.sol";
 import {MockERC20} from "../mocks/MockERC20.sol";
 import {BridgeCodec} from "contracts/common/libraries/BridgeCodec.sol";
+import {IOUToken} from "contracts/Rebalancer/IOUToken.sol";
 
 contract Rebalancer is RebalancerBase {
     using MessageCodec for IConceroRouter.MessageRequest;
@@ -47,7 +48,6 @@ contract Rebalancer is RebalancerBase {
         iouBalanceBefore = s_iouToken.balanceOf(s_operator);
 
         vm.startPrank(s_operator);
-        s_iouToken.approve(address(s_parentPool), deficit);
         s_parentPool.bridgeIOU{value: s_parentPool.getBridgeIouNativeFee(dstChainSelector)}(
             s_operator.toBytes32(),
             dstChainSelector,
@@ -109,7 +109,6 @@ contract Rebalancer is RebalancerBase {
 
         uint256 usdcBalanceBefore = s_usdc.balanceOf(s_user);
         vm.startPrank(s_user);
-        s_iouToken.approve(address(s_parentPool), surplusToTake);
         s_parentPool.takeSurplus(surplusToTake);
         vm.stopPrank();
         uint256 usdcBalanceAfter = s_usdc.balanceOf(s_user);
@@ -183,9 +182,6 @@ contract Rebalancer is RebalancerBase {
         _topUpRebalancingFee(address(s_childPool_2), rebalancerFee / 2);
 
         vm.startPrank(s_operator);
-        s_iouToken.approve(address(s_childPool_1), type(uint256).max);
-        s_iouToken.approve(address(s_childPool_2), type(uint256).max);
-
         s_childPool_1.takeSurplus(s_childPool_1.getSurplus());
         s_childPool_2.takeSurplus(s_childPool_2.getSurplus());
         vm.stopPrank();
@@ -238,15 +234,6 @@ contract Rebalancer is RebalancerBase {
         _processPendingWithdrawals();
 
         vm.startPrank(s_operator);
-        s_iouToken.approve(address(s_childPool_1), type(uint256).max);
-        s_iouToken.approve(address(s_childPool_2), type(uint256).max);
-        s_iouToken.approve(address(s_childPool_3), type(uint256).max);
-        s_iouToken.approve(address(s_childPool_4), type(uint256).max);
-        s_iouToken.approve(address(s_childPool_5), type(uint256).max);
-        s_iouToken.approve(address(s_childPool_6), type(uint256).max);
-        s_iouToken.approve(address(s_childPool_7), type(uint256).max);
-        s_iouToken.approve(address(s_childPool_8), type(uint256).max);
-        s_iouToken.approve(address(s_childPool_9), type(uint256).max);
 
         s_childPool_1.takeSurplus(s_childPool_1.getSurplus());
         s_childPool_2.takeSurplus(s_childPool_2.getSurplus());
@@ -290,10 +277,7 @@ contract Rebalancer is RebalancerBase {
         vm.startPrank(s_operator);
         s_usdc.approve(address(s_childPool_1), type(uint256).max);
         s_usdc.approve(address(s_childPool_2), type(uint256).max);
-        s_iouToken.approve(address(s_childPool_1), type(uint256).max);
-        s_iouToken.approve(address(s_childPool_2), type(uint256).max);
         s_usdc.approve(address(s_parentPool), type(uint256).max);
-        s_iouToken.approve(address(s_parentPool), type(uint256).max);
 
         s_childPool_1.fillDeficit(s_childPool_1.getDeficit());
         s_childPool_2.fillDeficit(s_childPool_2.getDeficit());
