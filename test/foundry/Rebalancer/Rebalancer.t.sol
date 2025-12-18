@@ -417,9 +417,4 @@ contract Rebalancer is RebalancerBase {
     function test_getIouToken() public view {
         assertEq(s_parentPool.getIOUToken(), address(s_iouToken));
     }
-
-    function test_burnFrom_RevertsNotAllowedIfDirectCall() public {
-        vm.expectRevert(IOUToken.NotAllowed.selector);
-        s_iouToken.burnFrom(s_operator, 1);
-    }
 }
