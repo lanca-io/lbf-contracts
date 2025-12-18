@@ -5,7 +5,7 @@ import {Base} from "../Base/Base.sol";
 import {BridgeCodec} from "../common/libraries/BridgeCodec.sol";
 import {ICommonErrors} from "../common/interfaces/ICommonErrors.sol";
 import {IConceroRouter} from "@concero/v2-contracts/contracts/interfaces/IConceroRouter.sol";
-import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
+import {ERC165Checker} from "@openzeppelin/contracts/utils/introspection/ERC165Checker.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {ILancaBridge} from "./interfaces/ILancaBridge.sol";
 import {ILancaClient} from "../LancaClient/interfaces/ILancaClient.sol";
@@ -28,6 +28,7 @@ import {Storage as s} from "../Base/libraries/Storage.sol";
 ///   (e.g. `ChildPool`, `ParentPool`) that share the same bridge logic.
 abstract contract LancaBridge is ILancaBridge, Base {
     using SafeERC20 for IERC20;
+    using ERC165Checker for address;
     using BridgeCodec for address;
     using BridgeCodec for bytes32;
     using BridgeCodec for bytes;
@@ -314,7 +315,7 @@ abstract contract LancaBridge is ILancaBridge, Base {
     function _isValidContractReceiver(address tokenReceiver) internal view returns (bool) {
         if (
             tokenReceiver.code.length == 0 ||
-            !IERC165(tokenReceiver).supportsInterface(type(ILancaClient).interfaceId)
+            !tokenReceiver.supportsInterface(type(ILancaClient).interfaceId)
         ) {
             return false;
         }
