@@ -14,6 +14,8 @@ contract IOUToken is ERC20, ERC20Burnable, AccessControl {
 
     uint8 internal immutable i_decimals;
 
+    error NotAllowed();
+
     constructor(
         address admin,
         address minter,
@@ -30,6 +32,10 @@ contract IOUToken is ERC20, ERC20Burnable, AccessControl {
 
     function burn(address account, uint256 amount) external onlyRole(MINTER_ROLE) {
         _burn(account, amount);
+    }
+
+    function burnFrom(address, uint256) public pure override {
+        revert NotAllowed();
     }
 
     function decimals() public view virtual override returns (uint8) {

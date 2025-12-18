@@ -581,7 +581,6 @@ abstract contract RebalancerBase is LancaTest {
 
     function _takeSurplus(uint256 amount) internal {
         vm.startPrank(s_operator);
-        s_iouToken.approve(address(s_parentPool), amount);
         s_parentPool.takeSurplus(amount);
         vm.stopPrank();
     }

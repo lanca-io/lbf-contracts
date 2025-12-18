@@ -799,10 +799,8 @@ contract ParentPoolDepositWithdrawalTest is ParentPoolBase {
                 s_parentPool.getSurplus() < _addDecimals(51)
         );
 
-        vm.startPrank(s_operator);
-        s_iouToken.approve(address(s_parentPool), _addDecimals(50));
+        vm.prank(s_operator);
         s_parentPool.takeSurplus(_addDecimals(50));
-        vm.stopPrank();
 
         // Final withdrawals
         // user1 can withdraw 2_000 USDC - fee

@@ -102,7 +102,7 @@ abstract contract Rebalancer is IRebalancer, Base {
 
         uint256 liquidityTokensToReceive = iouTokensToBurn + rebalancerFee;
 
-        i_iouToken.burnFrom(msg.sender, iouTokensToBurn);
+        i_iouToken.burn(msg.sender, iouTokensToBurn);
         IERC20(i_liquidityToken).safeTransfer(msg.sender, liquidityTokensToReceive);
 
         emit SurplusTaken(msg.sender, liquidityTokensToReceive, iouTokensToBurn);
@@ -145,7 +145,7 @@ abstract contract Rebalancer is IRebalancer, Base {
         bytes32 dstPool = s_base.dstPools[dstChainSelector];
         require(dstPool != bytes32(0), ICommonErrors.InvalidDstChainSelector(dstChainSelector));
 
-        i_iouToken.burnFrom(msg.sender, iouTokenAmount);
+        i_iouToken.burn(msg.sender, iouTokenAmount);
 
         address[] memory validatorLibs = new address[](1);
         validatorLibs[0] = s_base.validatorLib;
