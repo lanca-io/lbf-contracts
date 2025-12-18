@@ -55,7 +55,7 @@ export async function deployTransparentProxy(
 		args: [initialImplementation, deployer.address, callData || "0x"],
 		publicClient,
 		gasLimit,
-		proxy: true,
+		log: true,
 	});
 
 	updateEnvAddress(
@@ -80,8 +80,8 @@ export async function deployTransparentProxy(
 	);
 
 	log(
-		`Deployed at: ${proxyDeployment.address}. 
-		Initial impl: ${initialImplementationAlias}, 
+		`Deployed at: ${proxyDeployment.address}.
+		Initial impl: ${initialImplementationAlias},
 		Proxy admin: ${proxyAdminAddress},
 		Hash: ${proxyDeployment.transactionHash},
 		Pool initialize data: ${callData}`,

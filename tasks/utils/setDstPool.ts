@@ -62,7 +62,7 @@ export async function setDstPool(srcChainName: string, dstChainName: string) {
 			dir: "right",
 		});
 
-		if (currentDstPool !== dstPoolProxyBytes32) {
+		if (currentDstPool.toLowerCase() !== dstPoolProxyBytes32.toLowerCase()) {
 			const setDstPoolHash = await walletClient.writeContract({
 				address: srcPoolProxyAddress,
 				abi: parentPoolAbi,

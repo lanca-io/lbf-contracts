@@ -8,6 +8,7 @@ import { setLibs } from "./utils/setLibs";
 
 task("update-all-pools-vars").setAction(async () => {
 	for (const network in conceroNetworks) {
+		if (network === "localhost" || network === "hardhat") continue;
 		try {
 			await setLibs(network);
 			await setFeeBps(network);
