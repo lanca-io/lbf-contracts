@@ -58,13 +58,6 @@ export async function deployTransparentProxy(
 		log: true,
 	});
 
-	updateEnvAddress(
-		proxyType,
-		name,
-		proxyDeployment.address,
-		`deployments.${networkType}` as EnvFileName,
-	);
-
 	const proxyAdminBytes = await publicClient.getStorageAt({
 		address: proxyDeployment.address as Hex,
 		slot: ADMIN_SLOT as Hex,
@@ -76,6 +69,13 @@ export async function deployTransparentProxy(
 		`${proxyType}Admin`,
 		name,
 		proxyAdminAddress,
+		`deployments.${networkType}` as EnvFileName,
+	);
+
+	updateEnvAddress(
+		proxyType,
+		name,
+		proxyDeployment.address,
 		`deployments.${networkType}` as EnvFileName,
 	);
 
