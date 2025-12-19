@@ -334,12 +334,12 @@ abstract contract RebalancerBase is LancaTest {
 
     function _setMinDepositAmount(uint256 amount) internal {
         vm.prank(s_deployer);
-        s_parentPool.setMinDepositAmount(uint64(amount));
+        s_parentPool.setMinDepositAmount(amount);
     }
 
     function _setMinWithdrawalAmount(uint256 amount) internal {
         vm.prank(s_deployer);
-        s_parentPool.setMinWithdrawalAmount(uint64(amount));
+        s_parentPool.setMinWithdrawalAmount(amount);
     }
 
     function _triggerDepositWithdrawProcess() internal {

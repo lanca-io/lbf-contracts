@@ -544,7 +544,7 @@ contract ParentPoolTest is ParentPoolBase {
         assertEq(s_parentPool.getMinDepositAmount(), _addDecimals(100));
 
         vm.prank(s_deployer);
-        s_parentPool.setMinDepositAmount(uint64(_addDecimals(50)));
+        s_parentPool.setMinDepositAmount(_addDecimals(50));
         assertEq(s_parentPool.getMinDepositAmount(), _addDecimals(50));
     }
 
@@ -552,7 +552,7 @@ contract ParentPoolTest is ParentPoolBase {
         assertEq(s_parentPool.getMinWithdrawalAmount(), _addDecimals(100));
 
         vm.prank(s_deployer);
-        s_parentPool.setMinWithdrawalAmount(uint64(_addDecimals(50)));
+        s_parentPool.setMinWithdrawalAmount(_addDecimals(50));
 
         assertEq(s_parentPool.getMinWithdrawalAmount(), _addDecimals(50));
     }
