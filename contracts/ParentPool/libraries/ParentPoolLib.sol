@@ -148,7 +148,7 @@ library ParentPoolLib {
     /// Requirements:
     /// - `minWithdrawalAmount` must be set (`> 0`), otherwise reverts with `MinWithdrawalAmountNotSet`.
     /// - `lpTokenAmount >= minWithdrawalAmount`, otherwise reverts with `WithdrawalAmountIsTooLow`.
-    /// - `withdrawalQueueIds.length < MAX_QUEUE_LENGTH`, otherwise reverts with `WithdrawalQueueIsFull`.
+    /// - `withdrawalQueueIds.length + pendingWithdrawalIds.length < MAX_QUEUE_LENGTH`, otherwise reverts with `WithdrawalQueueIsFull`.
     ///
     /// Effects:
     /// - Transfers `lpTokenAmount` of LP tokens from `msg.sender` to the parent pool.
@@ -174,7 +174,8 @@ library ParentPoolLib {
         );
 
         require(
-            s_parentPool.withdrawalQueueIds.length < MAX_QUEUE_LENGTH,
+            s_parentPool.withdrawalQueueIds.length + s_parentPool.pendingWithdrawalIds.length <
+                MAX_QUEUE_LENGTH,
             IParentPool.WithdrawalQueueIsFull()
         );
 
