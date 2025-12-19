@@ -190,6 +190,38 @@ contract ParentPoolTest is ParentPoolBase {
         s_parentPool.enterWithdrawalQueue(_addDecimals(100));
     }
 
+    function test_enterWithdrawalQueue_RevertsWithdrawalQueueIsFullIfTwoTriggers() public {
+        _setLiquidityCap(address(s_parentPool), _addDecimals(100_000));
+
+        _setQueuesLength(0, 0);
+        _enterDepositQueue(s_user, _addDecimals(100_000));
+
+        _fillChildPoolSnapshots();
+        _triggerDepositWithdrawProcess();
+
+        uint256 maxQueueLength = 250;
+        uint256 batchWithdrawals = maxQueueLength / 2;
+
+        for (uint256 i; i < batchWithdrawals; i++) {
+            _enterWithdrawalQueue(s_user, _addDecimals(100));
+        }
+
+        _fillChildPoolSnapshots();
+        _triggerDepositWithdrawProcess();
+
+        for (uint256 i; i < batchWithdrawals; i++) {
+            _enterWithdrawalQueue(s_user, _addDecimals(100));
+        }
+
+        _fillChildPoolSnapshots();
+        _triggerDepositWithdrawProcess();
+
+        vm.expectRevert(IParentPool.WithdrawalQueueIsFull.selector);
+
+        vm.prank(s_user);
+        s_parentPool.enterWithdrawalQueue(_addDecimals(100));
+    }
+
     function test_enterWithdrawalQueue_EmitsWithdrawalQueued() public {
         _baseSetup();
         _mintLpToken(s_user, _addDecimals(100));
