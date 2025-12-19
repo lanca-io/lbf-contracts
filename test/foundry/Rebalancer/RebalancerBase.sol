@@ -440,10 +440,10 @@ abstract contract RebalancerBase is LancaTest {
 
     function _setTargetBalanceCalculationVars() internal {
         vm.startPrank(s_deployer);
-        s_parentPool.setLurScoreSensitivity(uint64(5 * USDC_TOKEN_DECIMALS_SCALE));
+        s_parentPool.setLurScoreSensitivity(uint128(5 * USDC_TOKEN_DECIMALS_SCALE));
         s_parentPool.setScoresWeights(
-            uint64((7 * USDC_TOKEN_DECIMALS_SCALE) / 10),
-            uint64((3 * USDC_TOKEN_DECIMALS_SCALE) / 10)
+            uint128((7 * USDC_TOKEN_DECIMALS_SCALE) / 10),
+            uint128((3 * USDC_TOKEN_DECIMALS_SCALE) / 10)
         );
         vm.stopPrank();
     }

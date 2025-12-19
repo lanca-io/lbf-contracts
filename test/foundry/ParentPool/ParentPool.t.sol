@@ -361,12 +361,12 @@ contract ParentPoolTest is ParentPoolBase {
         vm.expectRevert(IParentPool.InvalidLurScoreSensitivity.selector);
 
         vm.prank(s_deployer);
-        s_parentPool.setLurScoreSensitivity(uint64(_addDecimals(1)));
+        s_parentPool.setLurScoreSensitivity(uint128(_addDecimals(1)));
 
         vm.expectRevert(IParentPool.InvalidLurScoreSensitivity.selector);
 
         vm.prank(s_deployer);
-        s_parentPool.setLurScoreSensitivity(uint64(_addDecimals(10)));
+        s_parentPool.setLurScoreSensitivity(uint128(_addDecimals(10)));
     }
 
     function test_setScoresWeights_RevertsInvalidScoresWeights() public {
@@ -511,27 +511,27 @@ contract ParentPoolTest is ParentPoolBase {
     }
 
     function test_getLurScoreSensitivity() public {
-        assertEq(s_parentPool.getLurScoreSensitivity(), uint64(5 * USDC_TOKEN_DECIMALS_SCALE));
+        assertEq(s_parentPool.getLurScoreSensitivity(), uint128(5 * USDC_TOKEN_DECIMALS_SCALE));
 
         vm.prank(s_deployer);
-        s_parentPool.setLurScoreSensitivity(uint64(4 * USDC_TOKEN_DECIMALS_SCALE));
-        assertEq(s_parentPool.getLurScoreSensitivity(), uint64(4 * USDC_TOKEN_DECIMALS_SCALE));
+        s_parentPool.setLurScoreSensitivity(uint128(4 * USDC_TOKEN_DECIMALS_SCALE));
+        assertEq(s_parentPool.getLurScoreSensitivity(), uint128(4 * USDC_TOKEN_DECIMALS_SCALE));
     }
 
     function test_getScoresWeights() public {
-        (uint64 lurScoreWeight, uint64 ndrScoreWeight) = s_parentPool.getScoresWeights();
-        assertEq(lurScoreWeight, uint64((7 * USDC_TOKEN_DECIMALS_SCALE) / 10));
-        assertEq(ndrScoreWeight, uint64((3 * USDC_TOKEN_DECIMALS_SCALE) / 10));
+        (uint128 lurScoreWeight, uint128 ndrScoreWeight) = s_parentPool.getScoresWeights();
+        assertEq(lurScoreWeight, uint128((7 * USDC_TOKEN_DECIMALS_SCALE) / 10));
+        assertEq(ndrScoreWeight, uint128((3 * USDC_TOKEN_DECIMALS_SCALE) / 10));
 
         vm.prank(s_deployer);
         s_parentPool.setScoresWeights(
-            uint64((6 * USDC_TOKEN_DECIMALS_SCALE) / 10),
-            uint64((4 * USDC_TOKEN_DECIMALS_SCALE) / 10)
+            uint128((6 * USDC_TOKEN_DECIMALS_SCALE) / 10),
+            uint128((4 * USDC_TOKEN_DECIMALS_SCALE) / 10)
         );
 
         (lurScoreWeight, ndrScoreWeight) = s_parentPool.getScoresWeights();
-        assertEq(lurScoreWeight, uint64((6 * USDC_TOKEN_DECIMALS_SCALE) / 10));
-        assertEq(ndrScoreWeight, uint64((4 * USDC_TOKEN_DECIMALS_SCALE) / 10));
+        assertEq(lurScoreWeight, uint128((6 * USDC_TOKEN_DECIMALS_SCALE) / 10));
+        assertEq(ndrScoreWeight, uint128((4 * USDC_TOKEN_DECIMALS_SCALE) / 10));
     }
 
     function test_getLiquidityCap() public {

@@ -334,14 +334,14 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
         return s.parentPool().pendingWithdrawalIds;
     }
 
-    function getLurScoreSensitivity() external view returns (uint64) {
+    function getLurScoreSensitivity() external view returns (uint128) {
         return s.parentPool().lurScoreSensitivity;
     }
 
     function getScoresWeights()
         external
         view
-        returns (uint64 lurScoreWeight, uint64 ndrScoreWeight)
+        returns (uint128 lurScoreWeight, uint128 ndrScoreWeight)
     {
         return (s.parentPool().lurScoreWeight, s.parentPool().ndrScoreWeight);
     }
@@ -406,7 +406,7 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
     ///   * `lurScoreSensitivity > i_liquidityTokenScaleFactor`,
     ///   * `lurScoreSensitivity < 10 * i_liquidityTokenScaleFactor`.
     /// @param lurScoreSensitivity New LUR sensitivity parameter.
-    function setLurScoreSensitivity(uint64 lurScoreSensitivity) external onlyRole(ADMIN) {
+    function setLurScoreSensitivity(uint128 lurScoreSensitivity) external onlyRole(ADMIN) {
         require(
             (lurScoreSensitivity > i_liquidityTokenScaleFactor) &&
                 (lurScoreSensitivity < (10 * i_liquidityTokenScaleFactor)),
@@ -421,8 +421,8 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
     /// @param lurScoreWeight New weight for LUR score.
     /// @param ndrScoreWeight New weight for NDR score.
     function setScoresWeights(
-        uint64 lurScoreWeight,
-        uint64 ndrScoreWeight
+        uint128 lurScoreWeight,
+        uint128 ndrScoreWeight
     ) external onlyRole(ADMIN) {
         require(
             lurScoreWeight + ndrScoreWeight == i_liquidityTokenScaleFactor,
