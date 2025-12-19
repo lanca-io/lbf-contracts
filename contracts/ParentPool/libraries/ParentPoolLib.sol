@@ -51,11 +51,11 @@ library ParentPoolLib {
         /// @notice Chain selector of the parent pool.
         uint24 parentChainSelector;
         /// @notice Sensitivity parameter for LUR score.
-        uint64 lurScoreSensitivity;
+        uint256 lurScoreSensitivity;
         /// @notice Weight for LUR score in health calculation.
-        uint64 lurScoreWeight;
+        uint256 lurScoreWeight;
         /// @notice Weight for NDR score in health calculation.
-        uint64 ndrScoreWeight;
+        uint256 ndrScoreWeight;
         /// @notice Scale factor for liquidity token (10 ** decimals).
         uint256 liquidityTokenScaleFactor;
         /// @notice Minimum allowed target balance for any pool.
@@ -852,7 +852,7 @@ library ParentPoolLib {
         uint256 outflow,
         uint256 targetBalance,
         uint256 scaleFactor,
-        uint64 lurScoreSensitivity
+        uint256 lurScoreSensitivity
     ) private pure returns (uint256) {
         if (targetBalance == 0) return scaleFactor;
         uint256 lur = ((inflow + outflow) * scaleFactor) / targetBalance;
