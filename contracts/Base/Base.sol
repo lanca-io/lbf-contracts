@@ -237,6 +237,10 @@ abstract contract Base is IBase, AccessControlUpgradeable, ConceroClient {
         return s.base().lancaBridgeFeeBps;
     }
 
+    function getWithdrawableLancaFee() external view returns (uint256) {
+        return s.base().totalLancaFeeInLiqToken;
+    }
+
     /*   ADMIN FUNCTIONS   */
 
     /// @notice Sets the destination pool address for a given chain selector.
@@ -337,20 +341,16 @@ abstract contract Base is IBase, AccessControlUpgradeable, ConceroClient {
     /// - Only callable by `ADMIN`.
     /// - Withdraws to the caller address.
     /// - Emits `LancaFeeWithdrawn`.
-    /// @param amount Amount of Lanca fees to withdraw.
-    function withdrawLancaFee(uint256 amount) external onlyRole(ADMIN) {
+    function withdrawLancaFee() external onlyRole(ADMIN) {
         s.Base storage s_base = s.base();
 
         uint256 totalLancaFee = s_base.totalLancaFeeInLiqToken;
-        if (amount > totalLancaFee) {
-            amount = totalLancaFee;
-        }
 
-        s_base.totalLancaFeeInLiqToken -= amount;
+        s_base.totalLancaFeeInLiqToken = 0;
 
-        IERC20(i_liquidityToken).safeTransfer(msg.sender, amount);
+        IERC20(i_liquidityToken).safeTransfer(msg.sender, totalLancaFee);
 
-        emit LancaFeeWithdrawn(msg.sender, amount);
+        emit LancaFeeWithdrawn(msg.sender, totalLancaFee);
     }
 
     /*   INTERNAL FUNCTIONS   */

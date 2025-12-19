@@ -247,7 +247,7 @@ contract Rebalancer is RebalancerBase {
         vm.stopPrank();
 
         assertEq(s_parentPool.getActiveBalance(), 0);
-        assertEq(s_parentPool.exposed_getLancaFeeInLiqToken(), 0);
+        assertEq(s_parentPool.getWithdrawableLancaFee(), 0);
         assertApproxEqRel(
             s_parentPool.exposed_getRebalancingFeeInLiqToken(),
             _addDecimals(110),
