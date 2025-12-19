@@ -467,6 +467,26 @@ contract ParentPoolTest is ParentPoolBase {
         assertEq(s_parentPool.exposed_getLancaFeeInLiqToken(), conceroFee);
     }
 
+    function test_withdrawLancaFee_RevertIfNotAdmin() public {
+        vm.expectRevert();
+
+        vm.prank(s_user);
+        s_parentPool.withdrawLancaFee(100e6);
+    }
+
+    function test_withdrawLancaFee_Success() public {
+        test_setAverageConceroMessageFee_Success();
+
+        uint256 amountToWithdraw = s_parentPool.exposed_getLancaFeeInLiqToken();
+        assert(amountToWithdraw > 0);
+
+        vm.expectEmit(true, false, false, true);
+        emit IBase.LancaFeeWithdrawn(s_deployer, amountToWithdraw);
+
+        vm.prank(s_deployer);
+        s_parentPool.withdrawLancaFee(amountToWithdraw);
+    }
+
     function test_getActiveBalance() public {
         assertEq(s_parentPool.getActiveBalance(), 0);
 

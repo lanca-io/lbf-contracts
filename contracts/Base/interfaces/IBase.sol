@@ -16,4 +16,6 @@ interface IBase {
     }
 
     error InvalidConceroMessageType();
+
+    event LancaFeeWithdrawn(address indexed recipient, uint256 amount);
 }

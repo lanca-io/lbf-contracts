@@ -6,6 +6,7 @@ import {ConceroClient} from "@concero/v2-contracts/contracts/ConceroClient/Conce
 import {MessageCodec} from "@concero/v2-contracts/contracts/common/libraries/MessageCodec.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IOUToken} from "../Rebalancer/IOUToken.sol";
 import {IBase} from "./interfaces/IBase.sol";
 import {Storage as rs} from "../Rebalancer/libraries/Storage.sol";
@@ -31,6 +32,7 @@ import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/acce
 ///   * `BPS_DENOMINATOR = 100_000`
 ///   * 1 unit of `*_FeeBps` = 0.1 bps = 0.001%.
 abstract contract Base is IBase, AccessControlUpgradeable, ConceroClient {
+    using SafeERC20 for IERC20;
     using s for s.Base;
     using rs for rs.Rebalancer;
     using MessageCodec for bytes;
@@ -328,6 +330,27 @@ abstract contract Base is IBase, AccessControlUpgradeable, ConceroClient {
     /// @param lancaBridgeFeeBps New Lanca bridge fee value.
     function setLancaBridgeFeeBps(uint8 lancaBridgeFeeBps) external onlyRole(ADMIN) {
         s.base().lancaBridgeFeeBps = lancaBridgeFeeBps;
+    }
+
+    /// @notice Withdraws Lanca fees from the pool.
+    /// @dev
+    /// - Only callable by `ADMIN`.
+    /// - Withdraws to the caller address.
+    /// - Emits `LancaFeeWithdrawn`.
+    /// @param amount Amount of Lanca fees to withdraw.
+    function withdrawLancaFee(uint256 amount) external onlyRole(ADMIN) {
+        s.Base storage s_base = s.base();
+
+        uint256 totalLancaFee = s_base.totalLancaFeeInLiqToken;
+        if (amount > totalLancaFee) {
+            amount = totalLancaFee;
+        }
+
+        s_base.totalLancaFeeInLiqToken -= amount;
+
+        IERC20(i_liquidityToken).safeTransfer(msg.sender, amount);
+
+        emit LancaFeeWithdrawn(msg.sender, amount);
     }
 
     /*   INTERNAL FUNCTIONS   */
