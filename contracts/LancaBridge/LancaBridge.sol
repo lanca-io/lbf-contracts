@@ -136,7 +136,7 @@ abstract contract LancaBridge is ILancaBridge, Base {
     ///   * or both are non-zero (hook call is expected).
     /// - Returns encoded EVM destination data with:
     ///   * `receiver = dstPool.toAddress()`,
-    ///   * `gasLimit = BRIDGE_GAS_OVERHEAD + userDstChainGasLimit`.
+    ///   * `gasLimit = BRIDGE_GAS_OVERHEAD + liquidityTokenGasOverhead userDstChainGasLimit`.
     /// - Reverts with `InvalidDstGasLimitOrCallData` on inconsistent input.
     /// @param userDstChainGasLimit User-provided destination chain gas limit.
     /// @param dstPool Bytes32-encoded destination pool address.
@@ -146,7 +146,7 @@ abstract contract LancaBridge is ILancaBridge, Base {
         uint32 userDstChainGasLimit,
         bytes32 dstPool,
         uint256 payloadLength
-    ) internal pure returns (bytes memory) {
+    ) internal view returns (bytes memory) {
         require(
             (userDstChainGasLimit == 0 && payloadLength == 0) ||
                 (userDstChainGasLimit > 0 && payloadLength > 0),
@@ -156,7 +156,7 @@ abstract contract LancaBridge is ILancaBridge, Base {
         return
             MessageCodec.encodeEvmDstChainData(
                 dstPool.toAddress(),
-                BRIDGE_GAS_OVERHEAD + userDstChainGasLimit
+                BRIDGE_GAS_OVERHEAD + i_liquidityTokenGasOverhead + userDstChainGasLimit
             );
     }
 

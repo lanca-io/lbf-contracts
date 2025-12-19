@@ -59,12 +59,14 @@ abstract contract Base is IBase, AccessControlUpgradeable, ConceroClient {
     address internal immutable i_liquidityToken;
     IOUToken internal immutable i_iouToken;
     uint8 internal immutable i_liquidityTokenDecimals;
+    uint32 internal immutable i_liquidityTokenGasOverhead;
 
     constructor(
         address liquidityToken,
         address conceroRouter,
         address iouToken,
-        uint24 chainSelector
+        uint24 chainSelector,
+        uint32 liquidityTokenGasOverhead
     ) AccessControlUpgradeable() ConceroClient(conceroRouter) {
         i_liquidityTokenDecimals = IERC20Metadata(liquidityToken).decimals();
         i_iouToken = IOUToken(iouToken);
@@ -72,6 +74,7 @@ abstract contract Base is IBase, AccessControlUpgradeable, ConceroClient {
         require(i_iouToken.decimals() == i_liquidityTokenDecimals, InvalidLiqTokenDecimals());
 
         i_liquidityToken = liquidityToken;
+        i_liquidityTokenGasOverhead = liquidityTokenGasOverhead;
         i_chainSelector = chainSelector;
     }
 

@@ -64,7 +64,8 @@ abstract contract RebalancerBase is LancaTest {
             address(s_iouToken),
             s_conceroRouterWithCall,
             PARENT_POOL_CHAIN_SELECTOR,
-            MIN_TARGET_BALANCE
+            MIN_TARGET_BALANCE,
+            LIQUIDITY_TOKEN_GAS_OVERHEAD
         );
         s_parentPool.initialize(s_deployer, s_lancaKeeper);
 
@@ -92,63 +93,72 @@ abstract contract RebalancerBase is LancaTest {
             address(s_iouToken),
             address(s_usdc),
             childPoolChainSelector_1,
-            PARENT_POOL_CHAIN_SELECTOR
+            PARENT_POOL_CHAIN_SELECTOR,
+            LIQUIDITY_TOKEN_GAS_OVERHEAD
         );
         s_childPool_2 = new ChildPool(
             s_conceroRouterWithCall,
             address(s_iouToken),
             address(s_usdc),
             childPoolChainSelector_2,
-            PARENT_POOL_CHAIN_SELECTOR
+            PARENT_POOL_CHAIN_SELECTOR,
+            LIQUIDITY_TOKEN_GAS_OVERHEAD
         );
         s_childPool_3 = new ChildPool(
             s_conceroRouterWithCall,
             address(s_iouToken),
             address(s_usdc),
             childPoolChainSelector_3,
-            PARENT_POOL_CHAIN_SELECTOR
+            PARENT_POOL_CHAIN_SELECTOR,
+            LIQUIDITY_TOKEN_GAS_OVERHEAD
         );
         s_childPool_4 = new ChildPool(
             s_conceroRouterWithCall,
             address(s_iouToken),
             address(s_usdc),
             childPoolChainSelector_4,
-            PARENT_POOL_CHAIN_SELECTOR
+            PARENT_POOL_CHAIN_SELECTOR,
+            LIQUIDITY_TOKEN_GAS_OVERHEAD
         );
         s_childPool_5 = new ChildPool(
             s_conceroRouterWithCall,
             address(s_iouToken),
             address(s_usdc),
             childPoolChainSelector_5,
-            PARENT_POOL_CHAIN_SELECTOR
+            PARENT_POOL_CHAIN_SELECTOR,
+            LIQUIDITY_TOKEN_GAS_OVERHEAD
         );
         s_childPool_6 = new ChildPool(
             s_conceroRouterWithCall,
             address(s_iouToken),
             address(s_usdc),
             childPoolChainSelector_6,
-            PARENT_POOL_CHAIN_SELECTOR
+            PARENT_POOL_CHAIN_SELECTOR,
+            LIQUIDITY_TOKEN_GAS_OVERHEAD
         );
         s_childPool_7 = new ChildPool(
             s_conceroRouterWithCall,
             address(s_iouToken),
             address(s_usdc),
             childPoolChainSelector_7,
-            PARENT_POOL_CHAIN_SELECTOR
+            PARENT_POOL_CHAIN_SELECTOR,
+            LIQUIDITY_TOKEN_GAS_OVERHEAD
         );
         s_childPool_8 = new ChildPool(
             s_conceroRouterWithCall,
             address(s_iouToken),
             address(s_usdc),
             childPoolChainSelector_8,
-            PARENT_POOL_CHAIN_SELECTOR
+            PARENT_POOL_CHAIN_SELECTOR,
+            LIQUIDITY_TOKEN_GAS_OVERHEAD
         );
         s_childPool_9 = new ChildPool(
             s_conceroRouterWithCall,
             address(s_iouToken),
             address(s_usdc),
             childPoolChainSelector_9,
-            PARENT_POOL_CHAIN_SELECTOR
+            PARENT_POOL_CHAIN_SELECTOR,
+            LIQUIDITY_TOKEN_GAS_OVERHEAD
         );
 
         s_childPool_1.initialize(s_deployer, s_lancaKeeper);

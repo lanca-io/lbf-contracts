@@ -28,7 +28,8 @@ abstract contract LancaBridgeBase is LancaTest {
             address(s_18DecIouToken),
             address(s_18DecUsdc),
             CHILD_POOL_CHAIN_SELECTOR,
-            PARENT_POOL_CHAIN_SELECTOR
+            PARENT_POOL_CHAIN_SELECTOR,
+            LIQUIDITY_TOKEN_GAS_OVERHEAD
         );
         s_childPool.initialize(s_deployer, s_lancaKeeper);
 
@@ -38,7 +39,8 @@ abstract contract LancaBridgeBase is LancaTest {
             address(s_iouToken),
             s_conceroRouter,
             PARENT_POOL_CHAIN_SELECTOR,
-            MIN_TARGET_BALANCE
+            MIN_TARGET_BALANCE,
+            LIQUIDITY_TOKEN_GAS_OVERHEAD
         );
         s_parentPool.initialize(s_deployer, s_lancaKeeper);
         vm.stopPrank();
