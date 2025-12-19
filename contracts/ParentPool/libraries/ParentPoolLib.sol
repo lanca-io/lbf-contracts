@@ -371,6 +371,7 @@ library ParentPoolLib {
 
         s_rebalancer.totalRebalancingFeeAmount += totalRebalancingFeeAmount;
         s_parentPool.totalWithdrawalAmountLocked -= totalLiquidityTokenAmountToWithdraw;
+        s_parentPool.triggerCountBeforeWithdrawalProcess = 0;
         s_base.totalLancaFeeInLiqToken += totalLancaFee;
     }
 
@@ -577,6 +578,10 @@ library ParentPoolLib {
                 withdrawal.lpTokenAmountToWithdraw,
                 liqTokenAmountToWithdraw
             );
+        }
+
+        if (withdrawalQueueIds.length > 0) {
+            s_parentPool.triggerCountBeforeWithdrawalProcess += 1;
         }
 
         delete s_parentPool.withdrawalQueueIds;

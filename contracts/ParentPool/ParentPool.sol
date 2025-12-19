@@ -218,10 +218,14 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
                 the user upon withdrawal for both deposits
                 and withdrawals, and when depositing or withdrawing,
                 messages are sent twice: first childPools ->
-                parentPool, then parentPool -> childPools */
+                parentPool, then parentPool -> childPools.
+                We also multiply by triggerCountBeforeWithdrawalProcess
+                to account for multiple trigger cycles that may occur
+                before processPendingWithdrawals is called. */
         uint256 conceroFee = (s_parentPool.averageConceroMessageFee *
             getChildPoolChainSelectors().length *
-            4) / pendingWithdrawalCount;
+            4 *
+            s_parentPool.triggerCountBeforeWithdrawalProcess) / pendingWithdrawalCount;
 
         return (conceroFee, getRebalancerFee(liqTokenAmount));
     }

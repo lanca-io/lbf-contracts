@@ -28,6 +28,7 @@ library Storage {
         uint256 liquidityCap; // LD
         uint16 minWithdrawalQueueLength;
         uint16 minDepositQueueLength;
+        uint16 triggerCountBeforeWithdrawalProcess;
         uint96 averageConceroMessageFee; // ND
         uint256 lurScoreSensitivity; // has the scale i_liquidityTokenDecimals
         uint256 lurScoreWeight; // has the scale i_liquidityTokenDecimals

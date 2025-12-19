@@ -1060,6 +1060,97 @@ contract ParentPoolDepositWithdrawalTest is ParentPoolBase {
         );
     }
 
+    function test_triggerDepositWithdrawalProcess_ConceroFeeShouldBeTheSameAfterTwoTriggers()
+        public
+    {
+        _baseSetupWithLPMinting();
+
+        // Set deposit queue length to 2 and withdrawal queue length to 2
+        _setQueuesLength(2, 2);
+        _setAverageConceroMessageFee(address(s_parentPool));
+
+        address[] memory users = _getUsers(2);
+
+        uint256 depositAmount = _addDecimals(500);
+        _mintUsdc(users[0], depositAmount * 2);
+        _mintUsdc(users[1], depositAmount * 2);
+
+        _enterDepositQueue(users[0], depositAmount);
+        _enterDepositQueue(users[1], depositAmount);
+
+        uint256 withdrawalAmountLP = _takeRebalancerFee(_addDecimals(500));
+        _enterWithdrawalQueue(users[0], withdrawalAmountLP);
+        _enterWithdrawalQueue(users[1], withdrawalAmountLP);
+
+        // Process first trigger
+        _fillChildPoolSnapshots();
+        _triggerDepositWithdrawProcess();
+
+        (uint256 conceroFeeBeforeSecondTrigger, ) = s_parentPool.getWithdrawalFee(
+            withdrawalAmountLP
+        );
+
+        _enterDepositQueue(users[0], depositAmount);
+        _enterDepositQueue(users[1], depositAmount);
+
+        _enterWithdrawalQueue(users[0], withdrawalAmountLP);
+        _enterWithdrawalQueue(users[1], withdrawalAmountLP);
+
+        // Process second trigger
+        _fillChildPoolSnapshots();
+        _triggerDepositWithdrawProcess();
+
+        (uint256 conceroFeeAfterSecondTrigger, ) = s_parentPool.getWithdrawalFee(
+            withdrawalAmountLP
+        );
+
+        assertEq(conceroFeeBeforeSecondTrigger, conceroFeeAfterSecondTrigger);
+    }
+
+    function test_triggerDepositWithdrawalProcess_ConceroFeeShouldBeTheSameAfterTwoTriggersAndSameWithdrawalQueue()
+        public
+    {
+        _baseSetupWithLPMinting();
+
+        // Set deposit queue length to 2 and withdrawal queue length to 0
+        _setQueuesLength(2, 0);
+        _setAverageConceroMessageFee(address(s_parentPool));
+
+        address[] memory users = _getUsers(2);
+
+        uint256 depositAmount = _addDecimals(500);
+        _mintUsdc(users[0], depositAmount * 2);
+        _mintUsdc(users[1], depositAmount * 2);
+
+        _enterDepositQueue(users[0], depositAmount);
+        _enterDepositQueue(users[1], depositAmount);
+
+        uint256 withdrawalAmountLP = _takeRebalancerFee(_addDecimals(500));
+        _enterWithdrawalQueue(users[0], withdrawalAmountLP);
+        _enterWithdrawalQueue(users[1], withdrawalAmountLP);
+
+        // Process first trigger
+        _fillChildPoolSnapshots();
+        _triggerDepositWithdrawProcess();
+
+        (uint256 conceroFeeBeforeSecondTrigger, ) = s_parentPool.getWithdrawalFee(
+            withdrawalAmountLP
+        );
+
+        _enterDepositQueue(users[0], depositAmount);
+        _enterDepositQueue(users[1], depositAmount);
+
+        // Process second trigger
+        _fillChildPoolSnapshots();
+        _triggerDepositWithdrawProcess();
+
+        (uint256 conceroFeeAfterSecondTrigger, ) = s_parentPool.getWithdrawalFee(
+            withdrawalAmountLP
+        );
+
+        assertEq(conceroFeeBeforeSecondTrigger, conceroFeeAfterSecondTrigger);
+    }
+
     function test_depositPlusSurplusGreaterThanWithdrawalWithUsersBalances() public {
         _baseSetupWithLPMinting();
 
