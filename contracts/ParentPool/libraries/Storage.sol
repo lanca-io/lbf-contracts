@@ -30,9 +30,9 @@ library Storage {
         uint16 minWithdrawalQueueLength;
         uint16 minDepositQueueLength;
         uint96 averageConceroMessageFee; // ND
-        uint64 lurScoreSensitivity; // has the scale i_liquidityTokenDecimals
-        uint64 lurScoreWeight; // has the scale i_liquidityTokenDecimals
-        uint64 ndrScoreWeight; // has the scale i_liquidityTokenDecimals
+        uint256 lurScoreSensitivity; // has the scale i_liquidityTokenDecimals
+        uint256 lurScoreWeight; // has the scale i_liquidityTokenDecimals
+        uint256 ndrScoreWeight; // has the scale i_liquidityTokenDecimals
         uint256 minDepositAmount; // LD
         uint256 minWithdrawalAmount; // LD
     }

@@ -204,7 +204,7 @@ contract InvariantTestBase is LancaTest {
         s_parentPool.setMinDepositAmount(MIN_DEPOSIT_AMOUNT);
         s_parentPool.setMinWithdrawalAmount(MIN_WITHDRAWAL_AMOUNT);
         s_parentPool.grantRole(s_parentPool.LANCA_KEEPER(), s_lancaKeeper);
-        s_parentPool.setLurScoreSensitivity(uint64(5 * USDC_TOKEN_DECIMALS_SCALE));
+        s_parentPool.setLurScoreSensitivity(5 * USDC_TOKEN_DECIMALS_SCALE);
         s_parentPool.setScoresWeights(
             uint64((7 * USDC_TOKEN_DECIMALS_SCALE) / 10),
             uint64((3 * USDC_TOKEN_DECIMALS_SCALE) / 10)
