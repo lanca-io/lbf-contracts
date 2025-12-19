@@ -107,7 +107,7 @@ library ParentPoolLib {
         uint256 liquidityTokenAmount,
         address liquidityToken
     ) external {
-        uint64 minDepositAmount = s_parentPool.minDepositAmount;
+        uint256 minDepositAmount = s_parentPool.minDepositAmount;
         require(minDepositAmount > 0, ICommonErrors.MinDepositAmountNotSet());
         require(
             liquidityTokenAmount >= minDepositAmount,
@@ -166,7 +166,7 @@ library ParentPoolLib {
         uint256 lpTokenAmount,
         address lpToken
     ) external {
-        uint64 minWithdrawalAmount = s_parentPool.minWithdrawalAmount;
+        uint256 minWithdrawalAmount = s_parentPool.minWithdrawalAmount;
         require(minWithdrawalAmount > 0, ICommonErrors.MinWithdrawalAmountNotSet());
         require(
             lpTokenAmount >= minWithdrawalAmount,

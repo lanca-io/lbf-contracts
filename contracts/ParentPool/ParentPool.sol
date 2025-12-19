@@ -350,11 +350,11 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
         return s.parentPool().liquidityCap;
     }
 
-    function getMinDepositAmount() external view returns (uint64) {
+    function getMinDepositAmount() external view returns (uint256) {
         return s.parentPool().minDepositAmount;
     }
 
-    function getMinWithdrawalAmount() external view returns (uint64) {
+    function getMinWithdrawalAmount() external view returns (uint256) {
         return s.parentPool().minWithdrawalAmount;
     }
 
@@ -441,11 +441,11 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
         s.parentPool().liquidityCap = newLiqCap;
     }
 
-    function setMinDepositAmount(uint64 newMinDepositAmount) external onlyRole(ADMIN) {
+    function setMinDepositAmount(uint256 newMinDepositAmount) external onlyRole(ADMIN) {
         s.parentPool().minDepositAmount = newMinDepositAmount;
     }
 
-    function setMinWithdrawalAmount(uint64 newMinWithdrawalAmount) external onlyRole(ADMIN) {
+    function setMinWithdrawalAmount(uint256 newMinWithdrawalAmount) external onlyRole(ADMIN) {
         s.parentPool().minWithdrawalAmount = newMinWithdrawalAmount;
     }
 
