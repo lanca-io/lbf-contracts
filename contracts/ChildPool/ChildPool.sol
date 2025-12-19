@@ -45,8 +45,9 @@ contract ChildPool is Rebalancer, LancaBridge {
         address iouToken,
         address liquidityToken,
         uint24 chainSelector,
-        uint24 parentPoolChainSelector
-    ) Base(liquidityToken, conceroRouter, iouToken, chainSelector) {
+        uint24 parentPoolChainSelector,
+        uint32 liquidityTokenGasOverhead
+    ) Base(liquidityToken, conceroRouter, iouToken, chainSelector, liquidityTokenGasOverhead) {
         i_parentPoolChainSelector = parentPoolChainSelector;
     }
 

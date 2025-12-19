@@ -32,7 +32,8 @@ contract ParentPoolTest is ParentPoolBase {
             address(s_iouToken),
             s_conceroRouter,
             PARENT_POOL_CHAIN_SELECTOR,
-            MIN_TARGET_BALANCE
+            MIN_TARGET_BALANCE,
+            LIQUIDITY_TOKEN_GAS_OVERHEAD
         );
     }
 

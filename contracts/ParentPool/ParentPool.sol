@@ -56,8 +56,9 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
         address iouToken,
         address conceroRouter,
         uint24 chainSelector,
-        uint256 minTargetBalance
-    ) Base(liquidityToken, conceroRouter, iouToken, chainSelector) {
+        uint256 minTargetBalance,
+        uint32 liquidityTokenGasOverhead
+    ) Base(liquidityToken, conceroRouter, iouToken, chainSelector, liquidityTokenGasOverhead) {
         i_lpToken = LPToken(lpToken);
 
         uint8 liquidityTokenDecimals = IERC20Metadata(liquidityToken).decimals();

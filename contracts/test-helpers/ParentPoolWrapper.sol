@@ -15,7 +15,8 @@ contract ParentPoolWrapper is ParentPool {
         address iouToken,
         address conceroRouter,
         uint24 chainSelector,
-        uint256 minTargetBalance
+        uint256 minTargetBalance,
+        uint32 liquidityTokenGasOverhead
     )
         ParentPool(
             liquidityToken,
@@ -23,7 +24,8 @@ contract ParentPoolWrapper is ParentPool {
             iouToken,
             conceroRouter,
             chainSelector,
-            minTargetBalance
+            minTargetBalance,
+            liquidityTokenGasOverhead
         )
     {}
 

@@ -87,7 +87,8 @@ contract InvariantTestBase is LancaTest {
             address(s_iouToken),
             address(s_conceroRouterMockWithCall),
             PARENT_POOL_CHAIN_SELECTOR,
-            MIN_TARGET_BALANCE
+            MIN_TARGET_BALANCE,
+            LIQUIDITY_TOKEN_GAS_OVERHEAD
         );
 
         s_childPool_1 = new ChildPool(
@@ -95,7 +96,8 @@ contract InvariantTestBase is LancaTest {
             address(s_iouTokenChildPool_1),
             address(s_usdcWithDec8ChildPool_1),
             CHILD_POOL_CHAIN_SELECTOR,
-            PARENT_POOL_CHAIN_SELECTOR
+            PARENT_POOL_CHAIN_SELECTOR,
+            LIQUIDITY_TOKEN_GAS_OVERHEAD
         );
 
         s_childPool_2 = new ChildPool(
@@ -103,7 +105,8 @@ contract InvariantTestBase is LancaTest {
             address(s_iouTokenChildPool_2),
             address(s_usdcWithDec18ChildPool_2),
             CHILD_POOL_CHAIN_SELECTOR_2,
-            PARENT_POOL_CHAIN_SELECTOR
+            PARENT_POOL_CHAIN_SELECTOR,
+            LIQUIDITY_TOKEN_GAS_OVERHEAD
         );
 
         s_parentPool.initialize(s_deployer, s_lancaKeeper);
