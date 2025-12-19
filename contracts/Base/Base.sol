@@ -6,6 +6,7 @@ import {ConceroClient} from "@concero/v2-contracts/contracts/ConceroClient/Conce
 import {MessageCodec} from "@concero/v2-contracts/contracts/common/libraries/MessageCodec.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IOUToken} from "../Rebalancer/IOUToken.sol";
 import {IBase} from "./interfaces/IBase.sol";
 import {Storage as rs} from "../Rebalancer/libraries/Storage.sol";
@@ -31,6 +32,7 @@ import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/acce
 ///   * `BPS_DENOMINATOR = 100_000`
 ///   * 1 unit of `*_FeeBps` = 0.1 bps = 0.001%.
 abstract contract Base is IBase, AccessControlUpgradeable, ConceroClient {
+    using SafeERC20 for IERC20;
     using s for s.Base;
     using rs for rs.Rebalancer;
     using MessageCodec for bytes;
@@ -235,6 +237,10 @@ abstract contract Base is IBase, AccessControlUpgradeable, ConceroClient {
         return s.base().lancaBridgeFeeBps;
     }
 
+    function getWithdrawableLancaFee() external view returns (uint256) {
+        return s.base().totalLancaFeeInLiqToken;
+    }
+
     /*   ADMIN FUNCTIONS   */
 
     /// @notice Sets the destination pool address for a given chain selector.
@@ -328,6 +334,23 @@ abstract contract Base is IBase, AccessControlUpgradeable, ConceroClient {
     /// @param lancaBridgeFeeBps New Lanca bridge fee value.
     function setLancaBridgeFeeBps(uint8 lancaBridgeFeeBps) external onlyRole(ADMIN) {
         s.base().lancaBridgeFeeBps = lancaBridgeFeeBps;
+    }
+
+    /// @notice Withdraws Lanca fees from the pool.
+    /// @dev
+    /// - Only callable by `ADMIN`.
+    /// - Withdraws to the caller address.
+    /// - Emits `LancaFeeWithdrawn`.
+    function withdrawLancaFee() external onlyRole(ADMIN) {
+        s.Base storage s_base = s.base();
+
+        uint256 totalLancaFee = s_base.totalLancaFeeInLiqToken;
+
+        s_base.totalLancaFeeInLiqToken = 0;
+
+        IERC20(i_liquidityToken).safeTransfer(msg.sender, totalLancaFee);
+
+        emit LancaFeeWithdrawn(msg.sender, totalLancaFee);
     }
 
     /*   INTERNAL FUNCTIONS   */

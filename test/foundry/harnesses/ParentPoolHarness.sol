@@ -49,10 +49,6 @@ contract ParentPoolHarness is ParentPool {
         return s.parentPool().remainingWithdrawalAmount;
     }
 
-    function exposed_getLancaFeeInLiqToken() public view returns (uint256) {
-        return pbs.base().totalLancaFeeInLiqToken;
-    }
-
     function exposed_getRebalancingFeeInLiqToken() public view returns (uint256) {
         return rs.rebalancer().totalRebalancingFeeAmount;
     }

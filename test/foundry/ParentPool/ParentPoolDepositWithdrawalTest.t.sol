@@ -994,7 +994,7 @@ contract ParentPoolDepositWithdrawalTest is ParentPoolBase {
         uint256 expectedLancaFee = conceroFee * 2; // 10e6 * 9 * 4 / 5 * 2 = 144e6
         uint256 expectedRebalanceFee = rebalanceFee * 2; // 1000e6 * 100 / 100_000 * 2 = 2e6
 
-        assertEq(s_parentPool.exposed_getLancaFeeInLiqToken(), expectedLancaFee);
+        assertEq(s_parentPool.getWithdrawableLancaFee(), expectedLancaFee);
         assertEq(s_parentPool.exposed_getRebalancingFeeInLiqToken(), expectedRebalanceFee);
     }
 
