@@ -68,11 +68,14 @@ contract ConceroRouterMockWithCall is IConceroRouter, Script {
     }
 
     function retryMessageSubmission(
-        bytes calldata,
-        bool[] calldata,
-        address[] calldata,
-        address,
-        uint32
+        RetryMessageSubmissionParams calldata retryMessageSubmissionParams,
+        uint32 gasLimitOverride
+    ) external {}
+
+    function retryMessageSubmissionWithRevalidation(
+        RetryMessageSubmissionParams calldata retryMessageSubmissionParams,
+        bytes[] calldata internalValidatorConfigsOverrides,
+        uint32 gasLimitOverride
     ) external {}
 
     function setSrcChainSelector(uint24 srcChainSelector) external {
