@@ -27,10 +27,13 @@ contract ConceroRouterMock is IConceroRouter {
     }
 
     function retryMessageSubmission(
-        bytes calldata messageReceipt,
-        bool[] calldata validationChecks,
-        address[] calldata validatorLibs,
-        address relayerLib,
+        RetryMessageSubmissionParams calldata retryMessageSubmissionParams,
+        uint32 gasLimitOverride
+    ) external {}
+
+    function retryMessageSubmissionWithRevalidation(
+        RetryMessageSubmissionParams calldata retryMessageSubmissionParams,
+        bytes[] calldata internalValidatorConfigsOverrides,
         uint32 gasLimitOverride
     ) external {}
 }
