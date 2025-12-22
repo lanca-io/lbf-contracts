@@ -799,10 +799,8 @@ contract ParentPoolDepositWithdrawalTest is ParentPoolBase {
                 s_parentPool.getSurplus() < _addDecimals(51)
         );
 
-        vm.startPrank(s_operator);
-        s_iouToken.approve(address(s_parentPool), _addDecimals(50));
+        vm.prank(s_operator);
         s_parentPool.takeSurplus(_addDecimals(50));
-        vm.stopPrank();
 
         // Final withdrawals
         // user1 can withdraw 2_000 USDC - fee
@@ -940,6 +938,66 @@ contract ParentPoolDepositWithdrawalTest is ParentPoolBase {
         );
     }
 
+    /**
+     * @notice This test verifies that fees are only accumulated in case of a successful USDC transfer.
+     * @dev If a USDC transfer fails, for example when a user is blacklisted,
+     *      no fees should be accumulated for that withdrawal.
+     */
+    function test_processPendingWithdrawals_FeeShouldAccumulateOnlyForSuccessfulWithdrawals()
+        public
+    {
+        // Clear fee BPS and average Concero message fee
+        vm.startPrank(s_deployer);
+        s_parentPool.setRebalancerFeeBps(0);
+        s_parentPool.setAverageConceroMessageFee(0);
+        vm.stopPrank();
+
+        _baseSetupWithLPMinting();
+
+        // For clarity, we set new fee BPS and average Concero message fee
+        uint8 newFeeBps = 100; // 0.1%
+        uint96 newAverageConceroMessageFee = 10e6; // 10 USDC
+
+        vm.startPrank(s_deployer);
+        s_parentPool.setRebalancerFeeBps(newFeeBps);
+        s_parentPool.setAverageConceroMessageFee(newAverageConceroMessageFee);
+        vm.stopPrank();
+
+        // Add 3 users to blacklist
+        address[] memory users = _getUsers(5);
+        MockERC20(address(s_usdc)).blacklist(users[0]);
+        MockERC20(address(s_usdc)).blacklist(users[1]);
+        MockERC20(address(s_usdc)).blacklist(users[2]);
+
+        uint256 withdrawalAmount = _addDecimals(1_000);
+
+        for (uint256 i; i < users.length; i++) {
+            _enterWithdrawalQueue(users[i], withdrawalAmount);
+        }
+
+        _fillChildPoolSnapshots(_addDecimals(1_000));
+        _triggerDepositWithdrawProcess();
+        _fillDeficit(s_parentPool.getDeficit());
+
+        (uint256 conceroFee, uint256 rebalanceFee) = s_parentPool.getWithdrawalFee(
+            withdrawalAmount
+        );
+        _processPendingWithdrawals();
+
+        /**
+         * @dev Only 2 users will be successful withdrawals
+         *      It means that we need to multiply fee by 2
+         *      Lanca fee is calculated as averageConceroMessageFee * childPoolsCount * 4 / pendingWithdrawalCount * 2
+         *      Rebalance fee is calculated as rebalancerFee * 2
+         */
+
+        uint256 expectedLancaFee = conceroFee * 2; // 10e6 * 9 * 4 / 5 * 2 = 144e6
+        uint256 expectedRebalanceFee = rebalanceFee * 2; // 1000e6 * 100 / 100_000 * 2 = 2e6
+
+        assertEq(s_parentPool.getWithdrawableLancaFee(), expectedLancaFee);
+        assertEq(s_parentPool.exposed_getRebalancingFeeInLiqToken(), expectedRebalanceFee);
+    }
+
     /** -- Test deposit plus surplus greater than withdrawal -- */
 
     function test_depositPlusSurplusGreaterThanWithdrawal() public {
@@ -1000,6 +1058,97 @@ contract ParentPoolDepositWithdrawalTest is ParentPoolBase {
             0,
             "Remaining withdrawal amount should be 0 when surplus covers all withdrawals"
         );
+    }
+
+    function test_triggerDepositWithdrawalProcess_ConceroFeeShouldBeTheSameAfterTwoTriggers()
+        public
+    {
+        _baseSetupWithLPMinting();
+
+        // Set deposit queue length to 2 and withdrawal queue length to 2
+        _setQueuesLength(2, 2);
+        _setAverageConceroMessageFee(address(s_parentPool));
+
+        address[] memory users = _getUsers(2);
+
+        uint256 depositAmount = _addDecimals(500);
+        _mintUsdc(users[0], depositAmount * 2);
+        _mintUsdc(users[1], depositAmount * 2);
+
+        _enterDepositQueue(users[0], depositAmount);
+        _enterDepositQueue(users[1], depositAmount);
+
+        uint256 withdrawalAmountLP = _takeRebalancerFee(_addDecimals(500));
+        _enterWithdrawalQueue(users[0], withdrawalAmountLP);
+        _enterWithdrawalQueue(users[1], withdrawalAmountLP);
+
+        // Process first trigger
+        _fillChildPoolSnapshots();
+        _triggerDepositWithdrawProcess();
+
+        (uint256 conceroFeeBeforeSecondTrigger, ) = s_parentPool.getWithdrawalFee(
+            withdrawalAmountLP
+        );
+
+        _enterDepositQueue(users[0], depositAmount);
+        _enterDepositQueue(users[1], depositAmount);
+
+        _enterWithdrawalQueue(users[0], withdrawalAmountLP);
+        _enterWithdrawalQueue(users[1], withdrawalAmountLP);
+
+        // Process second trigger
+        _fillChildPoolSnapshots();
+        _triggerDepositWithdrawProcess();
+
+        (uint256 conceroFeeAfterSecondTrigger, ) = s_parentPool.getWithdrawalFee(
+            withdrawalAmountLP
+        );
+
+        assertEq(conceroFeeBeforeSecondTrigger, conceroFeeAfterSecondTrigger);
+    }
+
+    function test_triggerDepositWithdrawalProcess_ConceroFeeShouldBeTheSameAfterTwoTriggersAndSameWithdrawalQueue()
+        public
+    {
+        _baseSetupWithLPMinting();
+
+        // Set deposit queue length to 2 and withdrawal queue length to 0
+        _setQueuesLength(2, 0);
+        _setAverageConceroMessageFee(address(s_parentPool));
+
+        address[] memory users = _getUsers(2);
+
+        uint256 depositAmount = _addDecimals(500);
+        _mintUsdc(users[0], depositAmount * 2);
+        _mintUsdc(users[1], depositAmount * 2);
+
+        _enterDepositQueue(users[0], depositAmount);
+        _enterDepositQueue(users[1], depositAmount);
+
+        uint256 withdrawalAmountLP = _takeRebalancerFee(_addDecimals(500));
+        _enterWithdrawalQueue(users[0], withdrawalAmountLP);
+        _enterWithdrawalQueue(users[1], withdrawalAmountLP);
+
+        // Process first trigger
+        _fillChildPoolSnapshots();
+        _triggerDepositWithdrawProcess();
+
+        (uint256 conceroFeeBeforeSecondTrigger, ) = s_parentPool.getWithdrawalFee(
+            withdrawalAmountLP
+        );
+
+        _enterDepositQueue(users[0], depositAmount);
+        _enterDepositQueue(users[1], depositAmount);
+
+        // Process second trigger
+        _fillChildPoolSnapshots();
+        _triggerDepositWithdrawProcess();
+
+        (uint256 conceroFeeAfterSecondTrigger, ) = s_parentPool.getWithdrawalFee(
+            withdrawalAmountLP
+        );
+
+        assertEq(conceroFeeBeforeSecondTrigger, conceroFeeAfterSecondTrigger);
     }
 
     function test_depositPlusSurplusGreaterThanWithdrawalWithUsersBalances() public {

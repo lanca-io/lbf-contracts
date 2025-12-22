@@ -23,18 +23,18 @@ library Storage {
         mapping(bytes32 id => IParentPool.PendingWithdrawal pendingWithdrawal) pendingWithdrawals;
         uint256 totalWithdrawalAmountLocked; // LD
         uint256 remainingWithdrawalAmount; // LD
-        uint256 DEPRECATED_totalLancaFeeInLiqToken; // LD
         uint256 targetBalanceFloor; // LD
         uint256 prevTotalPoolsBalance; // LD
         uint256 liquidityCap; // LD
         uint16 minWithdrawalQueueLength;
         uint16 minDepositQueueLength;
+        uint16 triggerCountBeforeWithdrawalProcess;
         uint96 averageConceroMessageFee; // ND
-        uint64 lurScoreSensitivity; // has the scale i_liquidityTokenDecimals
-        uint64 lurScoreWeight; // has the scale i_liquidityTokenDecimals
-        uint64 ndrScoreWeight; // has the scale i_liquidityTokenDecimals
-        uint64 minDepositAmount; // LD
-        uint64 minWithdrawalAmount; // LD
+        uint256 lurScoreSensitivity; // has the scale i_liquidityTokenDecimals
+        uint256 lurScoreWeight; // has the scale i_liquidityTokenDecimals
+        uint256 ndrScoreWeight; // has the scale i_liquidityTokenDecimals
+        uint256 minDepositAmount; // LD
+        uint256 minWithdrawalAmount; // LD
     }
 
     /* SLOT-BASED STORAGE ACCESS */

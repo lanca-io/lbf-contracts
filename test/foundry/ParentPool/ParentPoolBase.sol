@@ -45,7 +45,8 @@ abstract contract ParentPoolBase is LancaTest {
             address(s_iouToken),
             s_conceroRouter,
             PARENT_POOL_CHAIN_SELECTOR,
-            MIN_TARGET_BALANCE
+            MIN_TARGET_BALANCE,
+            LIQUIDITY_TOKEN_GAS_OVERHEAD
         );
         s_parentPool.initialize(s_deployer, s_lancaKeeper);
 
@@ -175,12 +176,12 @@ abstract contract ParentPoolBase is LancaTest {
 
     function _setMinDepositAmount(uint256 amount) internal {
         vm.prank(s_deployer);
-        s_parentPool.setMinDepositAmount(uint64(amount));
+        s_parentPool.setMinDepositAmount(amount);
     }
 
     function _setMinWithdrawalAmount(uint256 amount) internal {
         vm.prank(s_deployer);
-        s_parentPool.setMinWithdrawalAmount(uint64(amount));
+        s_parentPool.setMinWithdrawalAmount(amount);
     }
 
     function _triggerDepositWithdrawProcess() internal {
@@ -277,10 +278,10 @@ abstract contract ParentPoolBase is LancaTest {
 
     function _setTargetBalanceCalculationVars() internal {
         vm.startPrank(s_deployer);
-        s_parentPool.setLurScoreSensitivity(uint64(5 * USDC_TOKEN_DECIMALS_SCALE));
+        s_parentPool.setLurScoreSensitivity(5 * USDC_TOKEN_DECIMALS_SCALE);
         s_parentPool.setScoresWeights(
-            uint64((7 * USDC_TOKEN_DECIMALS_SCALE) / 10),
-            uint64((3 * USDC_TOKEN_DECIMALS_SCALE) / 10)
+            (7 * USDC_TOKEN_DECIMALS_SCALE) / 10,
+            (3 * USDC_TOKEN_DECIMALS_SCALE) / 10
         );
         vm.stopPrank();
     }
@@ -418,7 +419,6 @@ abstract contract ParentPoolBase is LancaTest {
 
     function _takeSurplus(uint256 amount) internal {
         vm.startPrank(s_operator);
-        s_iouToken.approve(address(s_parentPool), amount);
         s_parentPool.takeSurplus(amount);
         vm.stopPrank();
     }

@@ -44,7 +44,8 @@ contract DecimalsTest is ParentPoolBase {
             address(s_iouToken),
             address(s_conceroRouterMockWithCall),
             PARENT_POOL_CHAIN_SELECTOR,
-            MIN_TARGET_BALANCE
+            MIN_TARGET_BALANCE,
+            LIQUIDITY_TOKEN_GAS_OVERHEAD
         );
         s_parentPool.initialize(s_deployer, s_lancaKeeper);
 
@@ -62,7 +63,8 @@ contract DecimalsTest is ParentPoolBase {
             address(s_iouTokenChildPool),
             address(s_usdcWithDec18ChildPool),
             CHILD_POOL_CHAIN_SELECTOR_1,
-            PARENT_POOL_CHAIN_SELECTOR
+            PARENT_POOL_CHAIN_SELECTOR,
+            LIQUIDITY_TOKEN_GAS_OVERHEAD
         );
         s_childPool.initialize(s_deployer, s_lancaKeeper);
 

@@ -45,8 +45,9 @@ contract ChildPool is Rebalancer, LancaBridge {
         address iouToken,
         address liquidityToken,
         uint24 chainSelector,
-        uint24 parentPoolChainSelector
-    ) Base(liquidityToken, conceroRouter, iouToken, chainSelector) {
+        uint24 parentPoolChainSelector,
+        uint32 liquidityTokenGasOverhead
+    ) Base(liquidityToken, conceroRouter, iouToken, chainSelector, liquidityTokenGasOverhead) {
         i_parentPoolChainSelector = parentPoolChainSelector;
     }
 
@@ -165,10 +166,18 @@ contract ChildPool is Rebalancer, LancaBridge {
     /// - Decodes `(amount, srcDecimals)` using `decodeUpdateTargetBalanceData`.
     /// - Converts `amount` from `srcDecimals` to local liquidity token decimals
     ///   via `_toLocalDecimals` and stores it as `targetBalance`.
+    /// - Reverts if the source chain selector is not the parent pool chain selector.
+    /// @param sourceChainSelector Chain selector of the source chain.
     /// @param messageData Encoded target balance update payload.
     function _handleConceroReceiveUpdateTargetBalance(
+        uint24 sourceChainSelector,
         bytes calldata messageData
     ) internal override {
+        require(
+            sourceChainSelector == i_parentPoolChainSelector,
+            ICommonErrors.InvalidChainSelector()
+        );
+
         (uint256 amount, uint8 srcDecimals) = messageData.decodeUpdateTargetBalanceData();
         pbs.base().targetBalance = _toLocalDecimals(amount, srcDecimals);
     }

@@ -39,7 +39,8 @@ library BridgeCodec {
     uint8 internal constant AMOUNT_OFFSET = 2;
     uint8 internal constant DECIMALS_OFFSET = AMOUNT_OFFSET + BYTES32_LENGTH_BYTES;
     uint8 internal constant SENDER_OFFSET = DECIMALS_OFFSET + UINT8_LENGTH_BYTES;
-    uint8 internal constant DST_CHAIN_DATA_OFFSET = SENDER_OFFSET + BYTES32_LENGTH_BYTES;
+    uint8 internal constant RECEIVER_OFFSET = SENDER_OFFSET + BYTES32_LENGTH_BYTES;
+    uint8 internal constant PAYLOAD_LENGTH_OFFSET = RECEIVER_OFFSET + BYTES32_LENGTH_BYTES;
 
     // Layout (SEND_SNAPSHOT messages):
     //
@@ -88,21 +89,20 @@ library BridgeCodec {
     /// - [2..34)   : amount (uint256)
     /// - [34..35)  : decimals (uint8)
     /// - [35..67)  : sender as bytes32
-    /// - [67..70)  : dstChainData length (uint24)
-    /// - [70..? )  : dstChainData bytes
-    /// - [...]     : payload length (uint24)
-    /// - [...]     : payload bytes
+    /// - [67..99)  : receiver as bytes32
+    /// - [99..102) : payload length (uint24)
+    /// - [102..]   : payload bytes
     /// @param sender Original sender address on the source chain.
+    /// @param receiver Receiver address on the destination chain.
     /// @param amount Amount of tokens being bridged, in `decimals` units.
     /// @param decimals Decimals of the bridged token on the source chain.
-    /// @param dstChainData ABI-encoded destination chain data (e.g., receiver + gas limit).
     /// @param payload Optional hook payload to be forwarded to the destination receiver.
     /// @return Encoded BRIDGE message bytes.
     function encodeBridgeData(
         address sender,
+        address receiver,
         uint256 amount,
         uint8 decimals,
-        bytes memory dstChainData,
         bytes memory payload
     ) internal pure returns (bytes memory) {
         return
@@ -112,8 +112,7 @@ library BridgeCodec {
                 amount,
                 decimals,
                 toBytes32(sender),
-                dstChainData.length.toUint24(),
-                dstChainData,
+                toBytes32(receiver),
                 payload.length.toUint24(),
                 payload
             );
@@ -231,22 +230,17 @@ library BridgeCodec {
     /// @return amount Bridged token amount.
     /// @return decimals Token decimals on the source chain.
     /// @return sender Sender address encoded as bytes32 (use {toAddress} to decode).
-    /// @return dstChainData ABI-encoded destination chain data (receiver, gas limit, etc.).
+    /// @return receiver Receiver address encoded as bytes32 (use {toAddress} to decode).
     /// @return payload Hook payload bytes to be forwarded to the destination (may be empty).
     function decodeBridgeData(
         bytes calldata data
-    ) internal pure returns (uint256, uint8, bytes32, bytes calldata, bytes calldata) {
-        uint24 dstChainDataLength = uint24(
-            bytes3(data[DST_CHAIN_DATA_OFFSET:DST_CHAIN_DATA_OFFSET + UINT24_LENGTH_BYTES])
-        );
-        uint24 dstChainDataEnd = DST_CHAIN_DATA_OFFSET + dstChainDataLength + UINT24_LENGTH_BYTES;
-
+    ) internal pure returns (uint256, uint8, bytes32, bytes32, bytes calldata) {
         return (
             uint256(bytes32(data[AMOUNT_OFFSET:DECIMALS_OFFSET])),
             uint8(bytes1(data[DECIMALS_OFFSET:SENDER_OFFSET])),
-            bytes32(data[SENDER_OFFSET:DST_CHAIN_DATA_OFFSET]),
-            data[DST_CHAIN_DATA_OFFSET + UINT24_LENGTH_BYTES:dstChainDataEnd],
-            data[dstChainDataEnd + UINT24_LENGTH_BYTES:]
+            bytes32(data[SENDER_OFFSET:RECEIVER_OFFSET]),
+            bytes32(data[RECEIVER_OFFSET:PAYLOAD_LENGTH_OFFSET]),
+            data[PAYLOAD_LENGTH_OFFSET + UINT24_LENGTH_BYTES:]
         );
     }
 

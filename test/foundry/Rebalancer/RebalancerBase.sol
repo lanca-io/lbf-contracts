@@ -64,7 +64,8 @@ abstract contract RebalancerBase is LancaTest {
             address(s_iouToken),
             s_conceroRouterWithCall,
             PARENT_POOL_CHAIN_SELECTOR,
-            MIN_TARGET_BALANCE
+            MIN_TARGET_BALANCE,
+            LIQUIDITY_TOKEN_GAS_OVERHEAD
         );
         s_parentPool.initialize(s_deployer, s_lancaKeeper);
 
@@ -92,63 +93,72 @@ abstract contract RebalancerBase is LancaTest {
             address(s_iouToken),
             address(s_usdc),
             childPoolChainSelector_1,
-            PARENT_POOL_CHAIN_SELECTOR
+            PARENT_POOL_CHAIN_SELECTOR,
+            LIQUIDITY_TOKEN_GAS_OVERHEAD
         );
         s_childPool_2 = new ChildPool(
             s_conceroRouterWithCall,
             address(s_iouToken),
             address(s_usdc),
             childPoolChainSelector_2,
-            PARENT_POOL_CHAIN_SELECTOR
+            PARENT_POOL_CHAIN_SELECTOR,
+            LIQUIDITY_TOKEN_GAS_OVERHEAD
         );
         s_childPool_3 = new ChildPool(
             s_conceroRouterWithCall,
             address(s_iouToken),
             address(s_usdc),
             childPoolChainSelector_3,
-            PARENT_POOL_CHAIN_SELECTOR
+            PARENT_POOL_CHAIN_SELECTOR,
+            LIQUIDITY_TOKEN_GAS_OVERHEAD
         );
         s_childPool_4 = new ChildPool(
             s_conceroRouterWithCall,
             address(s_iouToken),
             address(s_usdc),
             childPoolChainSelector_4,
-            PARENT_POOL_CHAIN_SELECTOR
+            PARENT_POOL_CHAIN_SELECTOR,
+            LIQUIDITY_TOKEN_GAS_OVERHEAD
         );
         s_childPool_5 = new ChildPool(
             s_conceroRouterWithCall,
             address(s_iouToken),
             address(s_usdc),
             childPoolChainSelector_5,
-            PARENT_POOL_CHAIN_SELECTOR
+            PARENT_POOL_CHAIN_SELECTOR,
+            LIQUIDITY_TOKEN_GAS_OVERHEAD
         );
         s_childPool_6 = new ChildPool(
             s_conceroRouterWithCall,
             address(s_iouToken),
             address(s_usdc),
             childPoolChainSelector_6,
-            PARENT_POOL_CHAIN_SELECTOR
+            PARENT_POOL_CHAIN_SELECTOR,
+            LIQUIDITY_TOKEN_GAS_OVERHEAD
         );
         s_childPool_7 = new ChildPool(
             s_conceroRouterWithCall,
             address(s_iouToken),
             address(s_usdc),
             childPoolChainSelector_7,
-            PARENT_POOL_CHAIN_SELECTOR
+            PARENT_POOL_CHAIN_SELECTOR,
+            LIQUIDITY_TOKEN_GAS_OVERHEAD
         );
         s_childPool_8 = new ChildPool(
             s_conceroRouterWithCall,
             address(s_iouToken),
             address(s_usdc),
             childPoolChainSelector_8,
-            PARENT_POOL_CHAIN_SELECTOR
+            PARENT_POOL_CHAIN_SELECTOR,
+            LIQUIDITY_TOKEN_GAS_OVERHEAD
         );
         s_childPool_9 = new ChildPool(
             s_conceroRouterWithCall,
             address(s_iouToken),
             address(s_usdc),
             childPoolChainSelector_9,
-            PARENT_POOL_CHAIN_SELECTOR
+            PARENT_POOL_CHAIN_SELECTOR,
+            LIQUIDITY_TOKEN_GAS_OVERHEAD
         );
 
         s_childPool_1.initialize(s_deployer, s_lancaKeeper);
@@ -334,12 +344,12 @@ abstract contract RebalancerBase is LancaTest {
 
     function _setMinDepositAmount(uint256 amount) internal {
         vm.prank(s_deployer);
-        s_parentPool.setMinDepositAmount(uint64(amount));
+        s_parentPool.setMinDepositAmount(amount);
     }
 
     function _setMinWithdrawalAmount(uint256 amount) internal {
         vm.prank(s_deployer);
-        s_parentPool.setMinWithdrawalAmount(uint64(amount));
+        s_parentPool.setMinWithdrawalAmount(amount);
     }
 
     function _triggerDepositWithdrawProcess() internal {
@@ -440,10 +450,10 @@ abstract contract RebalancerBase is LancaTest {
 
     function _setTargetBalanceCalculationVars() internal {
         vm.startPrank(s_deployer);
-        s_parentPool.setLurScoreSensitivity(uint64(5 * USDC_TOKEN_DECIMALS_SCALE));
+        s_parentPool.setLurScoreSensitivity(5 * USDC_TOKEN_DECIMALS_SCALE);
         s_parentPool.setScoresWeights(
-            uint64((7 * USDC_TOKEN_DECIMALS_SCALE) / 10),
-            uint64((3 * USDC_TOKEN_DECIMALS_SCALE) / 10)
+            (7 * USDC_TOKEN_DECIMALS_SCALE) / 10,
+            (3 * USDC_TOKEN_DECIMALS_SCALE) / 10
         );
         vm.stopPrank();
     }
@@ -581,7 +591,6 @@ abstract contract RebalancerBase is LancaTest {
 
     function _takeSurplus(uint256 amount) internal {
         vm.startPrank(s_operator);
-        s_iouToken.approve(address(s_parentPool), amount);
         s_parentPool.takeSurplus(amount);
         vm.stopPrank();
     }

@@ -37,8 +37,8 @@ contract InvariantTestBase is LancaTest {
     uint256 public constant REBALANCER_INITIAL_BALANCE = 10_000e6;
     uint256 public constant INITIAL_TVL = 10_000e6;
 
-    uint64 public constant MIN_DEPOSIT_AMOUNT = 100e6;
-    uint64 public constant MIN_WITHDRAWAL_AMOUNT = 90e6;
+    uint256 public constant MIN_DEPOSIT_AMOUNT = 100e6;
+    uint256 public constant MIN_WITHDRAWAL_AMOUNT = 90e6;
     uint256 public constant LIQUIDITY_CAP =
         LIQUIDITY_PROVIDER_INITIAL_BALANCE + USER_INITIAL_BALANCE;
 
@@ -87,7 +87,8 @@ contract InvariantTestBase is LancaTest {
             address(s_iouToken),
             address(s_conceroRouterMockWithCall),
             PARENT_POOL_CHAIN_SELECTOR,
-            MIN_TARGET_BALANCE
+            MIN_TARGET_BALANCE,
+            LIQUIDITY_TOKEN_GAS_OVERHEAD
         );
 
         s_childPool_1 = new ChildPool(
@@ -95,7 +96,8 @@ contract InvariantTestBase is LancaTest {
             address(s_iouTokenChildPool_1),
             address(s_usdcWithDec8ChildPool_1),
             CHILD_POOL_CHAIN_SELECTOR,
-            PARENT_POOL_CHAIN_SELECTOR
+            PARENT_POOL_CHAIN_SELECTOR,
+            LIQUIDITY_TOKEN_GAS_OVERHEAD
         );
 
         s_childPool_2 = new ChildPool(
@@ -103,7 +105,8 @@ contract InvariantTestBase is LancaTest {
             address(s_iouTokenChildPool_2),
             address(s_usdcWithDec18ChildPool_2),
             CHILD_POOL_CHAIN_SELECTOR_2,
-            PARENT_POOL_CHAIN_SELECTOR
+            PARENT_POOL_CHAIN_SELECTOR,
+            LIQUIDITY_TOKEN_GAS_OVERHEAD
         );
 
         s_parentPool.initialize(s_deployer, s_lancaKeeper);
@@ -204,7 +207,7 @@ contract InvariantTestBase is LancaTest {
         s_parentPool.setMinDepositAmount(MIN_DEPOSIT_AMOUNT);
         s_parentPool.setMinWithdrawalAmount(MIN_WITHDRAWAL_AMOUNT);
         s_parentPool.grantRole(s_parentPool.LANCA_KEEPER(), s_lancaKeeper);
-        s_parentPool.setLurScoreSensitivity(uint64(5 * USDC_TOKEN_DECIMALS_SCALE));
+        s_parentPool.setLurScoreSensitivity(5 * USDC_TOKEN_DECIMALS_SCALE);
         s_parentPool.setScoresWeights(
             uint64((7 * USDC_TOKEN_DECIMALS_SCALE) / 10),
             uint64((3 * USDC_TOKEN_DECIMALS_SCALE) / 10)

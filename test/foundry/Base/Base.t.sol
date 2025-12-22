@@ -19,8 +19,9 @@ contract TestPoolBase is Base {
         address conceroRouter,
         address iouToken,
         uint8 liquidityTokenDecimals,
-        uint24 chainSelector
-    ) Base(liquidityToken, conceroRouter, iouToken, chainSelector) {}
+        uint24 chainSelector,
+        uint32 liquidityTokenGasOverhead
+    ) Base(liquidityToken, conceroRouter, iouToken, chainSelector, liquidityTokenGasOverhead) {}
 
     function setTargetBalance(uint256 newTargetBalance) external {
         s.base().targetBalance = newTargetBalance;
@@ -34,7 +35,7 @@ contract TestPoolBase is Base {
         uint256,
         bytes calldata
     ) internal override {}
-    function _handleConceroReceiveUpdateTargetBalance(bytes calldata) internal override {}
+    function _handleConceroReceiveUpdateTargetBalance(uint24, bytes calldata) internal override {}
 }
 
 contract BaseTest is LancaTest {
@@ -49,7 +50,8 @@ contract BaseTest is LancaTest {
             s_conceroRouter,
             address(s_iouToken),
             USDC_TOKEN_DECIMALS,
-            PARENT_POOL_CHAIN_SELECTOR
+            PARENT_POOL_CHAIN_SELECTOR,
+            LIQUIDITY_TOKEN_GAS_OVERHEAD
         );
         s_base.initialize(address(this), s_lancaKeeper);
     }

@@ -6,6 +6,7 @@ import {ConceroClient} from "@concero/v2-contracts/contracts/ConceroClient/Conce
 import {MessageCodec} from "@concero/v2-contracts/contracts/common/libraries/MessageCodec.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IOUToken} from "../Rebalancer/IOUToken.sol";
 import {IBase} from "./interfaces/IBase.sol";
 import {Storage as rs} from "../Rebalancer/libraries/Storage.sol";
@@ -31,6 +32,7 @@ import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/acce
 ///   * `BPS_DENOMINATOR = 100_000`
 ///   * 1 unit of `*_FeeBps` = 0.1 bps = 0.001%.
 abstract contract Base is IBase, AccessControlUpgradeable, ConceroClient {
+    using SafeERC20 for IERC20;
     using s for s.Base;
     using rs for rs.Rebalancer;
     using MessageCodec for bytes;
@@ -57,12 +59,14 @@ abstract contract Base is IBase, AccessControlUpgradeable, ConceroClient {
     address internal immutable i_liquidityToken;
     IOUToken internal immutable i_iouToken;
     uint8 internal immutable i_liquidityTokenDecimals;
+    uint32 internal immutable i_liquidityTokenGasOverhead;
 
     constructor(
         address liquidityToken,
         address conceroRouter,
         address iouToken,
-        uint24 chainSelector
+        uint24 chainSelector,
+        uint32 liquidityTokenGasOverhead
     ) AccessControlUpgradeable() ConceroClient(conceroRouter) {
         i_liquidityTokenDecimals = IERC20Metadata(liquidityToken).decimals();
         i_iouToken = IOUToken(iouToken);
@@ -70,6 +74,7 @@ abstract contract Base is IBase, AccessControlUpgradeable, ConceroClient {
         require(i_iouToken.decimals() == i_liquidityTokenDecimals, InvalidLiqTokenDecimals());
 
         i_liquidityToken = liquidityToken;
+        i_liquidityTokenGasOverhead = liquidityTokenGasOverhead;
         i_chainSelector = chainSelector;
     }
 
@@ -235,6 +240,10 @@ abstract contract Base is IBase, AccessControlUpgradeable, ConceroClient {
         return s.base().lancaBridgeFeeBps;
     }
 
+    function getWithdrawableLancaFee() external view returns (uint256) {
+        return s.base().totalLancaFeeInLiqToken;
+    }
+
     /*   ADMIN FUNCTIONS   */
 
     /// @notice Sets the destination pool address for a given chain selector.
@@ -330,6 +339,23 @@ abstract contract Base is IBase, AccessControlUpgradeable, ConceroClient {
         s.base().lancaBridgeFeeBps = lancaBridgeFeeBps;
     }
 
+    /// @notice Withdraws Lanca fees from the pool.
+    /// @dev
+    /// - Only callable by `ADMIN`.
+    /// - Withdraws to the caller address.
+    /// - Emits `LancaFeeWithdrawn`.
+    function withdrawLancaFee() external onlyRole(ADMIN) {
+        s.Base storage s_base = s.base();
+
+        uint256 totalLancaFee = s_base.totalLancaFeeInLiqToken;
+
+        s_base.totalLancaFeeInLiqToken = 0;
+
+        IERC20(i_liquidityToken).safeTransfer(msg.sender, totalLancaFee);
+
+        emit LancaFeeWithdrawn(msg.sender, totalLancaFee);
+    }
+
     /*   INTERNAL FUNCTIONS   */
 
     /// @notice Converts an amount from a source token's decimals to the local liquidity token decimals.
@@ -384,7 +410,7 @@ abstract contract Base is IBase, AccessControlUpgradeable, ConceroClient {
                 message
             );
         } else if (messageType == ConceroMessageType.UPDATE_TARGET_BALANCE) {
-            _handleConceroReceiveUpdateTargetBalance(message);
+            _handleConceroReceiveUpdateTargetBalance(sourceChainSelector, message);
         } else {
             revert InvalidConceroMessageType();
         }
@@ -435,6 +461,10 @@ abstract contract Base is IBase, AccessControlUpgradeable, ConceroClient {
     /// @dev
     /// - Must be implemented by concrete pool contracts.
     /// - Typically updates `targetBalance` or related rebalancing parameters.
+    /// @param sourceChainSelector Chain selector of the source chain.
     /// @param messageData Payload containing new target balance or config.
-    function _handleConceroReceiveUpdateTargetBalance(bytes calldata messageData) internal virtual;
+    function _handleConceroReceiveUpdateTargetBalance(
+        uint24 sourceChainSelector,
+        bytes calldata messageData
+    ) internal virtual;
 }

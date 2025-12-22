@@ -16,7 +16,8 @@ contract ParentPoolHarness is ParentPool {
         address iouToken,
         address conceroRouter,
         uint24 chainSelector,
-        uint256 minTargetBalance
+        uint256 minTargetBalance,
+        uint32 liquidityTokenGasOverhead
     )
         ParentPool(
             liquidityToken,
@@ -24,7 +25,8 @@ contract ParentPoolHarness is ParentPool {
             iouToken,
             conceroRouter,
             chainSelector,
-            minTargetBalance
+            minTargetBalance,
+            liquidityTokenGasOverhead
         )
     {}
 
@@ -47,10 +49,6 @@ contract ParentPoolHarness is ParentPool {
 
     function exposed_getRemainingWithdrawalAmount() public view returns (uint256) {
         return s.parentPool().remainingWithdrawalAmount;
-    }
-
-    function exposed_getLancaFeeInLiqToken() public view returns (uint256) {
-        return pbs.base().totalLancaFeeInLiqToken;
     }
 
     function exposed_getRebalancingFeeInLiqToken() public view returns (uint256) {

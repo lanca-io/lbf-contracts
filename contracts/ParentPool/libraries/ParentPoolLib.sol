@@ -51,11 +51,11 @@ library ParentPoolLib {
         /// @notice Chain selector of the parent pool.
         uint24 parentChainSelector;
         /// @notice Sensitivity parameter for LUR score.
-        uint64 lurScoreSensitivity;
+        uint256 lurScoreSensitivity;
         /// @notice Weight for LUR score in health calculation.
-        uint64 lurScoreWeight;
+        uint256 lurScoreWeight;
         /// @notice Weight for NDR score in health calculation.
-        uint64 ndrScoreWeight;
+        uint256 ndrScoreWeight;
         /// @notice Scale factor for liquidity token (10 ** decimals).
         uint256 liquidityTokenScaleFactor;
         /// @notice Minimum allowed target balance for any pool.
@@ -107,7 +107,7 @@ library ParentPoolLib {
         uint256 liquidityTokenAmount,
         address liquidityToken
     ) external {
-        uint64 minDepositAmount = s_parentPool.minDepositAmount;
+        uint256 minDepositAmount = s_parentPool.minDepositAmount;
         require(minDepositAmount > 0, ICommonErrors.MinDepositAmountNotSet());
         require(
             liquidityTokenAmount >= minDepositAmount,
@@ -148,7 +148,7 @@ library ParentPoolLib {
     /// Requirements:
     /// - `minWithdrawalAmount` must be set (`> 0`), otherwise reverts with `MinWithdrawalAmountNotSet`.
     /// - `lpTokenAmount >= minWithdrawalAmount`, otherwise reverts with `WithdrawalAmountIsTooLow`.
-    /// - `withdrawalQueueIds.length < MAX_QUEUE_LENGTH`, otherwise reverts with `WithdrawalQueueIsFull`.
+    /// - `withdrawalQueueIds.length + pendingWithdrawalIds.length < MAX_QUEUE_LENGTH`, otherwise reverts with `WithdrawalQueueIsFull`.
     ///
     /// Effects:
     /// - Transfers `lpTokenAmount` of LP tokens from `msg.sender` to the parent pool.
@@ -166,7 +166,7 @@ library ParentPoolLib {
         uint256 lpTokenAmount,
         address lpToken
     ) external {
-        uint64 minWithdrawalAmount = s_parentPool.minWithdrawalAmount;
+        uint256 minWithdrawalAmount = s_parentPool.minWithdrawalAmount;
         require(minWithdrawalAmount > 0, ICommonErrors.MinWithdrawalAmountNotSet());
         require(
             lpTokenAmount >= minWithdrawalAmount,
@@ -174,7 +174,8 @@ library ParentPoolLib {
         );
 
         require(
-            s_parentPool.withdrawalQueueIds.length < MAX_QUEUE_LENGTH,
+            s_parentPool.withdrawalQueueIds.length + s_parentPool.pendingWithdrawalIds.length <
+                MAX_QUEUE_LENGTH,
             IParentPool.WithdrawalQueueIsFull()
         );
 
@@ -295,6 +296,7 @@ library ParentPoolLib {
     ///   * On success:
     ///       - Burns user's LP tokens via `LPToken(lpToken).burn`.
     ///       - Adds `conceroFee` to `totalLancaFee`.
+    ///       - Adds `rebalanceFee` to `totalRebalancingFeeAmount`.
     ///       - Emits `WithdrawalCompleted`.
     ///   * On failure:
     ///       - Returns LP tokens back to the user.
@@ -337,13 +339,13 @@ library ParentPoolLib {
             );
             uint256 amountToWithdrawWithFee = pendingWithdrawal.liqTokenAmountToWithdraw -
                 (conceroFee + rebalanceFee);
-            totalRebalancingFeeAmount += rebalanceFee;
 
             totalLiquidityTokenAmountToWithdraw += pendingWithdrawal.liqTokenAmountToWithdraw;
 
             try safeTransferWrapper(liquidityToken, pendingWithdrawal.lp, amountToWithdrawWithFee) {
                 LPToken(lpToken).burn(pendingWithdrawal.lpTokenAmountToWithdraw);
                 totalLancaFee += conceroFee;
+                totalRebalancingFeeAmount += rebalanceFee;
 
                 emit IParentPool.WithdrawalCompleted(
                     pendingWithdrawalIds[i],
@@ -370,6 +372,7 @@ library ParentPoolLib {
 
         s_rebalancer.totalRebalancingFeeAmount += totalRebalancingFeeAmount;
         s_parentPool.totalWithdrawalAmountLocked -= totalLiquidityTokenAmountToWithdraw;
+        s_parentPool.triggerCountBeforeWithdrawalProcess = 0;
         s_base.totalLancaFeeInLiqToken += totalLancaFee;
     }
 
@@ -576,6 +579,10 @@ library ParentPoolLib {
                 withdrawal.lpTokenAmountToWithdraw,
                 liqTokenAmountToWithdraw
             );
+        }
+
+        if (withdrawalQueueIds.length > 0) {
+            s_parentPool.triggerCountBeforeWithdrawalProcess += 1;
         }
 
         delete s_parentPool.withdrawalQueueIds;
@@ -851,7 +858,7 @@ library ParentPoolLib {
         uint256 outflow,
         uint256 targetBalance,
         uint256 scaleFactor,
-        uint64 lurScoreSensitivity
+        uint256 lurScoreSensitivity
     ) private pure returns (uint256) {
         if (targetBalance == 0) return scaleFactor;
         uint256 lur = ((inflow + outflow) * scaleFactor) / targetBalance;

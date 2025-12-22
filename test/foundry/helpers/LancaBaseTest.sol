@@ -33,6 +33,7 @@ abstract contract LancaBaseTest is Test {
     uint256 internal constant STD_TOKEN_DECIMALS_SCALE = 10 ** STD_TOKEN_DECIMALS;
     uint32 internal constant VALIDATION_GAS_LIMIT = 100_000;
     uint256 internal constant DEFAULT_LIQUIDITY_CAP = 10_000e6;
+    uint32 internal constant LIQUIDITY_TOKEN_GAS_OVERHEAD = 50_000;
 
     address public s_deployer = vm.envAddress("DEPLOYER_ADDRESS");
     address public s_proxyDeployer = vm.envAddress("PROXY_DEPLOYER_ADDRESS");

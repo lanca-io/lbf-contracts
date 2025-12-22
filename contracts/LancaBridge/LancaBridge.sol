@@ -5,7 +5,7 @@ import {Base} from "../Base/Base.sol";
 import {BridgeCodec} from "../common/libraries/BridgeCodec.sol";
 import {ICommonErrors} from "../common/interfaces/ICommonErrors.sol";
 import {IConceroRouter} from "@concero/v2-contracts/contracts/interfaces/IConceroRouter.sol";
-import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
+import {ERC165Checker} from "@openzeppelin/contracts/utils/introspection/ERC165Checker.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {ILancaBridge} from "./interfaces/ILancaBridge.sol";
 import {ILancaClient} from "../LancaClient/interfaces/ILancaClient.sol";
@@ -28,6 +28,7 @@ import {Storage as s} from "../Base/libraries/Storage.sol";
 ///   (e.g. `ChildPool`, `ParentPool`) that share the same bridge logic.
 abstract contract LancaBridge is ILancaBridge, Base {
     using SafeERC20 for IERC20;
+    using ERC165Checker for address;
     using BridgeCodec for address;
     using BridgeCodec for bytes32;
     using BridgeCodec for bytes;
@@ -80,9 +81,9 @@ abstract contract LancaBridge is ILancaBridge, Base {
     ///   * `validatorLib` / `relayerLib` from `s_base`,
     ///   * `BridgeCodec.encodeBridgeData` to encode bridge payload with:
     ///     - sender,
+    ///     - receiver,
     ///     - tokenAmount,
     ///     - local token decimals,
-    ///     - user destination chain data,
     ///     - user payload.
     /// - Forwards `msg.value` to the Concero router as native fee.
     /// @param tokenAmount Amount to be bridged after fees, expressed in local decimals.
@@ -103,20 +104,24 @@ abstract contract LancaBridge is ILancaBridge, Base {
         address[] memory validatorLibs = new address[](1);
         validatorLibs[0] = s_base.validatorLib;
 
+        (address receiver, uint32 userDstChainGasLimit) = MessageCodec.decodeEvmDstChainData(
+            userDstChainData
+        );
+
         IConceroRouter.MessageRequest memory messageRequest = IConceroRouter.MessageRequest({
             dstChainSelector: dstChainSelector,
             srcBlockConfirmations: 0,
             feeToken: address(0),
-            dstChainData: _buildDstChainData(userDstChainData, dstPool, payload.length),
+            dstChainData: _buildDstChainData(userDstChainGasLimit, dstPool, payload.length),
             validatorLibs: validatorLibs,
             relayerLib: s_base.relayerLib,
             validatorConfigs: new bytes[](1),
             relayerConfig: new bytes(0),
             payload: BridgeCodec.encodeBridgeData(
                 msg.sender,
+                receiver,
                 tokenAmount,
                 i_liquidityTokenDecimals,
-                userDstChainData,
                 payload
             )
         });
@@ -126,25 +131,22 @@ abstract contract LancaBridge is ILancaBridge, Base {
 
     /// @notice Builds the destination chain data for a bridge message.
     /// @dev
-    /// - Reads the user-provided gas limit from `userDstChainData`.
     /// - Enforces consistency:
     ///   * either both `userDstChainGasLimit` and `payloadLength` are zero (no hook),
     ///   * or both are non-zero (hook call is expected).
     /// - Returns encoded EVM destination data with:
     ///   * `receiver = dstPool.toAddress()`,
-    ///   * `gasLimit = BRIDGE_GAS_OVERHEAD + userDstChainGasLimit`.
+    ///   * `gasLimit = BRIDGE_GAS_OVERHEAD + liquidityTokenGasOverhead userDstChainGasLimit`.
     /// - Reverts with `InvalidDstGasLimitOrCallData` on inconsistent input.
-    /// @param userDstChainData User-provided destination chain data (receiver + gas limit).
+    /// @param userDstChainGasLimit User-provided destination chain gas limit.
     /// @param dstPool Bytes32-encoded destination pool address.
     /// @param payloadLength Length of the payload that may be sent to the receiver hook.
     /// @return Encoded `dstChainData` for the Concero message.
     function _buildDstChainData(
-        bytes calldata userDstChainData,
+        uint32 userDstChainGasLimit,
         bytes32 dstPool,
         uint256 payloadLength
-    ) internal pure returns (bytes memory) {
-        (, uint32 userDstChainGasLimit) = MessageCodec.decodeEvmDstChainData(userDstChainData);
-
+    ) internal view returns (bytes memory) {
         require(
             (userDstChainGasLimit == 0 && payloadLength == 0) ||
                 (userDstChainGasLimit > 0 && payloadLength > 0),
@@ -154,7 +156,7 @@ abstract contract LancaBridge is ILancaBridge, Base {
         return
             MessageCodec.encodeEvmDstChainData(
                 dstPool.toAddress(),
-                BRIDGE_GAS_OVERHEAD + userDstChainGasLimit
+                BRIDGE_GAS_OVERHEAD + i_liquidityTokenGasOverhead + userDstChainGasLimit
             );
     }
 
@@ -162,7 +164,7 @@ abstract contract LancaBridge is ILancaBridge, Base {
     /// - Handles Concero bridge liquidity messages (`ConceroMessageType.BRIDGE`).
     /// - Steps:
     ///   1. Decodes bridge data:
-    ///      * `tokenAmount`, `decimals`, `tokenSender`, `dstChainData`, `payload`.
+    ///      * `tokenAmount`, `decimals`, `tokenSender`, `tokenReceiver`, `payload`.
     ///   2. Converts `tokenAmount` from source decimals to local decimals.
     ///   3. Updates outflow accounting via `_handleOutflow`.
     ///   4. Calls `_deliverBridge` to transfer tokens to the final receiver and optional hook.
@@ -180,7 +182,7 @@ abstract contract LancaBridge is ILancaBridge, Base {
             uint256 tokenAmount,
             uint8 decimals,
             bytes32 tokenSender,
-            bytes calldata dstChainData,
+            bytes32 tokenReceiver,
             bytes calldata payload
         ) = messageData.decodeBridgeData();
 
@@ -193,44 +195,43 @@ abstract contract LancaBridge is ILancaBridge, Base {
             tokenAmount,
             srcChainSelector,
             tokenSender,
-            dstChainData,
+            tokenReceiver,
             payload
         );
     }
 
     /// @notice Delivers bridged tokens to the final receiver and optionally calls the Lanca hook.
     /// @dev
-    /// - Decodes `(receiver, dstGasLimit)` from `dstChainData`.
+    /// - Decodes `receiver` from bytes32 to address.
     /// - Validates receiver and payload via `_validateBridgeParams`:
     ///   * if no hook should be called: only transfers tokens,
     ///   * if hook should be called:
     ///     - requires `receiver` to be a contract implementing `ILancaClient`.
     /// - Transfers `tokenAmount` to `receiver`.
     /// - If `shouldCallHook`, calls:
-    ///   `ILancaClient(receiver).lancaReceive{gas: dstGasLimit}(...)`.
+    ///   `ILancaClient(receiver).lancaReceive(...)`.
     /// - Emits `BridgeDelivered` after successful delivery.
     /// @param messageId Concero message ID.
     /// @param tokenAmount Amount to deliver (in local decimals).
     /// @param srcChainSelector Source chain selector.
     /// @param tokenSender Bytes32-encoded address of the original sender on the source chain.
-    /// @param dstChainData Encoded destination address and gas limit.
+    /// @param tokenReceiver Bytes32-encoded address of the receiver on the destination chain.
     /// @param payload Optional payload forwarded to the receiver hook.
     function _deliverBridge(
         bytes32 messageId,
         uint256 tokenAmount,
         uint24 srcChainSelector,
         bytes32 tokenSender,
-        bytes calldata dstChainData,
+        bytes32 tokenReceiver,
         bytes calldata payload
     ) internal {
-        (address receiver, uint32 dstGasLimit) = dstChainData.decodeEvmDstChainData();
-
-        bool shouldCallHook = _validateBridgeParams(dstGasLimit, receiver, payload);
+        address receiver = tokenReceiver.toAddress();
+        bool shouldCallHook = _validateBridgeParams(receiver, payload);
 
         IERC20(i_liquidityToken).safeTransfer(receiver, tokenAmount);
 
         if (shouldCallHook) {
-            ILancaClient(receiver).lancaReceive{gas: dstGasLimit}(
+            ILancaClient(receiver).lancaReceive(
                 messageId,
                 srcChainSelector,
                 tokenSender,
@@ -282,22 +283,20 @@ abstract contract LancaBridge is ILancaBridge, Base {
 
     /// @notice Validates whether a hook should be called on the receiver and whether it is valid.
     /// @dev
-    /// - If `dstGasLimit == 0` and `payload.length == 0`:
+    /// - If `payload.length == 0`:
     ///   * no hook is called, returns `false`.
     /// - Otherwise:
     ///   * requires `_isValidContractReceiver(receiver) == true`,
     ///   * returns `true`.
     /// - Reverts with `InvalidConceroMessage` if receiver is invalid while a hook is expected.
-    /// @param dstGasLimit Gas limit reserved for the receiver hook.
     /// @param receiver Receiver address on this chain.
     /// @param payload Hook payload (if any).
     /// @return shouldCallHook `true` if a hook call should be made after transfer.
     function _validateBridgeParams(
-        uint32 dstGasLimit,
         address receiver,
         bytes calldata payload
     ) internal view returns (bool) {
-        bool shouldCallHook = !(dstGasLimit == 0 && payload.length == 0);
+        bool shouldCallHook = !(payload.length == 0);
 
         if (shouldCallHook && !_isValidContractReceiver(receiver)) {
             revert InvalidConceroMessage();
@@ -316,7 +315,7 @@ abstract contract LancaBridge is ILancaBridge, Base {
     function _isValidContractReceiver(address tokenReceiver) internal view returns (bool) {
         if (
             tokenReceiver.code.length == 0 ||
-            !IERC165(tokenReceiver).supportsInterface(type(ILancaClient).interfaceId)
+            !tokenReceiver.supportsInterface(type(ILancaClient).interfaceId)
         ) {
             return false;
         }
@@ -365,22 +364,26 @@ abstract contract LancaBridge is ILancaBridge, Base {
         address[] memory validatorLibs = new address[](1);
         validatorLibs[0] = s_base.validatorLib;
 
+        (address receiver, uint32 userDstChainGasLimit) = MessageCodec.decodeEvmDstChainData(
+            dstChainData
+        );
+
         return
             IConceroRouter(i_conceroRouter).getMessageFee(
                 IConceroRouter.MessageRequest({
                     dstChainSelector: dstChainSelector,
                     srcBlockConfirmations: 0,
                     feeToken: address(0),
-                    dstChainData: _buildDstChainData(dstChainData, dstPool, payload.length),
+                    dstChainData: _buildDstChainData(userDstChainGasLimit, dstPool, payload.length),
                     validatorLibs: validatorLibs,
                     relayerLib: s_base.relayerLib,
                     validatorConfigs: new bytes[](1),
                     relayerConfig: new bytes(0),
                     payload: BridgeCodec.encodeBridgeData(
                         msg.sender,
+                        receiver,
                         1,
                         i_liquidityTokenDecimals,
-                        dstChainData,
                         payload
                     )
                 })

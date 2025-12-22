@@ -32,7 +32,8 @@ contract ParentPoolTest is ParentPoolBase {
             address(s_iouToken),
             s_conceroRouter,
             PARENT_POOL_CHAIN_SELECTOR,
-            MIN_TARGET_BALANCE
+            MIN_TARGET_BALANCE,
+            LIQUIDITY_TOKEN_GAS_OVERHEAD
         );
     }
 
@@ -182,6 +183,38 @@ contract ParentPoolTest is ParentPoolBase {
         for (uint256 i; i < 250; i++) {
             _enterWithdrawalQueue(s_user, _addDecimals(100));
         }
+
+        vm.expectRevert(IParentPool.WithdrawalQueueIsFull.selector);
+
+        vm.prank(s_user);
+        s_parentPool.enterWithdrawalQueue(_addDecimals(100));
+    }
+
+    function test_enterWithdrawalQueue_RevertsWithdrawalQueueIsFullIfTwoTriggers() public {
+        _setLiquidityCap(address(s_parentPool), _addDecimals(100_000));
+
+        _setQueuesLength(0, 0);
+        _enterDepositQueue(s_user, _addDecimals(100_000));
+
+        _fillChildPoolSnapshots();
+        _triggerDepositWithdrawProcess();
+
+        uint256 maxQueueLength = 250;
+        uint256 batchWithdrawals = maxQueueLength / 2;
+
+        for (uint256 i; i < batchWithdrawals; i++) {
+            _enterWithdrawalQueue(s_user, _addDecimals(100));
+        }
+
+        _fillChildPoolSnapshots();
+        _triggerDepositWithdrawProcess();
+
+        for (uint256 i; i < batchWithdrawals; i++) {
+            _enterWithdrawalQueue(s_user, _addDecimals(100));
+        }
+
+        _fillChildPoolSnapshots();
+        _triggerDepositWithdrawProcess();
 
         vm.expectRevert(IParentPool.WithdrawalQueueIsFull.selector);
 
@@ -361,12 +394,12 @@ contract ParentPoolTest is ParentPoolBase {
         vm.expectRevert(IParentPool.InvalidLurScoreSensitivity.selector);
 
         vm.prank(s_deployer);
-        s_parentPool.setLurScoreSensitivity(uint64(_addDecimals(1)));
+        s_parentPool.setLurScoreSensitivity(_addDecimals(1));
 
         vm.expectRevert(IParentPool.InvalidLurScoreSensitivity.selector);
 
         vm.prank(s_deployer);
-        s_parentPool.setLurScoreSensitivity(uint64(_addDecimals(10)));
+        s_parentPool.setLurScoreSensitivity(_addDecimals(10));
     }
 
     function test_setScoresWeights_RevertsInvalidScoresWeights() public {
@@ -464,7 +497,27 @@ contract ParentPoolTest is ParentPoolBase {
         _fillDeficit(_addDecimals(1_800));
         _processPendingWithdrawals();
 
-        assertEq(s_parentPool.exposed_getLancaFeeInLiqToken(), conceroFee);
+        assertEq(s_parentPool.getWithdrawableLancaFee(), conceroFee);
+    }
+
+    function test_withdrawLancaFee_RevertIfNotAdmin() public {
+        vm.expectRevert(_constructAccessControlError(s_user, keccak256("ADMIN")));
+
+        vm.prank(s_user);
+        s_parentPool.withdrawLancaFee();
+    }
+
+    function test_withdrawLancaFee_Success() public {
+        test_setAverageConceroMessageFee_Success();
+
+        uint256 amountToWithdraw = s_parentPool.getWithdrawableLancaFee();
+        assert(amountToWithdraw > 0);
+
+        vm.expectEmit(true, false, false, true);
+        emit IBase.LancaFeeWithdrawn(s_deployer, amountToWithdraw);
+
+        vm.prank(s_deployer);
+        s_parentPool.withdrawLancaFee();
     }
 
     function test_getActiveBalance() public {
@@ -511,27 +564,27 @@ contract ParentPoolTest is ParentPoolBase {
     }
 
     function test_getLurScoreSensitivity() public {
-        assertEq(s_parentPool.getLurScoreSensitivity(), uint64(5 * USDC_TOKEN_DECIMALS_SCALE));
+        assertEq(s_parentPool.getLurScoreSensitivity(), 5 * USDC_TOKEN_DECIMALS_SCALE);
 
         vm.prank(s_deployer);
-        s_parentPool.setLurScoreSensitivity(uint64(4 * USDC_TOKEN_DECIMALS_SCALE));
-        assertEq(s_parentPool.getLurScoreSensitivity(), uint64(4 * USDC_TOKEN_DECIMALS_SCALE));
+        s_parentPool.setLurScoreSensitivity(4 * USDC_TOKEN_DECIMALS_SCALE);
+        assertEq(s_parentPool.getLurScoreSensitivity(), 4 * USDC_TOKEN_DECIMALS_SCALE);
     }
 
     function test_getScoresWeights() public {
-        (uint64 lurScoreWeight, uint64 ndrScoreWeight) = s_parentPool.getScoresWeights();
-        assertEq(lurScoreWeight, uint64((7 * USDC_TOKEN_DECIMALS_SCALE) / 10));
-        assertEq(ndrScoreWeight, uint64((3 * USDC_TOKEN_DECIMALS_SCALE) / 10));
+        (uint256 lurScoreWeight, uint256 ndrScoreWeight) = s_parentPool.getScoresWeights();
+        assertEq(lurScoreWeight, uint256((7 * USDC_TOKEN_DECIMALS_SCALE) / 10));
+        assertEq(ndrScoreWeight, uint256((3 * USDC_TOKEN_DECIMALS_SCALE) / 10));
 
         vm.prank(s_deployer);
         s_parentPool.setScoresWeights(
-            uint64((6 * USDC_TOKEN_DECIMALS_SCALE) / 10),
-            uint64((4 * USDC_TOKEN_DECIMALS_SCALE) / 10)
+            (6 * USDC_TOKEN_DECIMALS_SCALE) / 10,
+            (4 * USDC_TOKEN_DECIMALS_SCALE) / 10
         );
 
         (lurScoreWeight, ndrScoreWeight) = s_parentPool.getScoresWeights();
-        assertEq(lurScoreWeight, uint64((6 * USDC_TOKEN_DECIMALS_SCALE) / 10));
-        assertEq(ndrScoreWeight, uint64((4 * USDC_TOKEN_DECIMALS_SCALE) / 10));
+        assertEq(lurScoreWeight, (6 * USDC_TOKEN_DECIMALS_SCALE) / 10);
+        assertEq(ndrScoreWeight, (4 * USDC_TOKEN_DECIMALS_SCALE) / 10);
     }
 
     function test_getLiquidityCap() public {
@@ -544,7 +597,7 @@ contract ParentPoolTest is ParentPoolBase {
         assertEq(s_parentPool.getMinDepositAmount(), _addDecimals(100));
 
         vm.prank(s_deployer);
-        s_parentPool.setMinDepositAmount(uint64(_addDecimals(50)));
+        s_parentPool.setMinDepositAmount(_addDecimals(50));
         assertEq(s_parentPool.getMinDepositAmount(), _addDecimals(50));
     }
 
@@ -552,7 +605,7 @@ contract ParentPoolTest is ParentPoolBase {
         assertEq(s_parentPool.getMinWithdrawalAmount(), _addDecimals(100));
 
         vm.prank(s_deployer);
-        s_parentPool.setMinWithdrawalAmount(uint64(_addDecimals(50)));
+        s_parentPool.setMinWithdrawalAmount(_addDecimals(50));
 
         assertEq(s_parentPool.getMinWithdrawalAmount(), _addDecimals(50));
     }

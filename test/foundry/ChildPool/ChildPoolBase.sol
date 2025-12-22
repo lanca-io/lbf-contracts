@@ -20,7 +20,8 @@ abstract contract ChildPoolBase is LancaTest {
             address(s_iouToken),
             address(s_usdc),
             CHILD_POOL_CHAIN_SELECTOR,
-            PARENT_POOL_CHAIN_SELECTOR
+            PARENT_POOL_CHAIN_SELECTOR,
+            LIQUIDITY_TOKEN_GAS_OVERHEAD
         );
         s_childPool.initialize(s_deployer, s_lancaKeeper);
 

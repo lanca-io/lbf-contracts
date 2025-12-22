@@ -56,8 +56,9 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
         address iouToken,
         address conceroRouter,
         uint24 chainSelector,
-        uint256 minTargetBalance
-    ) Base(liquidityToken, conceroRouter, iouToken, chainSelector) {
+        uint256 minTargetBalance,
+        uint32 liquidityTokenGasOverhead
+    ) Base(liquidityToken, conceroRouter, iouToken, chainSelector, liquidityTokenGasOverhead) {
         i_lpToken = LPToken(lpToken);
 
         uint8 liquidityTokenDecimals = IERC20Metadata(liquidityToken).decimals();
@@ -218,10 +219,14 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
                 the user upon withdrawal for both deposits
                 and withdrawals, and when depositing or withdrawing,
                 messages are sent twice: first childPools ->
-                parentPool, then parentPool -> childPools */
+                parentPool, then parentPool -> childPools.
+                We also multiply by triggerCountBeforeWithdrawalProcess
+                to account for multiple trigger cycles that may occur
+                before processPendingWithdrawals is called. */
         uint256 conceroFee = (s_parentPool.averageConceroMessageFee *
             getChildPoolChainSelectors().length *
-            4) / pendingWithdrawalCount;
+            4 *
+            s_parentPool.triggerCountBeforeWithdrawalProcess) / pendingWithdrawalCount;
 
         return (conceroFee, getRebalancerFee(liqTokenAmount));
     }
@@ -334,14 +339,14 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
         return s.parentPool().pendingWithdrawalIds;
     }
 
-    function getLurScoreSensitivity() external view returns (uint64) {
+    function getLurScoreSensitivity() external view returns (uint256) {
         return s.parentPool().lurScoreSensitivity;
     }
 
     function getScoresWeights()
         external
         view
-        returns (uint64 lurScoreWeight, uint64 ndrScoreWeight)
+        returns (uint256 lurScoreWeight, uint256 ndrScoreWeight)
     {
         return (s.parentPool().lurScoreWeight, s.parentPool().ndrScoreWeight);
     }
@@ -350,11 +355,11 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
         return s.parentPool().liquidityCap;
     }
 
-    function getMinDepositAmount() external view returns (uint64) {
+    function getMinDepositAmount() external view returns (uint256) {
         return s.parentPool().minDepositAmount;
     }
 
-    function getMinWithdrawalAmount() external view returns (uint64) {
+    function getMinWithdrawalAmount() external view returns (uint256) {
         return s.parentPool().minWithdrawalAmount;
     }
 
@@ -406,7 +411,7 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
     ///   * `lurScoreSensitivity > i_liquidityTokenScaleFactor`,
     ///   * `lurScoreSensitivity < 10 * i_liquidityTokenScaleFactor`.
     /// @param lurScoreSensitivity New LUR sensitivity parameter.
-    function setLurScoreSensitivity(uint64 lurScoreSensitivity) external onlyRole(ADMIN) {
+    function setLurScoreSensitivity(uint256 lurScoreSensitivity) external onlyRole(ADMIN) {
         require(
             (lurScoreSensitivity > i_liquidityTokenScaleFactor) &&
                 (lurScoreSensitivity < (10 * i_liquidityTokenScaleFactor)),
@@ -421,8 +426,8 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
     /// @param lurScoreWeight New weight for LUR score.
     /// @param ndrScoreWeight New weight for NDR score.
     function setScoresWeights(
-        uint64 lurScoreWeight,
-        uint64 ndrScoreWeight
+        uint256 lurScoreWeight,
+        uint256 ndrScoreWeight
     ) external onlyRole(ADMIN) {
         require(
             lurScoreWeight + ndrScoreWeight == i_liquidityTokenScaleFactor,
@@ -441,11 +446,11 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
         s.parentPool().liquidityCap = newLiqCap;
     }
 
-    function setMinDepositAmount(uint64 newMinDepositAmount) external onlyRole(ADMIN) {
+    function setMinDepositAmount(uint256 newMinDepositAmount) external onlyRole(ADMIN) {
         s.parentPool().minDepositAmount = newMinDepositAmount;
     }
 
-    function setMinWithdrawalAmount(uint64 newMinWithdrawalAmount) external onlyRole(ADMIN) {
+    function setMinWithdrawalAmount(uint256 newMinWithdrawalAmount) external onlyRole(ADMIN) {
         s.parentPool().minWithdrawalAmount = newMinWithdrawalAmount;
     }
 
@@ -523,6 +528,7 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
     /// @dev
     /// - Decodes snapshot + source decimals via `decodeChildPoolSnapshot`.
     /// - Converts all amounts to `SCALE_TOKEN_DECIMALS` using `_toScaleDecimals`.
+    /// - Checks if the snapshot is newer than the existing one.
     /// - Stores the converted snapshot in `childPoolSnapshots[sourceChainSelector]`.
     /// @param sourceChainSelector Chain selector of the child pool.
     /// @param messageData Encoded snapshot payload.
@@ -548,13 +554,18 @@ contract ParentPool is IParentPool, ILancaKeeper, Rebalancer, LancaBridge {
             srcDecimals
         );
 
-        s.parentPool().childPoolSnapshots[sourceChainSelector] = snapshot;
+        if (snapshot.timestamp > s.parentPool().childPoolSnapshots[sourceChainSelector].timestamp) {
+            s.parentPool().childPoolSnapshots[sourceChainSelector] = snapshot;
+        }
     }
 
     /// @dev
     /// - Parent pool does not accept `UPDATE_TARGET_BALANCE` messages (it is the source of truth).
     /// - Always reverts with `FunctionNotImplemented`.
-    function _handleConceroReceiveUpdateTargetBalance(bytes calldata) internal pure override {
+    function _handleConceroReceiveUpdateTargetBalance(
+        uint24,
+        bytes calldata
+    ) internal pure override {
         revert ICommonErrors.FunctionNotImplemented();
     }
 

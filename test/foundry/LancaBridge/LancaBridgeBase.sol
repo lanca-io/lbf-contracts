@@ -28,7 +28,8 @@ abstract contract LancaBridgeBase is LancaTest {
             address(s_18DecIouToken),
             address(s_18DecUsdc),
             CHILD_POOL_CHAIN_SELECTOR,
-            PARENT_POOL_CHAIN_SELECTOR
+            PARENT_POOL_CHAIN_SELECTOR,
+            LIQUIDITY_TOKEN_GAS_OVERHEAD
         );
         s_childPool.initialize(s_deployer, s_lancaKeeper);
 
@@ -38,7 +39,8 @@ abstract contract LancaBridgeBase is LancaTest {
             address(s_iouToken),
             s_conceroRouter,
             PARENT_POOL_CHAIN_SELECTOR,
-            MIN_TARGET_BALANCE
+            MIN_TARGET_BALANCE,
+            LIQUIDITY_TOKEN_GAS_OVERHEAD
         );
         s_parentPool.initialize(s_deployer, s_lancaKeeper);
         vm.stopPrank();
@@ -105,20 +107,9 @@ abstract contract LancaBridgeBase is LancaTest {
         _setValidatorLibs(address(s_childPool));
     }
 
-    function _receiveBridge(
-        address,
-        uint256 amount,
-        address receiver,
-        uint32 dstChainGasLimit
-    ) internal {
+    function _receiveBridge(address, uint256 amount, address receiver) internal {
         IConceroRouter.MessageRequest memory messageRequest = _buildMessageRequest(
-            BridgeCodec.encodeBridgeData(
-                s_user,
-                amount,
-                USDC_TOKEN_DECIMALS,
-                MessageCodec.encodeEvmDstChainData(receiver, dstChainGasLimit),
-                ""
-            ),
+            BridgeCodec.encodeBridgeData(s_user, receiver, amount, USDC_TOKEN_DECIMALS, ""),
             PARENT_POOL_CHAIN_SELECTOR,
             address(s_parentPool)
         );

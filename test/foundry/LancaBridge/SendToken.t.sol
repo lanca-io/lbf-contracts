@@ -217,6 +217,29 @@ contract SendToken is LancaBridgeBase {
         );
     }
 
+    function test_withdrawLancaFee_RevertIfNotAdmin() public {
+        vm.expectRevert(_constructAccessControlError(s_user, keccak256("ADMIN")));
+
+        vm.prank(s_user);
+        s_childPool.withdrawLancaFee();
+    }
+
+    function test_withdrawLancaFee_Success() public {
+        vm.prank(s_deployer);
+        s_childPool.setLancaBridgeFeeBps(100);
+
+        test_bridge_fromChildToChildPoolWithContractCall_Success();
+
+        uint256 totalLancaFee = s_childPool.getWithdrawableLancaFee();
+        assert(totalLancaFee > 0);
+
+        vm.expectEmit(true, true, false, true);
+        emit IBase.LancaFeeWithdrawn(s_deployer, totalLancaFee);
+
+        vm.prank(s_deployer);
+        s_childPool.withdrawLancaFee();
+    }
+
     function test_bridge_revertIfInvalidDstGasLimitOrCallData() public {
         vm.expectRevert(abi.encodeWithSelector(ILancaBridge.InvalidDstGasLimitOrCallData.selector));
 
