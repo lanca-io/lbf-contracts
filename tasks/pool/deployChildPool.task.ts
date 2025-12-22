@@ -27,7 +27,9 @@ async function deployChildPoolTask(taskArgs: any, hre: HardhatRuntimeEnvironment
 	}
 
 	if (taskArgs.implementation) {
-		await deployChildPool(hre);
+		await deployChildPool(hre, {
+			liquidityTokenGasOverhead: taskArgs.gasoverhead,
+		});
 	}
 
 	if (taskArgs.proxy) {
@@ -63,6 +65,7 @@ task("deploy-child-pool", "Deploy ChildPool")
 	.addFlag("iou", "Deploy IOU Token")
 	.addFlag("vars", "Set variables")
 	.addOptionalParam("decimals", "Token decimals (IOU)")
+	.addOptionalParam("gasoverhead", "Liquidity token gas overhead")
 	.setAction(async (taskArgs, hre: HardhatRuntimeEnvironment) => {
 		await deployChildPoolTask(taskArgs, hre);
 	});

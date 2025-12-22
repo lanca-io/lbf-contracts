@@ -35,7 +35,7 @@ const EMPTY_BYTES = "0x000000000000000000000000000000000000000000000000000000000
 const ADMIN_SLOT = "0xb53127684a568b3173ae13b9f8a6016e243e63b6e8ee1178d6a717850b5d6103";
 
 const liqTokenDecimals = 6;
-
+const defaultLiquidityTokenGasOverhead = 100000;
 const parenPoolLiqCap = 100_000_000n * 10n ** BigInt(liqTokenDecimals);
 
 const viemReceiptConfig: WaitForTransactionReceiptParameters = {
@@ -109,6 +109,7 @@ export {
 	poolFeeBps,
 	MINTER_ROLE,
 	liqTokenDecimals,
+	defaultLiquidityTokenGasOverhead,
 	parenPoolLiqCap,
 	ADDRESS_ZERO,
 	EMPTY_BYTES,

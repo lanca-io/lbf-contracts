@@ -1988,18 +1988,9 @@
   resolved "https://registry.npmjs.org/@kwsites/promise-deferred/-/promise-deferred-1.1.1.tgz#8ace5259254426ccef57f3175bc64ed7095ed919"
   integrity sha512-GaHYm+c0O9MjZRu0ongGBRbinu8gVAMd2UZjji6jVmqKtZluZnptXGWhz1E8j8D2HJ3f/yMxKAUC0b+57wncIw==
 
-"@lanca/canonical-bridge@https://github.com/lanca-io/lanca-canonical-bridge":
-  version "1.0.0"
-  resolved "https://github.com/lanca-io/lanca-canonical-bridge#5b1b1053768d3b4b0b0b01480f8f766d8eaa07d3"
-  dependencies:
-    "@chainlink/contracts" "1.3.0"
-    "@chainlink/functions-toolkit" "0.3.2"
-    "@openzeppelin/contracts" "3.4.2"
-    "@openzeppelin/contracts-v5" "npm:@openzeppelin/contracts@5.2.0"
-
 "@lanca/stablecoin-evm@github:lanca-io/lcb-stablecoin-evm":
   version "1.0.0"
-  resolved "https://codeload.github.com/lanca-io/lcb-stablecoin-evm/tar.gz/df4de3eab875070e3c84c4f51c6d0efd76445c29"
+  resolved "https://codeload.github.com/lanca-io/lcb-stablecoin-evm/tar.gz/3d7a9249c4fbd19ef58a2a5bb58844f8447a03a2"
   dependencies:
     "@openzeppelin/contracts" "3.4.2"
 
@@ -2392,11 +2383,6 @@
   version "4.9.3"
   resolved "https://registry.npmjs.org/@openzeppelin/contracts-upgradeable/-/contracts-upgradeable-4.9.3.tgz#ff17a80fb945f5102571f8efecb5ce5915cc4811"
   integrity sha512-jjaHAVRMrE4UuZNfDwjlLGDxTHWIOwTJS2ldnc278a0gevfXfPr8hxKEVBGFBE96kl2G3VHDZhUimw/+G3TG2A==
-
-"@openzeppelin/contracts-v5@npm:@openzeppelin/contracts@5.2.0":
-  version "5.2.0"
-  resolved "https://registry.npmjs.org/@openzeppelin/contracts/-/contracts-5.2.0.tgz#bd020694218202b811b0ea3eec07277814c658da"
-  integrity sha512-bxjNie5z89W1Ea0NZLZluFh8PrFNn9DH8DQlujEok2yjsOlraUPKID5p1Wk3qdNbf6XkQ1Os2RvfiHrrXLHWKA==
 
 "@openzeppelin/contracts@3.4.2":
   version "3.4.2"

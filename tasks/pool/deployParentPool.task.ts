@@ -41,6 +41,7 @@ async function deployParentPoolTask(taskArgs: any, hre: HardhatRuntimeEnvironmen
 	if (taskArgs.implementation) {
 		await deployParentPool(hre, {
 			minTargetBalance: taskArgs.mtb,
+			liquidityTokenGasOverhead: taskArgs.gasoverhead,
 		});
 	}
 
@@ -84,6 +85,7 @@ task("deploy-parent-pool", "Deploy ParentPool")
 	.addOptionalParam("mtb", "Minimum target balance")
 	.addOptionalParam("admin", "LPToken default admin")
 	.addOptionalParam("minter", "LPToken minter")
+	.addOptionalParam("gasoverhead", "Liquidity token gas overhead")
 	.setAction(async (taskArgs, hre: HardhatRuntimeEnvironment) => {
 		await deployParentPoolTask(taskArgs, hre);
 	});

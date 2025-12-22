@@ -4,7 +4,10 @@ import { HardhatRuntimeEnvironment } from "hardhat/types";
 
 import { conceroNetworks } from "../constants";
 import { DEPLOY_CONFIG_TESTNET } from "../constants/deployConfigTestnet";
-import { parentPoolChainSelectors } from "../constants/deploymentVariables";
+import {
+	defaultLiquidityTokenGasOverhead,
+	parentPoolChainSelectors,
+} from "../constants/deploymentVariables";
 import { getEnvVar, getFallbackClients, getViemAccount, log, updateEnvVariable } from "../utils";
 
 type DeployArgs = {
@@ -13,6 +16,7 @@ type DeployArgs = {
 	liquidityToken: string;
 	chainSelector: number;
 	parentPoolChainSelector: number;
+	liquidityTokenGasOverhead: number;
 };
 
 type DeploymentFunction = (
@@ -45,6 +49,8 @@ const deployChildPool: DeploymentFunction = async function (
 		liquidityToken,
 		chainSelector: Number(chain.chainSelector),
 		parentPoolChainSelector: parentPoolChainSelectors[chain.type],
+		liquidityTokenGasOverhead:
+			overrideArgs?.liquidityTokenGasOverhead || defaultLiquidityTokenGasOverhead,
 	};
 
 	let gasLimit = 0;
@@ -61,6 +67,7 @@ const deployChildPool: DeploymentFunction = async function (
 			args.liquidityToken,
 			args.chainSelector,
 			args.parentPoolChainSelector,
+			args.liquidityTokenGasOverhead,
 		],
 		publicClient,
 		gasLimit,
@@ -74,7 +81,8 @@ const deployChildPool: DeploymentFunction = async function (
 			iouToken: ${args.iouToken}, 
 			liquidityToken: ${args.liquidityToken}, 
 			chainSelector: ${args.chainSelector}, 
-			parentPoolChainSelector: ${args.parentPoolChainSelector}`,
+			parentPoolChainSelector: ${args.parentPoolChainSelector},
+			liquidityTokenGasOverhead: ${args.liquidityTokenGasOverhead}`,
 		"deployChildPool",
 		name,
 	);

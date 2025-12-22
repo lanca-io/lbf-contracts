@@ -12,7 +12,6 @@ const ENV_FILES = [
 	".env.wallets",
 	".env.addresses",
 	"node_modules/@concero/v2-contracts/.env.deployments.testnet",
-	"node_modules/@lanca/canonical-bridge/.env.deployments.testnet",
 	"node_modules/@lanca/stablecoin-evm/.env.deployments.testnet",
 ];
 

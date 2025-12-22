@@ -3,7 +3,7 @@ import { Deployment } from "hardhat-deploy/types";
 import { HardhatRuntimeEnvironment } from "hardhat/types";
 import { formatUnits, parseUnits } from "viem";
 
-import { conceroNetworks, liqTokenDecimals } from "../constants";
+import { conceroNetworks, defaultLiquidityTokenGasOverhead, liqTokenDecimals } from "../constants";
 import { getEnvVar, log, updateEnvVariable } from "../utils";
 
 type DeployArgs = {
@@ -13,6 +13,7 @@ type DeployArgs = {
 	conceroRouter: string;
 	chainSelector: number;
 	minTargetBalance: bigint;
+	liquidityTokenGasOverhead: number;
 };
 
 type DeploymentFunction = (
@@ -48,6 +49,8 @@ const deployParentPool: DeploymentFunction = async function (
 		conceroRouter,
 		chainSelector: chain.chainSelector,
 		minTargetBalance: overrideArgs?.minTargetBalance || defaultMinTargetBalance,
+		liquidityTokenGasOverhead:
+			overrideArgs?.liquidityTokenGasOverhead || defaultLiquidityTokenGasOverhead,
 	};
 
 	const parentPoolLib = await deploy("ParentPoolLib", {
@@ -67,6 +70,7 @@ const deployParentPool: DeploymentFunction = async function (
 			args.conceroRouter,
 			args.chainSelector,
 			args.minTargetBalance,
+			args.liquidityTokenGasOverhead,
 		],
 		log: true,
 		autoMine: true,
@@ -85,7 +89,8 @@ const deployParentPool: DeploymentFunction = async function (
 			conceroRouter: ${args.conceroRouter}, 
 			chainSelector: ${args.chainSelector}, 
 			minTargetBalance: ${Number(formatUnits(args.minTargetBalance, liqTokenDecimals)).toFixed(liqTokenDecimals)} 
-			parentPoolLib: ${parentPoolLib.address}`,
+			parentPoolLib: ${parentPoolLib.address},
+			liquidityTokenGasOverhead: ${args.liquidityTokenGasOverhead}`,
 		"deployParentPool",
 		name,
 	);
