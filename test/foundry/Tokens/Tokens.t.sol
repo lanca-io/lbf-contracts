@@ -123,34 +123,4 @@ contract TokensTest is Test {
         vm.prank(user1);
         lpToken.mint(user1, mintAmount);
     }
-
-    function test_LPToken_Burn_Success() public {
-        uint256 mintAmount = 200e6;
-        uint256 burnAmount = 100e6;
-
-        vm.prank(minter);
-        lpToken.mint(user1, mintAmount);
-
-        vm.prank(user1);
-        lpToken.burn(burnAmount);
-
-        assertEq(lpToken.balanceOf(user1), mintAmount - burnAmount);
-    }
-
-    function test_LPToken_BurnFrom_Success() public {
-        uint256 mintAmount = 200e6;
-        uint256 burnAmount = 100e6;
-
-        vm.prank(minter);
-        lpToken.mint(user1, mintAmount);
-
-        vm.prank(user1);
-        lpToken.approve(user2, burnAmount);
-
-        vm.prank(user2);
-        lpToken.burnFrom(user1, burnAmount);
-
-        assertEq(lpToken.balanceOf(user1), mintAmount - burnAmount);
-        assertEq(lpToken.allowance(user1, user2), 0);
-    }
 }

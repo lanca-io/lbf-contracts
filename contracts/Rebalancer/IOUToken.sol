@@ -13,8 +13,6 @@ contract IOUToken is ERC20, AccessControl {
 
     uint8 internal immutable i_decimals;
 
-    error NotAllowed();
-
     constructor(
         address admin,
         address minter,
