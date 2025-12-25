@@ -38,9 +38,11 @@ contract ParentPoolHarness is ParentPool {
 
     function exposed_getReceivedBridgeAmount(
         uint24 srcChainSelector,
+        address sender,
         uint256 nonce
     ) external view returns (uint256) {
-        return bs.bridge().receivedBridges[srcChainSelector][nonce];
+        bytes32 bridgeId = keccak256(abi.encodePacked(srcChainSelector, sender, nonce));
+        return bs.bridge().receivedBridges[bridgeId];
     }
 
     function exposed_getTotalWithdrawalAmountLocked() public view returns (uint256) {

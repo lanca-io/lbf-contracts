@@ -7,7 +7,7 @@ library Storage {
             ~bytes32(uint256(0xff));
 
     struct Bridge {
-        mapping(uint24 srcChainSelector => mapping(uint256 nonce => uint256 tokenAmount)) receivedBridges; // LD
+        mapping(bytes32 bridgeId => uint256 tokenAmount) receivedBridges; // LD
     }
 
     function bridge() internal pure returns (Bridge storage s) {
