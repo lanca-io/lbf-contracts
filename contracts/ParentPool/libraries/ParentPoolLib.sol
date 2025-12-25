@@ -31,7 +31,7 @@ library ParentPoolLib {
 
     uint8 internal constant SCALE_TOKEN_DECIMALS = 24;
     uint8 internal constant MAX_QUEUE_LENGTH = 250;
-    uint32 internal constant CHILD_POOL_SNAPSHOT_EXPIRATION_TIME = 5 minutes;
+    uint32 internal constant CHILD_POOL_SNAPSHOT_EXPIRATION_TIME = 15 minutes;
     uint32 internal constant UPDATE_TARGET_BALANCE_MESSAGE_GAS_LIMIT = 100_000;
 
     /// @notice Parameter bundle used for `triggerDepositWithdrawalProcess`.
