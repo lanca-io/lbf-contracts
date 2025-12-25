@@ -32,6 +32,7 @@ contract TestPoolBase is Base {
     function _handleConceroReceiveBridgeLiquidity(
         bytes32,
         uint24,
+        address,
         uint256,
         bytes calldata
     ) internal override {}

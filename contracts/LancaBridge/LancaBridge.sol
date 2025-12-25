@@ -170,11 +170,13 @@ abstract contract LancaBridge is ILancaBridge, Base {
     ///   4. Calls `_deliverBridge` to transfer tokens to the final receiver and optional hook.
     /// @param messageId Concero message ID.
     /// @param srcChainSelector Source chain selector.
+    /// @param sender Address of the original sender on the source chain.
     /// @param nonce Concero message nonce for this bridge.
     /// @param messageData Encoded bridge data payload.
     function _handleConceroReceiveBridgeLiquidity(
         bytes32 messageId,
         uint24 srcChainSelector,
+        address sender,
         uint256 nonce,
         bytes calldata messageData
     ) internal override {
@@ -188,7 +190,7 @@ abstract contract LancaBridge is ILancaBridge, Base {
 
         tokenAmount = _toLocalDecimals(tokenAmount, decimals);
 
-        _handleOutflow(tokenAmount, srcChainSelector, nonce);
+        _handleOutflow(tokenAmount, srcChainSelector, sender, nonce);
 
         _deliverBridge(
             messageId,
@@ -253,19 +255,26 @@ abstract contract LancaBridge is ILancaBridge, Base {
     ///     - adjusts `totalLiqTokenReceived` by the delta
     ///     - emits `SrcBridgeReorged` for the previous amount.
     /// - Updates:
-    ///   * `receivedBridges[srcChainSelector][nonce]`,
+    ///   * `receivedBridges[bridgeId]`,
     ///   * daily outflow for `getTodayStartTimestamp()`.
     /// - Reverts with `InvalidAmount` if `getActiveBalance() < tokenAmount`.
     /// @param tokenAmount Amount of tokens received (in local decimals).
     /// @param srcChainSelector Source chain selector.
+    /// @param sender Address of the original sender on the source chain.
     /// @param nonce Concero message nonce for this bridge.
-    function _handleOutflow(uint256 tokenAmount, uint24 srcChainSelector, uint256 nonce) internal {
+    function _handleOutflow(
+        uint256 tokenAmount,
+        uint24 srcChainSelector,
+        address sender,
+        uint256 nonce
+    ) internal {
         bs.Bridge storage s_bridge = bs.bridge();
         s.Base storage s_base = s.base();
 
         require(getActiveBalance() >= tokenAmount, ICommonErrors.InvalidAmount());
 
-        uint256 existingAmount = s_bridge.receivedBridges[srcChainSelector][nonce];
+        bytes32 bridgeId = keccak256(abi.encodePacked(srcChainSelector, sender, nonce));
+        uint256 existingAmount = s_bridge.receivedBridges[bridgeId];
 
         if (existingAmount == 0) {
             s_base.totalLiqTokenReceived += tokenAmount;
@@ -277,7 +286,7 @@ abstract contract LancaBridge is ILancaBridge, Base {
             emit SrcBridgeReorged(srcChainSelector, existingAmount);
         }
 
-        s_bridge.receivedBridges[srcChainSelector][nonce] = tokenAmount;
+        s_bridge.receivedBridges[bridgeId] = tokenAmount;
         s.base().flowByDay[getTodayStartTimestamp()].outflow += tokenAmount;
     }
 

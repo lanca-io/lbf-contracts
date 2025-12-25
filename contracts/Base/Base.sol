@@ -406,6 +406,7 @@ abstract contract Base is IBase, AccessControlUpgradeable, ConceroClient {
             _handleConceroReceiveBridgeLiquidity(
                 messageId,
                 sourceChainSelector,
+                sender,
                 messageReceipt.nonce(),
                 message
             );
@@ -453,6 +454,7 @@ abstract contract Base is IBase, AccessControlUpgradeable, ConceroClient {
     function _handleConceroReceiveBridgeLiquidity(
         bytes32 messageId,
         uint24 sourceChainSelector,
+        address sender,
         uint256 nonce,
         bytes calldata messageData
     ) internal virtual;
