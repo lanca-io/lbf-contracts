@@ -37,7 +37,7 @@ contract ChildPool is Rebalancer, LancaBridge {
     using BridgeCodec for bytes32;
     using BridgeCodec for bytes;
 
-    uint32 internal constant SEND_SNAPSHOT_MESSAGE_GAS_LIMIT = 150_000;
+    uint32 internal constant SEND_SNAPSHOT_MESSAGE_GAS_LIMIT = 200_000;
     uint24 internal immutable i_parentPoolChainSelector;
 
     constructor(
