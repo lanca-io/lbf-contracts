@@ -228,18 +228,21 @@ abstract contract LancaBridge is ILancaBridge, Base {
         bytes calldata payload
     ) internal {
         address receiver = tokenReceiver.toAddress();
-        bool shouldCallHook = _validateBridgeParams(receiver, payload);
 
         IERC20(i_liquidityToken).safeTransfer(receiver, tokenAmount);
 
-        if (shouldCallHook) {
-            ILancaClient(receiver).lancaReceive(
-                messageId,
-                srcChainSelector,
-                tokenSender,
-                tokenAmount,
-                payload
-            );
+        if (_shouldCallReceiverHook(receiver, payload)) {
+            try
+                ILancaClient(receiver).lancaReceive(
+                    messageId,
+                    srcChainSelector,
+                    tokenSender,
+                    tokenAmount,
+                    payload
+                )
+            {} catch (bytes memory reason) {
+                emit HookCallFailed(messageId, receiver, reason);
+            }
         }
 
         emit BridgeDelivered(messageId, tokenAmount);
@@ -290,7 +293,7 @@ abstract contract LancaBridge is ILancaBridge, Base {
         s.base().flowByDay[getTodayStartTimestamp()].outflow += tokenAmount;
     }
 
-    /// @notice Validates whether a hook should be called on the receiver and whether it is valid.
+    /// @notice Determines whether the bridge should call the receiver hook on the destination.
     /// @dev
     /// - If `payload.length == 0`:
     ///   * no hook is called, returns `false`.
@@ -301,7 +304,7 @@ abstract contract LancaBridge is ILancaBridge, Base {
     /// @param receiver Receiver address on this chain.
     /// @param payload Hook payload (if any).
     /// @return shouldCallHook `true` if a hook call should be made after transfer.
-    function _validateBridgeParams(
+    function _shouldCallReceiverHook(
         address receiver,
         bytes calldata payload
     ) internal view returns (bool) {

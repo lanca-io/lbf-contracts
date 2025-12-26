@@ -18,12 +18,19 @@ contract LancaClientMock is LancaClient {
     ReceivedCall[] public receivedCalls;
     bool public shouldRevert;
     string public revertReason;
+    bool public oog;
+    uint256 public oogAmount;
 
     constructor(address lancaPool) LancaClient(lancaPool) {}
 
     function setShouldRevert(bool _shouldRevert, string memory _revertReason) external {
         shouldRevert = _shouldRevert;
         revertReason = _revertReason;
+    }
+
+    function setOOG(bool _oog, uint256 _amount) external {
+        oog = _oog;
+        oogAmount = _amount;
     }
 
     function getReceivedCallsCount() external view returns (uint256) {
@@ -43,6 +50,14 @@ contract LancaClientMock is LancaClient {
     ) internal override {
         if (shouldRevert) {
             revert(revertReason);
+        }
+
+        if (oog) {
+            for (uint256 i = 1000; i < oogAmount; i++) {
+                assembly {
+                    sstore(i, i)
+                }
+            }
         }
 
         receivedCalls.push(
