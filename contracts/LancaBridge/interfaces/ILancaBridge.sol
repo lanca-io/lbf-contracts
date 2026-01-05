@@ -11,6 +11,7 @@ interface ILancaBridge {
     );
     event BridgeDelivered(bytes32 indexed messageId, uint256 tokenAmountAfterFee);
     event SrcBridgeReorged(uint24 indexed sourceChainSelector, uint256 oldAmount);
+    event HookCallFailed(bytes32 indexed messageId, address indexed tokenReceiver, bytes reason);
 
     error InvalidDstChainSelector(uint24 dstChainSelector);
     error InvalidDstGasLimitOrCallData();

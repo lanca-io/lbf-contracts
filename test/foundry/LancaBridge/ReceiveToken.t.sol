@@ -431,7 +431,7 @@ contract ReceiveToken is LancaBridgeBase {
         assertEq(IERC20(s_usdc).balanceOf(dstUser), dstUserBalanceBefore + bridgeAmount);
     }
 
-    function test_handleConceroReceiveBridgeLiquidity_HookReverts() public {
+    function test_handleConceroReceiveBridgeLiquidity_HookReverts_EmitHookCallFailed() public {
         uint256 bridgeAmount = 100e6;
         uint32 dstGasLimit = 200_000;
         bytes memory dstCallData = abi.encode("test call data");
@@ -456,7 +456,15 @@ contract ReceiveToken is LancaBridgeBase {
             dstGasLimit
         );
 
-        vm.expectRevert(abi.encode(revertReason));
+        vm.expectEmit(false, true, false, true);
+        emit ILancaBridge.HookCallFailed(
+            DEFAULT_MESSAGE_ID,
+            address(lancaClient),
+            abi.encodeWithSignature("Error(string)", revertReason)
+        );
+
+        vm.expectEmit(false, false, false, true);
+        emit ILancaBridge.BridgeDelivered(DEFAULT_MESSAGE_ID, bridgeAmount);
 
         vm.prank(s_conceroRouter);
         s_parentPool.conceroReceive(
@@ -471,8 +479,14 @@ contract ReceiveToken is LancaBridgeBase {
             s_relayerLib
         );
 
-        assertEq(IERC20(s_usdc).balanceOf(address(s_parentPool)), parentPoolBalanceBefore);
-        assertEq(IERC20(s_usdc).balanceOf(address(lancaClient)), clientBalanceBefore);
+        assertEq(
+            IERC20(s_usdc).balanceOf(address(s_parentPool)),
+            parentPoolBalanceBefore - bridgeAmount
+        );
+        assertEq(
+            IERC20(s_usdc).balanceOf(address(lancaClient)),
+            clientBalanceBefore + bridgeAmount
+        );
     }
 
     //    function testFuzz_receiveTokenLowerSrcDecimals(uint256 bridgeAmount) public {
