@@ -1,8 +1,14 @@
-import { getNetworkEnvKey } from "@concero/contract-utils";
-
 import { conceroNetworks } from "../../constants";
 import { parentPoolVariables } from "../../constants/deploymentVariables";
-import { err, getEnvVar, getFallbackClients, getViemAccount, log, warn } from "../../utils";
+import {
+	err,
+	getEnvVar,
+	getFallbackClients,
+	getNetworkEnvKey,
+	getViemAccount,
+	log,
+	warn,
+} from "../../utils";
 
 export async function setParentPoolCalculationVars(name: string) {
 	const chain = conceroNetworks[name as keyof typeof conceroNetworks];

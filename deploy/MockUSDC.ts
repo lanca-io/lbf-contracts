@@ -1,56 +1,32 @@
-import { getNetworkEnvKey } from "@concero/contract-utils";
-import { Deployment } from "hardhat-deploy/types";
 import { HardhatRuntimeEnvironment } from "hardhat/types";
 
-import { conceroNetworks } from "../constants";
-import { log, updateEnvVariable } from "../utils";
+import { EnvFileName } from "../types/deploymentVariables";
+import { IDeployResult, genericDeploy, getNetworkEnvKey, updateEnvVariable } from "../utils";
 
-type DeploymentFunction = (hre: HardhatRuntimeEnvironment) => Promise<Deployment>;
+type DeploymentFunction = (hre: HardhatRuntimeEnvironment) => Promise<IDeployResult>;
 
-const deployMockUSDC: DeploymentFunction = async function (
+export const deployMockUSDC: DeploymentFunction = async (
 	hre: HardhatRuntimeEnvironment,
-): Promise<Deployment> {
-	const { deployer } = await hre.getNamedAccounts();
-	const { deploy } = hre.deployments;
-	const { name } = hre.network;
-
-	const chain = conceroNetworks[name as keyof typeof conceroNetworks];
-	const { type: networkType } = chain;
-
+): Promise<IDeployResult> => {
 	const nameArg = "USD Coin";
 	const symbolArg = "USDC";
 	const decimalsArg = 6;
 
 	const args = [nameArg, symbolArg, decimalsArg];
 
-	const deployment = await deploy("MockERC20", {
-		from: deployer,
-		contract: "MockERC20",
+	const deployment = await genericDeploy(
+		{
+			hre,
+			contractName: "MockERC20",
+		},
 		args,
-		log: true,
-		autoMine: true,
-		skipIfAlreadyDeployed: true,
-	});
-
-	log(`MockUSDC deployed at: ${deployment.address}`, "deployMockUSDC", name);
-	log(
-		`Args: 
-			name: ${nameArg}, 
-			symbol: ${symbolArg}, 
-			decimals: ${decimalsArg}`,
-		"deployMockUSDC",
-		name,
 	);
+
 	updateEnvVariable(
-		`USDC_PROXY_${getNetworkEnvKey(name)}`,
+		`USDC_PROXY_${getNetworkEnvKey(deployment.chainName)}`,
 		deployment.address,
-		`deployments.${networkType}`,
+		`deployments.${deployment.chainType}` as EnvFileName,
 	);
 
 	return deployment;
 };
-
-deployMockUSDC.tags = ["MockUSDC"];
-
-export default deployMockUSDC;
-export { deployMockUSDC };

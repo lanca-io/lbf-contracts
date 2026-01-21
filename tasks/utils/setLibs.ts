@@ -1,7 +1,12 @@
-import { getNetworkEnvKey } from "@concero/contract-utils";
-
 import { ADDRESS_ZERO, conceroNetworks, getViemReceiptConfig } from "../../constants";
-import { err, getEnvVar, getFallbackClients, getViemAccount, log } from "../../utils";
+import {
+	err,
+	getEnvVar,
+	getFallbackClients,
+	getNetworkEnvKey,
+	getViemAccount,
+	log,
+} from "../../utils";
 import { isParentPoolNetwork } from "./isParentPoolNetwork";
 
 export async function setLibs(srcChainName: string): Promise<void> {

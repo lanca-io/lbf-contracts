@@ -1,9 +1,8 @@
 import { HardhatRuntimeEnvironment } from "hardhat/types";
 
-import { ProxyEnum, conceroNetworks, getViemReceiptConfig } from "../../constants";
+import { ProxyEnum, conceroNetworks } from "../../constants";
 import { EnvPrefixes, IProxyType } from "../../types/deploymentVariables";
-import { err, getEnvAddress, getFallbackClients, log } from "../../utils";
-import { getViemAccount } from "../../utils/getViemClients";
+import { err, getEnvAddress, getFallbackClients, getViemAccount, log } from "../../utils";
 
 export async function upgradeProxyImplementation(
 	hre: HardhatRuntimeEnvironment,
@@ -32,8 +31,11 @@ export async function upgradeProxyImplementation(
 	const viemAccount = getViemAccount(type, "deployer");
 	const { walletClient } = getFallbackClients(chain, viemAccount);
 
-	const [conceroProxy, conceroProxyAlias] = getEnvAddress(proxyType, name);
-	const [proxyAdmin, proxyAdminAlias] = getEnvAddress(`${proxyType}Admin`, name);
+	const [conceroProxy, conceroProxyAlias] = getEnvAddress(proxyType as keyof EnvPrefixes, name);
+	const [proxyAdmin, proxyAdminAlias] = getEnvAddress(
+		`${proxyType}Admin` as keyof EnvPrefixes,
+		name,
+	);
 	const [newImplementation, newImplementationAlias] = getEnvAddress(implementationKey, name);
 
 	const implementation = shouldPause ? getEnvAddress("pause", name)[0] : newImplementation;

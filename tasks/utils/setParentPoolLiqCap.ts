@@ -1,8 +1,6 @@
-import { getNetworkEnvKey } from "@concero/contract-utils";
-
 import { conceroNetworks } from "../../constants";
 import { parenPoolLiqCap } from "../../constants/deploymentVariables";
-import { getEnvVar, getFallbackClients, getViemAccount, log } from "../../utils";
+import { getEnvVar, getFallbackClients, getNetworkEnvKey, getViemAccount, log } from "../../utils";
 
 export async function setParentPoolLiqCap(name: string) {
 	const chain = conceroNetworks[name as keyof typeof conceroNetworks];

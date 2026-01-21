@@ -3,7 +3,7 @@ import { task } from "hardhat/config";
 import { type HardhatRuntimeEnvironment } from "hardhat/types";
 
 import { deployMockUSDC } from "../../deploy/MockUSDC";
-import { compileContracts } from "../../utils/compileContracts";
+import { compileContracts } from "../../utils";
 
 async function deployMockUSDCTask(taskArgs: any, hre: HardhatRuntimeEnvironment) {
 	compileContracts({ quiet: true });

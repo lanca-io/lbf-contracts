@@ -1,9 +1,14 @@
-import { getNetworkEnvKey } from "@concero/contract-utils";
-import { Deployment } from "hardhat-deploy/types";
 import { HardhatRuntimeEnvironment } from "hardhat/types";
 
 import { conceroNetworks, liqTokenDecimals } from "../constants";
-import { getFallbackClients, getViemAccount, log, updateEnvVariable } from "../utils";
+import { EnvFileName } from "../types/deploymentVariables";
+import {
+	IDeployResult,
+	genericDeploy,
+	getNetworkEnvKey,
+	getViemAccount,
+	updateEnvVariable,
+} from "../utils";
 
 type DeployArgs = {
 	defaultAdmin: string;
@@ -14,15 +19,13 @@ type DeployArgs = {
 type DeploymentFunction = (
 	hre: HardhatRuntimeEnvironment,
 	overrideArgs?: Partial<DeployArgs>,
-) => Promise<Deployment>;
+) => Promise<IDeployResult>;
 
-const deployLPToken: DeploymentFunction = async function (
+export const deployLPToken: DeploymentFunction = async (
 	hre: HardhatRuntimeEnvironment,
 	overrideArgs?: Partial<DeployArgs>,
-): Promise<Deployment> {
-	const { deploy } = hre.deployments;
+): Promise<IDeployResult> => {
 	const { name } = hre.network;
-
 	const chain = conceroNetworks[name as keyof typeof conceroNetworks];
 
 	const viemAccount = getViemAccount(chain.type, "deployer");
@@ -34,26 +37,21 @@ const deployLPToken: DeploymentFunction = async function (
 		decimals: overrideArgs?.decimals || liqTokenDecimals,
 	};
 
-	const deployment = await deploy("LPToken", {
-		from: deployer,
-		args: [args.defaultAdmin, args.minter, args.decimals],
-		log: true,
-		autoMine: true,
-		skipIfAlreadyDeployed: true,
-	});
+	const deployment = await genericDeploy(
+		{
+			hre,
+			contractName: "LPToken",
+		},
+		args.defaultAdmin,
+		args.minter,
+		args.decimals,
+	);
 
-	log(`LPToken deployed at: ${deployment.address}`, "deployLPToken", name);
-	log(`Args: ${JSON.stringify(args)}`, "deployLPToken", name);
 	updateEnvVariable(
-		`LPT_${getNetworkEnvKey(name)}`,
+		`LPT_${getNetworkEnvKey(deployment.chainName)}`,
 		deployment.address,
-		`deployments.${chain.type}`,
+		`deployments.${deployment.chainType}` as EnvFileName,
 	);
 
 	return deployment;
 };
-
-deployLPToken.tags = ["LPToken"];
-
-export default deployLPToken;
-export { deployLPToken };

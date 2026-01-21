@@ -1,8 +1,14 @@
-import { getNetworkEnvKey } from "@concero/contract-utils";
-
 import { conceroNetworks } from "../../constants";
 import { poolFeeBps } from "../../constants/deploymentVariables";
-import { err, getEnvVar, getFallbackClients, getViemAccount, log, warn } from "../../utils";
+import {
+	err,
+	getEnvVar,
+	getFallbackClients,
+	getNetworkEnvKey,
+	getViemAccount,
+	log,
+	warn,
+} from "../../utils";
 import { isParentPoolNetwork } from "./isParentPoolNetwork";
 
 export async function setFeeBps(name: string) {

@@ -4,7 +4,8 @@ import {
 	conceroNetworks,
 	mainnetNetworks,
 	testnetNetworks,
-} from "../../constants/conceroNetworks";
+} from "@concero/contract-utils";
+
 import { setDstPool } from "./setDstPool";
 
 export async function setAllDstPools(

@@ -1,10 +1,15 @@
-import { getNetworkEnvKey, hardhatDeployWrapper } from "@concero/contract-utils";
-import { Deployment } from "hardhat-deploy/types";
 import { HardhatRuntimeEnvironment } from "hardhat/types";
 
 import { conceroNetworks, liqTokenDecimals } from "../constants";
 import { DEPLOY_CONFIG_TESTNET } from "../constants/deployConfigTestnet";
-import { getFallbackClients, getViemAccount, log, updateEnvVariable } from "../utils";
+import { EnvFileName } from "../types/deploymentVariables";
+import {
+	IDeployResult,
+	genericDeploy,
+	getNetworkEnvKey,
+	getViemAccount,
+	updateEnvVariable,
+} from "../utils";
 
 type DeployArgs = {
 	defaultAdmin: string;
@@ -15,18 +20,16 @@ type DeployArgs = {
 type DeploymentFunction = (
 	hre: HardhatRuntimeEnvironment,
 	overrideArgs?: Partial<DeployArgs>,
-) => Promise<Deployment>;
+) => Promise<IDeployResult>;
 
-const deployIOUToken: DeploymentFunction = async function (
+export const deployIOUToken: DeploymentFunction = async (
 	hre: HardhatRuntimeEnvironment,
 	overrideArgs?: Partial<DeployArgs>,
-): Promise<Deployment> {
+): Promise<IDeployResult> => {
 	const { name } = hre.network;
-
 	const chain = conceroNetworks[name as keyof typeof conceroNetworks];
 
 	const viemAccount = getViemAccount(chain.type, "deployer");
-	const { publicClient } = getFallbackClients(chain, viemAccount);
 	const deployer = viemAccount.address;
 
 	const args: DeployArgs = {
@@ -41,26 +44,24 @@ const deployIOUToken: DeploymentFunction = async function (
 		gasLimit = config.childPool?.gasLimit || 0;
 	}
 
-	const deployment = await hardhatDeployWrapper("IOUToken", {
-		hre,
-		args: [args.defaultAdmin, args.minter, args.decimals],
-		publicClient,
-		gasLimit,
-		skipIfAlreadyDeployed: true,
-	});
+	const deployment = await genericDeploy(
+		{
+			hre,
+			contractName: "IOUToken",
+			txParams: {
+				gasLimit: BigInt(gasLimit),
+			},
+		},
+		args.defaultAdmin,
+		args.minter,
+		args.decimals,
+	);
 
-	log(`IOUToken deployed at: ${deployment.address}`, "deployIOUToken", name);
-	log(`Args: ${JSON.stringify(args)}`, "deployIOUToken", name);
 	updateEnvVariable(
-		`IOU_${getNetworkEnvKey(name)}`,
+		`IOU_${getNetworkEnvKey(deployment.chainName)}`,
 		deployment.address,
-		`deployments.${chain.type}`,
+		`deployments.${deployment.chainType}` as EnvFileName,
 	);
 
 	return deployment;
 };
-
-deployIOUToken.tags = ["IOUToken"];
-
-export default deployIOUToken;
-export { deployIOUToken };

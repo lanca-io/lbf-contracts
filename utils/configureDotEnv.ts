@@ -1,5 +1,3 @@
-import fs from "fs";
-
 import * as envEnc from "@chainlink/env-enc";
 import * as dotenv from "dotenv";
 
@@ -30,20 +28,5 @@ function configureDotEnv(basePath = "./") {
 }
 
 configureDotEnv();
-
-function reloadDotEnv(basePath = "../../") {
-	const normalizedBasePath = basePath.endsWith("/") ? basePath : `${basePath}/`;
-
-	ENV_FILES.forEach(file => {
-		const fullPath = `${normalizedBasePath}${file}`;
-		const currentEnv = dotenv.parse(fs.readFileSync(fullPath));
-
-		Object.keys(currentEnv).forEach(key => {
-			delete process.env[key];
-		});
-
-		dotenv.config({ path: fullPath });
-	});
-}
 
 export { configureDotEnv };

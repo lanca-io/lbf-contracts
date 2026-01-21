@@ -1,11 +1,16 @@
 import { task } from "hardhat/config";
 
-import { getNetworkEnvKey } from "@concero/contract-utils";
 import { type HardhatRuntimeEnvironment } from "hardhat/types";
 import { encodePacked, erc20Abi, parseUnits } from "viem";
 
 import { conceroNetworks, liqTokenDecimals } from "../../constants";
-import { compileContracts, getEnvAddress, getEnvVar, getFallbackClients } from "../../utils";
+import {
+	compileContracts,
+	getEnvAddress,
+	getEnvVar,
+	getFallbackClients,
+	getNetworkEnvKey,
+} from "../../utils";
 import { isParentPoolNetwork } from "../utils/isParentPoolNetwork";
 
 async function sendBridge(amount: string, srcChainName: string, dstChainName: string) {

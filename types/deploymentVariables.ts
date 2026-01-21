@@ -6,12 +6,6 @@ type ProxyEnvPrefixes = {
 	[key in ProxyEnum]: string;
 };
 export type EnvPrefixes = {
-	router: string;
-	routerProxy: string;
-	routerProxyAdmin: string;
-	verifier: string;
-	verifierProxy: string;
-	verifierProxyAdmin: string;
 	parentPool: string;
 	parentPoolProxy: string;
 	parentPoolProxyAdmin: string;

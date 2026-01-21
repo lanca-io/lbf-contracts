@@ -1,22 +1,22 @@
-import { conceroNetworks } from "./conceroNetworks";
+import { conceroNetworks } from "@concero/contract-utils";
+
+import { DEPLOY_CONFIG_TESTNET } from "./deployConfigTestnet";
 import {
 	ADDRESS_ZERO,
 	ADMIN_SLOT,
 	EMPTY_BYTES,
 	ProxyEnum,
 	defaultLiquidityTokenGasOverhead,
-	envPrefixes,
 	getViemReceiptConfig,
 	liqTokenDecimals,
 	viemReceiptConfig,
 	writeContractConfig,
 } from "./deploymentVariables";
+import { envPrefixes } from "./envPrefixes";
 import { lancaProxyAbi } from "./lancaProxyAbi";
-import { urls } from "./rpcUrls";
 
 export {
 	conceroNetworks,
-	urls,
 	viemReceiptConfig,
 	writeContractConfig,
 	ProxyEnum,
@@ -28,4 +28,5 @@ export {
 	ADDRESS_ZERO,
 	EMPTY_BYTES,
 	ADMIN_SLOT,
+	DEPLOY_CONFIG_TESTNET,
 };

@@ -1,5 +1,3 @@
-import { getNetworkEnvKey, hardhatDeployWrapper } from "@concero/contract-utils";
-import { Deployment } from "hardhat-deploy/types";
 import { HardhatRuntimeEnvironment } from "hardhat/types";
 
 import { conceroNetworks } from "../constants";
@@ -8,7 +6,14 @@ import {
 	defaultLiquidityTokenGasOverhead,
 	parentPoolChainSelectors,
 } from "../constants/deploymentVariables";
-import { getEnvVar, getFallbackClients, getViemAccount, log, updateEnvVariable } from "../utils";
+import { EnvFileName } from "../types/deploymentVariables";
+import {
+	IDeployResult,
+	genericDeploy,
+	getEnvVar,
+	getNetworkEnvKey,
+	updateEnvVariable,
+} from "../utils";
 
 type DeployArgs = {
 	conceroRouter: string;
@@ -22,14 +27,13 @@ type DeployArgs = {
 type DeploymentFunction = (
 	hre: HardhatRuntimeEnvironment,
 	overrideArgs?: Partial<DeployArgs>,
-) => Promise<Deployment>;
+) => Promise<IDeployResult>;
 
-const deployChildPool: DeploymentFunction = async function (
+export const deployChildPool: DeploymentFunction = async (
 	hre: HardhatRuntimeEnvironment,
 	overrideArgs?: Partial<DeployArgs>,
-): Promise<Deployment> {
+): Promise<IDeployResult> => {
 	const { name } = hre.network;
-
 	const chain = conceroNetworks[name as keyof typeof conceroNetworks];
 
 	const conceroRouter = getEnvVar(`CONCERO_ROUTER_PROXY_${getNetworkEnvKey(name)}`);
@@ -39,9 +43,6 @@ const deployChildPool: DeploymentFunction = async function (
 	if (!conceroRouter || !iouToken || !liquidityToken) {
 		throw new Error("Missing env variables for ChildPool deployment");
 	}
-
-	const viemAccount = getViemAccount(chain.type, "deployer");
-	const { publicClient } = getFallbackClients(chain, viemAccount);
 
 	const args: DeployArgs = {
 		conceroRouter,
@@ -59,43 +60,27 @@ const deployChildPool: DeploymentFunction = async function (
 		gasLimit = config.childPool?.gasLimit || 0;
 	}
 
-	const deployment = await hardhatDeployWrapper("ChildPool", {
-		hre,
-		args: [
-			args.conceroRouter,
-			args.iouToken,
-			args.liquidityToken,
-			args.chainSelector,
-			args.parentPoolChainSelector,
-			args.liquidityTokenGasOverhead,
-		],
-		publicClient,
-		gasLimit,
-		skipIfAlreadyDeployed: true,
-	});
-
-	log(`ChildPool deployed at: ${deployment.address}`, "deployChildPool", name);
-	log(
-		`Args: 
-			conceroRouter: ${args.conceroRouter}, 
-			iouToken: ${args.iouToken}, 
-			liquidityToken: ${args.liquidityToken}, 
-			chainSelector: ${args.chainSelector}, 
-			parentPoolChainSelector: ${args.parentPoolChainSelector},
-			liquidityTokenGasOverhead: ${args.liquidityTokenGasOverhead}`,
-		"deployChildPool",
-		name,
+	const deployment = await genericDeploy(
+		{
+			hre,
+			contractName: "ChildPool",
+			txParams: {
+				gasLimit: BigInt(gasLimit),
+			},
+		},
+		args.conceroRouter,
+		args.iouToken,
+		args.liquidityToken,
+		args.chainSelector,
+		args.parentPoolChainSelector,
+		args.liquidityTokenGasOverhead,
 	);
+
 	updateEnvVariable(
-		`CHILD_POOL_${getNetworkEnvKey(name)}`,
+		`CHILD_POOL_${getNetworkEnvKey(deployment.chainName)}`,
 		deployment.address,
-		`deployments.${chain.type}`,
+		`deployments.${deployment.chainType}` as EnvFileName,
 	);
 
 	return deployment;
 };
-
-deployChildPool.tags = ["ChildPool"];
-
-export default deployChildPool;
-export { deployChildPool };

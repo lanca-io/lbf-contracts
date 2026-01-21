@@ -6,8 +6,7 @@ import { erc20Abi, parseUnits } from "viem";
 
 import { conceroNetworks } from "../../constants";
 import { liqTokenDecimals } from "../../constants/deploymentVariables";
-import { getEnvAddress, getEnvVar, getFallbackClients } from "../../utils";
-import { compileContracts } from "../../utils/compileContracts";
+import { compileContracts, getEnvAddress, getEnvVar, getFallbackClients } from "../../utils";
 
 async function withdrawFromParentPool(amount: string, networkName: string) {
 	const { walletClient, publicClient } = getFallbackClients(conceroNetworks[networkName]);

@@ -1,10 +1,15 @@
-import { getNetworkEnvKey } from "@concero/contract-utils";
-import { Deployment } from "hardhat-deploy/types";
 import { HardhatRuntimeEnvironment } from "hardhat/types";
-import { formatUnits, parseUnits } from "viem";
+import { parseUnits } from "viem";
 
-import { conceroNetworks, defaultLiquidityTokenGasOverhead, liqTokenDecimals } from "../constants";
-import { getEnvVar, log, updateEnvVariable } from "../utils";
+import { conceroNetworks, defaultLiquidityTokenGasOverhead } from "../constants";
+import { EnvFileName } from "../types/deploymentVariables";
+import {
+	IDeployResult,
+	genericDeploy,
+	getEnvVar,
+	getNetworkEnvKey,
+	updateEnvVariable,
+} from "../utils";
 
 type DeployArgs = {
 	liquidityToken: string;
@@ -19,17 +24,14 @@ type DeployArgs = {
 type DeploymentFunction = (
 	hre: HardhatRuntimeEnvironment,
 	overrideArgs?: Partial<DeployArgs>,
-) => Promise<Deployment>;
+) => Promise<IDeployResult>;
 
-const deployParentPool: DeploymentFunction = async function (
+export const deployParentPool: DeploymentFunction = async (
 	hre: HardhatRuntimeEnvironment,
 	overrideArgs?: Partial<DeployArgs>,
-): Promise<Deployment> {
-	const { deployer } = await hre.getNamedAccounts();
-	const { deploy } = hre.deployments;
+): Promise<IDeployResult> => {
 	const { name } = hre.network;
-
-	const chain = conceroNetworks[name];
+	const chain = conceroNetworks[name as keyof typeof conceroNetworks];
 
 	const liquidityToken = getEnvVar(`USDC_PROXY_${getNetworkEnvKey(name)}`);
 	const lpToken = getEnvVar(`LPT_${getNetworkEnvKey(name)}`);
@@ -47,63 +49,41 @@ const deployParentPool: DeploymentFunction = async function (
 		lpToken,
 		iouToken,
 		conceroRouter,
-		chainSelector: chain.chainSelector,
+		chainSelector: Number(chain.chainSelector),
 		minTargetBalance: overrideArgs?.minTargetBalance || defaultMinTargetBalance,
 		liquidityTokenGasOverhead:
 			overrideArgs?.liquidityTokenGasOverhead || defaultLiquidityTokenGasOverhead,
 	};
 
-	const parentPoolLib = await deploy("ParentPoolLib", {
-		from: deployer,
-		args: [],
-		log: true,
-		autoMine: true,
-		skipIfAlreadyDeployed: true,
+	const parentPoolLib = await genericDeploy({
+		hre,
+		contractName: "ParentPoolLib",
 	});
 
-	const deployment = await deploy("ParentPool", {
-		from: deployer,
-		args: [
-			args.liquidityToken,
-			args.lpToken,
-			args.iouToken,
-			args.conceroRouter,
-			args.chainSelector,
-			args.minTargetBalance,
-			args.liquidityTokenGasOverhead,
-		],
-		log: true,
-		autoMine: true,
-		skipIfAlreadyDeployed: true,
-		libraries: {
-			ParentPoolLib: parentPoolLib.address,
+	const deployment = await genericDeploy(
+		{
+			hre,
+			contractName: "ParentPool",
+			txParams: {
+				libraries: {
+					ParentPoolLib: parentPoolLib.address,
+				},
+			},
 		},
-	});
-
-	log(`ParentPool deployed at: ${deployment.address}`, "deployParentPool", name);
-	log(
-		`Args: 
-			liquidityToken: ${args.liquidityToken}, 
-			lpToken: ${args.lpToken}, 
-			iouToken: ${args.iouToken}, 
-			conceroRouter: ${args.conceroRouter}, 
-			chainSelector: ${args.chainSelector}, 
-			minTargetBalance: ${Number(formatUnits(args.minTargetBalance, liqTokenDecimals)).toFixed(liqTokenDecimals)} 
-			parentPoolLib: ${parentPoolLib.address},
-			liquidityTokenGasOverhead: ${args.liquidityTokenGasOverhead}`,
-		"deployParentPool",
-		name,
+		args.liquidityToken,
+		args.lpToken,
+		args.iouToken,
+		args.conceroRouter,
+		args.chainSelector,
+		args.minTargetBalance,
+		args.liquidityTokenGasOverhead,
 	);
+
 	updateEnvVariable(
-		`PARENT_POOL_${getNetworkEnvKey(name)}`,
+		`PARENT_POOL_${getNetworkEnvKey(deployment.chainName)}`,
 		deployment.address,
-		`deployments.${chain.type}`,
+		`deployments.${deployment.chainType}` as EnvFileName,
 	);
 
 	return deployment;
 };
-
-deployParentPool.tags = ["ParentPool"];
-
-export default deployParentPool;
-export { deployParentPool };

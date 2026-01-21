@@ -1,31 +1,24 @@
-import { hardhatDeployWrapper } from "@concero/contract-utils";
-import { Deployment } from "hardhat-deploy/types";
 import { HardhatRuntimeEnvironment } from "hardhat/types";
 import { Hex } from "viem";
 
-import { ADMIN_SLOT, ProxyEnum, conceroNetworks } from "../constants";
-import { DEPLOY_CONFIG_TESTNET } from "../constants/deployConfigTestnet";
+import { DEPLOY_CONFIG_TESTNET, ProxyEnum } from "../constants";
 import { EnvFileName, EnvPrefixes, IProxyType } from "../types/deploymentVariables";
 import {
-	err,
+	IDeployResult,
+	extractProxyAdminAddress,
+	genericDeploy,
 	getEnvAddress,
-	getEnvVar,
-	getFallbackClients,
-	getViemAccount,
 	log,
 	updateEnvAddress,
 } from "../utils";
 
-export async function deployTransparentProxy(
+export const deployTransparentProxy = async (
 	hre: HardhatRuntimeEnvironment,
 	proxyType: IProxyType,
 	callData?: Hex,
-): Promise<Deployment> {
+): Promise<IDeployResult> => {
 	const { name } = hre.network;
 	const [deployer] = await hre.ethers.getSigners();
-
-	const chain = conceroNetworks[name as keyof typeof conceroNetworks];
-	const { type: networkType } = chain;
 
 	let implementationKey: keyof EnvPrefixes;
 	if (proxyType === ProxyEnum.parentPoolProxy) {
@@ -36,13 +29,7 @@ export async function deployTransparentProxy(
 		throw new Error(`Proxy type ${proxyType} not found`);
 	}
 
-	const viemAccount = getViemAccount(chain.type, "deployer");
-	const { publicClient } = getFallbackClients(chain, viemAccount);
-
-	const [initialImplementation, initialImplementationAlias] = getEnvAddress(
-		implementationKey,
-		name,
-	);
+	const [initialImplementation] = getEnvAddress(implementationKey, name);
 
 	let gasLimit = 0;
 	const config = DEPLOY_CONFIG_TESTNET[name];
@@ -50,48 +37,40 @@ export async function deployTransparentProxy(
 		gasLimit = config.proxy?.gasLimit || 0;
 	}
 
-	const proxyDeployment = await hardhatDeployWrapper("TransparentUpgradeableProxy", {
-		hre,
-		args: [initialImplementation, deployer.address, callData || "0x"],
-		publicClient,
-		gasLimit,
-		log: true,
-	});
-
-	const proxyAdminBytes = await publicClient.getStorageAt({
-		address: proxyDeployment.address as Hex,
-		slot: ADMIN_SLOT as Hex,
-	});
-
-	const proxyAdminAddress = `0x${proxyAdminBytes!.slice(-40)}` as Hex;
-
-	updateEnvAddress(
-		`${proxyType}Admin`,
-		name,
-		proxyAdminAddress,
-		`deployments.${networkType}` as EnvFileName,
+	const deployment = await genericDeploy(
+		{
+			hre,
+			contractName: "TransparentUpgradeableProxy",
+			txParams: {
+				gasLimit: BigInt(gasLimit),
+			},
+		},
+		initialImplementation,
+		deployer.address,
+		callData ?? "0x",
 	);
 
 	updateEnvAddress(
 		proxyType,
-		name,
-		proxyDeployment.address,
-		`deployments.${networkType}` as EnvFileName,
+		deployment.address,
+		`deployments.${deployment.chainType}` as EnvFileName,
+		deployment.chainName,
 	);
+
+	const proxyAdminAddress = extractProxyAdminAddress(deployment.receipt);
 
 	log(
-		`Deployed at: ${proxyDeployment.address}.
-		Initial impl: ${initialImplementationAlias},
-		Proxy admin: ${proxyAdminAddress},
-		Hash: ${proxyDeployment.transactionHash},
-		Pool initialize data: ${callData}`,
-		`deployTransparentProxy: ${proxyType}`,
-		name,
+		`Deployed at: ${proxyAdminAddress}. initialOwner: ${deployer.address}`,
+		`deployProxyAdmin: ${proxyType}`,
+		deployment.chainName,
 	);
 
-	return proxyDeployment;
-}
+	updateEnvAddress(
+		`${proxyType}Admin`,
+		proxyAdminAddress as Hex,
+		`deployments.${deployment.chainType}` as EnvFileName,
+		deployment.chainName,
+	);
 
-deployTransparentProxy.tags = ["TransparentProxy"];
-
-export default deployTransparentProxy;
+	return deployment;
+};

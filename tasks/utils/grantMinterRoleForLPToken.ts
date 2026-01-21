@@ -3,8 +3,7 @@ import { getNetworkEnvKey } from "@concero/contract-utils";
 import { conceroNetworks } from "../../constants";
 import { accessControlAbi } from "../../constants/accessControlAbi";
 import { MINTER_ROLE } from "../../constants/deploymentVariables";
-import { getFallbackClients, getViemAccount, log } from "../../utils";
-import { getEnvVar } from "../../utils";
+import { getEnvVar, getFallbackClients, getViemAccount, log } from "../../utils";
 
 export async function grantMinterRoleForLPToken(networkName: string) {
 	const chain = conceroNetworks[networkName as keyof typeof conceroNetworks];

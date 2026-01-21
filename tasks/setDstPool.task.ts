@@ -2,7 +2,7 @@ import { task } from "hardhat/config";
 
 import { type HardhatRuntimeEnvironment } from "hardhat/types";
 
-import { compileContracts } from "../utils/compileContracts";
+import { compileContracts } from "../utils";
 import { setDstPool } from "./utils/setDstPool";
 
 async function setDstPoolTask(taskArgs: any, hre: HardhatRuntimeEnvironment) {
